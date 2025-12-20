@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
-import { ChevronLeft, ChevronRight, Trash2, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, FileText, RotateCcw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 
@@ -34,6 +34,17 @@ interface ExtractedData {
     value: string;
 }
 
+const PREDEFINED_RECTANGLES: Omit<Rectangle, 'page'>[] = [
+    { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
+    { label: "CANTIDAD", x: 51, y: 44, width: 83, height: 81 },
+    { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
+    { label: "CODIGO DE BARRA", x: 52, y: 347, width: 355, height: 167 },
+    { label: "NUM DE VENTA", x: 47, y: 158, width: 175, height: 20 },
+    { label: "SKU", x: 47, y: 122, width: 384, height: 32 },
+    { label: "PRODUCTO", x: 139, y: 52, width: 277, height: 47 },
+];
+
+
 const PDF_RENDER_SCALE = 1.5;
 
 export default function Home() {
@@ -48,16 +59,16 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
 
-  // Drawing state
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
-  const [currentRect, setCurrentRect] = useState<Omit<Rectangle, "label" | "page"> | null>(null);
+  // Drawing state is now initialized with predefined rectangles
   const [rectangles, setRectangles] = useState<Rectangle[]>([]);
-  const [newLabel, setNewLabel] = useState("");
 
   // Extraction state
   const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
 
+  useEffect(() => {
+    // Load predefined rectangles when component mounts
+    setRectangles(PREDEFINED_RECTANGLES.map(r => ({ ...r, page: 1 })));
+  }, []);
 
   useEffect(() => {
     if (!pdfFile || !pdfjsLib) return;
@@ -70,7 +81,8 @@ export default function Home() {
         setPdfDoc(doc);
         setNumPages(doc.numPages);
         setPageNum(1);
-        setRectangles([]); // Clear rectangles for new PDF
+        // Reset rectangles to predefined ones for the first page
+        setRectangles(PREDEFINED_RECTANGLES.map(r => ({ ...r, page: pageNum })));
         setExtractedData([]); // Clear extracted data for new PDF
       } catch (err) {
         console.error("Error loading PDF:", err);
@@ -87,6 +99,8 @@ export default function Home() {
   useEffect(() => {
     if (pdfDoc) {
       renderPage(pageNum);
+      // Update page number for predefined rectangles
+      setRectangles(rects => rects.map(r => PREDEFINED_RECTANGLES.find(pr => pr.label === r.label) ? { ...r, page: pageNum } : r));
     }
   }, [pdfDoc, pageNum]);
 
@@ -159,49 +173,13 @@ export default function Home() {
     setPageNum(pageNum + 1);
   };
 
-  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!drawingAreaRef.current) return;
-    const rect = drawingAreaRef.current.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    setIsDrawing(true);
-    setStartPoint({ x, y });
-  };
-
-  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDrawing || !startPoint || !drawingAreaRef.current) return;
-    const rect = drawingAreaRef.current.getBoundingClientRect();
-    const currentX = event.clientX - rect.left;
-    const currentY = event.clientY - rect.top;
-
-    const x = Math.min(startPoint.x, currentX);
-    const y = Math.min(startPoint.y, currentY);
-    const width = Math.abs(startPoint.x - currentX);
-    const height = Math.abs(startPoint.y - currentY);
-    setCurrentRect({ x, y, width, height });
-  };
-
-  const handleMouseUp = () => {
-    setIsDrawing(false);
-    setStartPoint(null);
-    if (currentRect && currentRect.width > 5 && currentRect.height > 5) {
-        // Here we could open a modal to ask for a label
-    } else {
-        setCurrentRect(null);
-    }
-  };
-
-  const handleSaveRectangle = () => {
-    if (currentRect && newLabel.trim() !== "") {
-        setRectangles([...rectangles, { ...currentRect, label: newLabel.trim(), page: pageNum }]);
-        setCurrentRect(null);
-        setNewLabel("");
-    }
-  }
-
   const handleDeleteRectangle = (index: number) => {
     setRectangles(rectangles.filter((_, i) => i !== index));
   }
+
+  const handleResetRectangles = () => {
+    setRectangles(PREDEFINED_RECTANGLES.map(r => ({ ...r, page: pageNum })));
+  };
 
   const handleExtractData = async () => {
     if (!pdfDoc || rectangles.length === 0) return;
@@ -225,7 +203,7 @@ export default function Home() {
               const textHeight = pdfTextItem.height * viewport.scale;
 
               const textY = y - textHeight;
-
+              
               const pad = 2; // Tolerance in pixels
               const r1 = {
                 x: x,
@@ -310,140 +288,114 @@ export default function Home() {
           </CardContent>
         </Card>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {(currentRect || rectangles.length > 0) && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Áreas Definidas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {currentRect && (
-                        <div className="flex items-center gap-2 mb-4">
-                            <Input
-                                placeholder="Etiqueta para la nueva área"
-                                value={newLabel}
-                                onChange={(e) => setNewLabel(e.target.value)}
-                                className="h-9"
-                            />
-                            <Button onClick={handleSaveRectangle} size="sm">Guardar</Button>
-                            <Button onClick={() => setCurrentRect(null)} variant="ghost" size="sm">Cancelar</Button>
-                        </div>
-                    )}
-                      <ul className="space-y-2">
-                        {rectangles.map((rect, index) => (
-                            <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
-                                <div>
-                                    <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
-                                    <p className="text-xs text-muted-foreground">
-                                        x: {Math.round(rect.x)}, y: {Math.round(rect.y)}, w: {Math.round(rect.width)}, h: {Math.round(rect.height)}
-                                    </p>
-                                </div>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteRectangle(index)}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </li>
-                        ))}
-                    </ul>
-                </CardContent>
-                {rectangles.length > 0 && (
-                    <CardFooter>
-                        <Button onClick={handleExtractData} disabled={isLoading}>
-                            <FileText className="mr-2 h-4 w-4" />
-                            {isLoading ? 'Extrayendo...' : 'Extraer Datos'}
-                        </Button>
-                    </CardFooter>
-                )}
-            </Card>
-            )}
-
-            {extractedData.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                        <CardTitle>Resultados de la Extracción</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Campo</TableHead>
-                                    <TableHead>Valor</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {extractedData.map((data, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell className="font-medium">{data.label}</TableCell>
-                                        <TableCell>{data.value}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
-        </div>
-
-        {pdfDoc && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           <Card>
-            <CardHeader>
-               <div className="flex justify-between items-center">
-                <CardTitle>Vista Previa del PDF</CardTitle>
-                <div className="flex items-center gap-2">
-                    <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span>
-                        Página {pageNum} de {numPages}
-                    </span>
-                    <Button onClick={onNextPage} disabled={pageNum >= numPages || pageRendering} variant="outline" size="icon">
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                </div>
-               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[80vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-100 dark:bg-gray-900">
-                <div
-                  ref={drawingAreaRef}
-                  className="absolute top-0 left-0 cursor-crosshair"
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                >
-                  <canvas ref={canvasRef}></canvas>
-                  {rectangles.filter(r => r.page === pageNum).map((rect, index) => (
-                      <div
-                        key={index}
-                        className="absolute border-2 border-destructive"
-                        style={{
-                            left: rect.x,
-                            top: rect.y,
-                            width: rect.width,
-                            height: rect.height,
-                        }}
-                      >
-                        <span className="absolute -top-6 left-0 text-sm bg-destructive text-destructive-foreground px-1 rounded-sm">{rect.label}</span>
-                      </div>
-                  ))}
-                   {currentRect && (
-                        <div
-                            className="absolute border-2 border-dashed border-primary"
-                            style={{
-                                left: currentRect.x,
-                                top: currentRect.y,
-                                width: currentRect.width,
-                                height: currentRect.height,
-                            }}
-                        />
-                    )}
-                </div>
-                {pageRendering && <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center">Cargando...</div>}
-              </div>
-            </CardContent>
+              <CardHeader>
+                  <CardTitle>Áreas Definidas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                    <ul className="space-y-2">
+                      {rectangles.map((rect, index) => (
+                          <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
+                              <div>
+                                  <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
+                                  <p className="text-xs text-muted-foreground">
+                                      x: {Math.round(rect.x)}, y: {Math.round(rect.y)}, w: {Math.round(rect.width)}, h: {Math.round(rect.height)}
+                                  </p>
+                              </div>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteRectangle(index)}>
+                                  <Trash2 className="h-4 w-4" />
+                              </Button>
+                          </li>
+                      ))}
+                  </ul>
+              </CardContent>
+              <CardFooter className="flex-wrap gap-2">
+                  <Button onClick={handleExtractData} disabled={isLoading || rectangles.length === 0}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      {isLoading ? 'Extrayendo...' : 'Extraer Datos'}
+                  </Button>
+                  <Button onClick={handleResetRectangles} variant="outline">
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Restablecer Áreas
+                  </Button>
+              </CardFooter>
           </Card>
-        )}
+          
+          {pdfDoc && (
+            <Card className="md:col-start-2 md:row-start-1 md:row-span-2">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Vista Previa del PDF</CardTitle>
+                  <div className="flex items-center gap-2">
+                      <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
+                          <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span>
+                          Página {pageNum} de {numPages}
+                      </span>
+                      <Button onClick={onNextPage} disabled={pageNum >= numPages || pageRendering} variant="outline" size="icon">
+                          <ChevronRight className="h-4 w-4" />
+                      </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[80vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-100 dark:bg-gray-900">
+                  <div
+                    ref={drawingAreaRef}
+                    className="absolute top-0 left-0"
+                  >
+                    <canvas ref={canvasRef}></canvas>
+                    {rectangles.filter(r => r.page === pageNum).map((rect, index) => (
+                        <div
+                          key={index}
+                          className="absolute border-2 border-destructive"
+                          style={{
+                              left: rect.x,
+                              top: rect.y,
+                              width: rect.width,
+                              height: rect.height,
+                          }}
+                        >
+                          <span className="absolute -top-6 left-0 text-sm bg-destructive text-destructive-foreground px-1 rounded-sm">{rect.label}</span>
+                        </div>
+                    ))}
+                  </div>
+                  {pageRendering && <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center">Cargando...</div>}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {extractedData.length > 0 && (
+                <Card className="md:col-span-2 mt-8">
+                  <CardHeader>
+                      <CardTitle>Resultados de la Extracción</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <Table>
+                          <TableHeader>
+                              <TableRow>
+                                  <TableHead>Campo</TableHead>
+                                  <TableHead>Valor</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {extractedData.map((data, index) => (
+                                  <TableRow key={index}>
+                                      <TableCell className="font-medium">{data.label}</TableCell>
+                                      <TableCell>{data.value}</TableCell>
+                                  </TableRow>
+                              ))}
+                          </TableBody>
+                      </Table>
+                  </CardContent>
+              </Card>
+          )}
+        </div>
       </div>
     </main>
   );
-}
+
+    
