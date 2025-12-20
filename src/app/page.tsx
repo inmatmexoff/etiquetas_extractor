@@ -38,6 +38,9 @@ export default function Home() {
     if (file) {
       setPdfFile(file);
       setSelections([]);
+      setNumPages(null);
+      pdfDocRef.current = null;
+      canvasRefs.current = [];
     }
   };
 
@@ -48,33 +51,39 @@ export default function Home() {
     }
   };
 
-  const renderPdf = async () => {
-      if (!pdfDocRef.current) return;
-      const pdfDoc = pdfDocRef.current;
-      
-      canvasRefs.current = Array(pdfDoc.numPages).fill(null);
+  const renderPage = async (pageIndex: number) => {
+    if (!pdfDocRef.current) return;
+    const page = await pdfDocRef.current.getPage(pageIndex + 1);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = canvasRefs.current[pageIndex];
 
-      for (let i = 1; i <= pdfDoc.numPages; i++) {
-        const page = await pdfDoc.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = canvasRefs.current[i-1];
-        if (canvas) {
-          const context = canvas.getContext("2d");
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-          if (context) {
-            const renderContext = {
-              canvasContext: context,
-              viewport: viewport,
-            };
-            await page.render(renderContext).promise;
-            drawSelectionsForPage(i-1);
-          }
-        }
+    if (canvas) {
+      const context = canvas.getContext("2d");
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      if (context) {
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport,
+        };
+        await page.render(renderContext).promise;
+        drawSelectionsForPage(pageIndex);
       }
-    };
+    }
+  };
 
+  const renderAllPages = async () => {
+    if (!pdfDocRef.current) return;
+    const numPages = pdfDocRef.current.numPages;
+    canvasRefs.current = Array(numPages).fill(null).map((_, i) => canvasRefs.current[i] || null);
 
+    const renderPromises = [];
+    for (let i = 0; i < numPages; i++) {
+        renderPromises.push(renderPage(i));
+    }
+    await Promise.all(renderPromises);
+  };
+  
   useEffect(() => {
     if (!pdfFile || typeof window === 'undefined') return;
 
@@ -105,11 +114,16 @@ export default function Home() {
   }, [pdfFile]);
 
   useEffect(() => {
-    if(numPages) {
-        renderPdf();
+    if (numPages) {
+        renderAllPages();
     }
-  }, [numPages, selections]);
+  }, [numPages]); 
 
+  useEffect(() => {
+    if (pdfDocRef.current) {
+        renderAllPages();
+    }
+  }, [selections]);
 
   const getCanvasAndMousePos = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
     const canvas = canvasRefs.current[pageIndex];
@@ -128,23 +142,23 @@ export default function Home() {
     setStartPos({ x: pos.x, y: pos.y, page: pageIndex });
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
+  const handleMouseMove = async (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
     if (!isDrawing || !startPos || startPos.page !== pageIndex) return;
     const pos = getCanvasAndMousePos(e, pageIndex);
     if (!pos) return;
 
-    renderPdf().then(() => {
-        const canvas = canvasRefs.current[pageIndex];
-        if(!canvas) return;
-        const context = canvas.getContext("2d");
-        if(context){
-            const width = pos.x - startPos.x;
-            const height = pos.y - startPos.y;
-            context.strokeStyle = "green";
-            context.lineWidth = 2;
-            context.strokeRect(startPos.x, startPos.y, width, height);
-        }
-    })
+    await renderPage(pageIndex);
+    
+    const canvas = canvasRefs.current[pageIndex];
+    if(!canvas) return;
+    const context = canvas.getContext("2d");
+    if(context){
+        const width = pos.x - startPos.x;
+        const height = pos.y - startPos.y;
+        context.strokeStyle = "green";
+        context.lineWidth = 2;
+        context.strokeRect(startPos.x, startPos.y, width, height);
+    }
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
@@ -189,8 +203,8 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
-      <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-1 space-y-8">
+      <div className="container mx-auto space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <Card>
             <CardHeader>
                 <CardTitle className="text-2xl font-bold tracking-tight text-primary">
@@ -229,7 +243,7 @@ export default function Home() {
                             <Badge 
                                 key={label}
                                 variant={activeLabel === label ? 'default' : 'secondary'}
-                                onClick={() => setActiveLabel(label)}
+                                onClick={() => setActiveLabel(label === activeLabel ? null : label)}
                                 className="cursor-pointer"
                             >
                                 {label}
@@ -240,14 +254,14 @@ export default function Home() {
             </Card>
         </div>
 
-        <div className="md:col-span-2">
+        <div>
             {pdfFile && (
             <Card>
                 <CardHeader>
                 <CardTitle>Vista Previa del PDF</CardTitle>
                 </CardHeader>
                 <CardContent>
-                <div className="h-[calc(100vh-10rem)] w-full overflow-auto rounded-md border">
+                <div className="h-full w-full overflow-auto rounded-md border">
                     {numPages && Array.from(new Array(numPages), (el, index) => (
                     <canvas
                         key={`page_${index + 1}`}
