@@ -247,6 +247,15 @@ export default function Home() {
                 
                 if (rect.label === 'CANTIDAD') {
                     extractedText = extractedText.replace(/Cantidad/gi, '').trim();
+                } else if (rect.label === 'FECHA ENTREGA') {
+                    extractedText = extractedText.replace(/ENTREGAR/gi, '').trim();
+                    const dateParts = extractedText.split('/');
+                    if (dateParts.length === 3) {
+                        const day = dateParts[0];
+                        const month = dateParts[1];
+                        const year = dateParts[2];
+                        extractedText = `${year}-${month}-${day}`;
+                    }
                 }
 
                 if (extractedText.trim() !== '') {
@@ -347,6 +356,36 @@ export default function Home() {
               </CardFooter>
           </Card>
           
+          {groupedResults.length > 0 && (
+                <Card>
+                  <CardHeader>
+                      <CardTitle>Resultados de la Extracción</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <Table>
+                          <TableHeader>
+                              <TableRow>
+                                  {tableHeaders.map(header => (
+                                    <TableHead key={header}>{header}</TableHead>
+                                  ))}
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {groupedResults.map((row, index) => (
+                                  <TableRow key={index}>
+                                     {tableHeaders.map(header => (
+                                        <TableCell key={header}>
+                                            {header === "Página" ? row.page : (row[header] as string) || ''}
+                                        </TableCell>
+                                     ))}
+                                  </TableRow>
+                              ))}
+                          </TableBody>
+                      </Table>
+                  </CardContent>
+              </Card>
+          )}
+
           {pdfDoc && (
             <Card>
               <CardHeader>
@@ -392,39 +431,8 @@ export default function Home() {
               </CardContent>
             </Card>
           )}
-
-          {groupedResults.length > 0 && (
-                <Card className="mt-8">
-                  <CardHeader>
-                      <CardTitle>Resultados de la Extracción</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                      <Table>
-                          <TableHeader>
-                              <TableRow>
-                                  {tableHeaders.map(header => (
-                                    <TableHead key={header}>{header}</TableHead>
-                                  ))}
-                              </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                              {groupedResults.map((row, index) => (
-                                  <TableRow key={index}>
-                                     {tableHeaders.map(header => (
-                                        <TableCell key={header}>
-                                            {header === "Página" ? row.page : (row[header] as string) || ''}
-                                        </TableCell>
-                                     ))}
-                                  </TableRow>
-                              ))}
-                          </TableBody>
-                      </Table>
-                  </CardContent>
-              </Card>
-          )}
         </div>
       </div>
     </main>
   );
-
-    
+}
