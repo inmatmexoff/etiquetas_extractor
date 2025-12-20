@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { supabase } from "@/lib/supabaseClient";
 
 
 // HACK: Make pdfjs work on nextjs
@@ -347,6 +348,38 @@ export default function Home() {
   const groupedResults = getGroupedData();
   const tableHeaders = ["Página", ...PREDEFINED_RECTANGLES_DEFAULT.map(r => r.label)];
 
+  const saveToDatabase = async () => {
+    if (groupedResults.length === 0) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const payload = groupedResults.map((row) => ({
+        deli_date: row["FECHA ENTREGA"],
+        quantity: Number(row["CANTIDAD"]) || null,
+        client: row["CLIENTE INFO"] || null,
+        code: row["CODIGO DE BARRA"] || null,
+        sales_num: row["NUM DE VENTA"] || null,
+        sku: row["SKU"] || null,
+        product: row["PRODUCTO"] || null,
+      }));
+
+      const { error } = await supabase
+        .from("etiquetas_i")
+        .insert(payload);
+
+      if (error) throw error;
+
+      alert("Etiquetas guardadas correctamente ✅");
+    } catch (e: any) {
+      console.error(e);
+      setError("Error al guardar en la base de datos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div id="qr-reader" style={{ display: 'none' }}></div>
@@ -371,7 +404,7 @@ export default function Home() {
             </div>
             {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
             {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-             {isLoading && <p className="mt-2 text-sm text-primary">Extrayendo datos...</p>}
+             {isLoading && <p className="mt-2 text-sm text-primary">Extrayendo o guardando datos...</p>}
           </CardContent>
         </Card>
         
@@ -379,7 +412,12 @@ export default function Home() {
           {groupedResults.length > 0 && (
                 <Card className="md:col-span-2">
                   <CardHeader>
+                    <div className="flex justify-between items-center">
                       <CardTitle>Resultados de la Extracción</CardTitle>
+                       <Button onClick={saveToDatabase} disabled={isLoading}>
+                        Guardar en DB
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                       <Table>
@@ -457,7 +495,3 @@ export default function Home() {
     </main>
   );
 }
-
-    
-
-    
