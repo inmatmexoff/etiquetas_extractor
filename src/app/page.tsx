@@ -51,6 +51,12 @@ export default function Home() {
     }
   };
 
+  const handleExtract = () => {
+    // Placeholder for future OCR/extraction logic
+    console.log("Extracting data from selections:", selections);
+    alert("La funcionalidad de extracción de texto se implementará en el siguiente paso.");
+  };
+
   const renderPage = async (pageIndex: number) => {
     if (!pdfDocRef.current) return;
     const page = await pdfDocRef.current.getPage(pageIndex + 1);
@@ -176,8 +182,10 @@ export default function Home() {
       page: pageIndex + 1,
       label: activeLabel,
     };
-
-    setSelections([...selections, newSelection]);
+    
+    // Remove existing selection for the same label before adding the new one
+    const otherSelections = selections.filter(s => s.label !== activeLabel);
+    setSelections([...otherSelections, newSelection]);
     setStartPos(null);
   };
   
@@ -254,30 +262,54 @@ export default function Home() {
             </Card>
         </div>
 
-        <div>
-            {pdfFile && (
-            <Card>
+        {pdfFile && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-2">
+              <Card>
+                  <CardHeader>
+                  <CardTitle>Vista Previa del PDF</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                  <div className="h-full w-full overflow-auto rounded-md border" style={{maxHeight: '80vh'}}>
+                      {numPages && Array.from(new Array(numPages), (el, index) => (
+                      <canvas
+                          key={`page_${index + 1}`}
+                          ref={el => canvasRefs.current[index] = el}
+                          className="mx-auto my-4 block"
+                          onMouseDown={(e) => handleMouseDown(e, index)}
+                          onMouseMove={(e) => handleMouseMove(e, index)}
+                          onMouseUp={(e) => handleMouseUp(e, index)}
+                          style={{ cursor: activeLabel ? 'crosshair' : 'default' }}
+                      />
+                      ))}
+                  </div>
+                  </CardContent>
+              </Card>
+            </div>
+            <div>
+              <Card>
                 <CardHeader>
-                <CardTitle>Vista Previa del PDF</CardTitle>
+                  <CardTitle>Información Extraída</CardTitle>
                 </CardHeader>
-                <CardContent>
-                <div className="h-full w-full overflow-auto rounded-md border">
-                    {numPages && Array.from(new Array(numPages), (el, index) => (
-                    <canvas
-                        key={`page_${index + 1}`}
-                        ref={el => canvasRefs.current[index] = el}
-                        className="mx-auto my-4 block"
-                        onMouseDown={(e) => handleMouseDown(e, index)}
-                        onMouseMove={(e) => handleMouseMove(e, index)}
-                        onMouseUp={(e) => handleMouseUp(e, index)}
-                        style={{ cursor: activeLabel ? 'crosshair' : 'default' }}
-                    />
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    {labels.map(label => (
+                      <div key={label}>
+                        <Label>{label}</Label>
+                        <Input
+                            readOnly
+                            value={"Texto no extraído"}
+                            className="bg-muted"
+                        />
+                      </div>
                     ))}
-                </div>
+                  </div>
+                  <Button onClick={handleExtract} className="w-full">Extraer Información</Button>
                 </CardContent>
-            </Card>
-            )}
-        </div>
+              </Card>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
