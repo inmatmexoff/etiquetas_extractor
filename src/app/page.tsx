@@ -242,18 +242,22 @@ export default function Home() {
             const textContent = await page.getTextContent();
             
             // --- Per-Page Rectangle Selection Logic ---
-            let activeRectangles = PREDEFINED_RECTANGLES_DEFAULT;
+            let useAlternativeRects = false;
             const skuArea = PREDEFINED_RECTANGLES_DEFAULT.find(r => r.label === 'SKU');
             if (skuArea) {
                 const itemsInSkuArea = textContent.items.filter((item: any) => intersects(item, skuArea, viewport));
                 const skuText = itemsInSkuArea.map((item: any) => item.str).join(' ');
                 if (skuText.includes("Prepará el paquete")) {
-                    activeRectangles = ALTERNATIVE_RECTANGLES;
+                    useAlternativeRects = true;
                 }
             }
+            
+            const activeRectangles = useAlternativeRects ? ALTERNATIVE_RECTANGLES : PREDEFINED_RECTANGLES_DEFAULT;
             // --- End of Per-Page Logic ---
 
             for (const rect of activeRectangles) {
+                if (rect.width === 0 && rect.height === 0) continue;
+
                 const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
 
                 itemsInRect.sort((a: any, b: any) => {
@@ -268,7 +272,7 @@ export default function Home() {
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
                 if (rect.label === 'CANTIDAD') {
-                    extractedText = extractedText.replace(/Cantidad/gi, '').trim();
+                    extractedText = extractedText.replace(/Cantidad|Productos/gi, '').trim();
                 } else if (rect.label === 'FECHA ENTREGA') {
                     const monthMap: { [key: string]: string } = {
                         'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
@@ -303,6 +307,10 @@ export default function Home() {
                 if (extractedText.trim() !== '') {
                     allData.push({ label: rect.label, value: extractedText.trim(), page: currentPageNum });
                 }
+            }
+
+            if (useAlternativeRects) {
+                 allData.push({ label: 'PRODUCTO', value: 'VARIOS', page: currentPageNum });
             }
         }
 
