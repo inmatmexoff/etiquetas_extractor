@@ -262,14 +262,17 @@ export default function Home() {
                         const month = datePartsNumeric[1].padStart(2, '0');
                         const year = datePartsNumeric[2];
                         extractedText = `${year}-${month}-${day}`;
-                    } else if (datePartsNumeric.length === 2) {
+                    } else if (datePartsNumeric.length >= 2) { // Handle "7/feb"
                         const day = datePartsNumeric[0].padStart(2, '0');
-                        const monthStr = datePartsNumeric[1].toLowerCase();
+                        const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
                         const month = monthMap[monthStr];
                         if (month) {
                             extractedText = `2025-${month}-${day}`;
                         }
                     }
+                } else if (rect.label === 'CODIGO DE BARRA') {
+                    const numbers = extractedText.match(/\d+/g);
+                    extractedText = numbers ? numbers.join(' ') : '';
                 }
 
                 if (extractedText.trim() !== '') {
@@ -336,7 +339,7 @@ export default function Home() {
           </CardContent>
         </Card>
         
-        <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <Card>
               <CardHeader>
                   <CardTitle>Áreas Definidas</CardTitle>
@@ -399,6 +402,7 @@ export default function Home() {
                   </CardContent>
               </Card>
           )}
+        </div>
 
           {pdfDoc && (
             <Card>
@@ -445,7 +449,7 @@ export default function Home() {
               </CardContent>
             </Card>
           )}
-        </div>
+        
       </div>
     </main>
   );
