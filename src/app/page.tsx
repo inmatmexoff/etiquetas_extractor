@@ -51,11 +51,11 @@ const PREDEFINED_RECTANGLES_DEFAULT: Rectangle[] = [
 ];
 
 const ALTERNATIVE_RECTANGLES: Rectangle[] = [
-    { label: "FECHA ENTREGA", x: 0, y: 0, width: 0, height: 0 },
-    { label: "CANTIDAD", x: 0, y: 0, width: 0, height: 0 },
-    { label: "CLIENTE INFO", x: 0, y: 0, width: 0, height: 0 },
-    { label: "CODIGO DE BARRA", x: 0, y: 0, width: 0, height: 0 },
-    { label: "NUM DE VENTA", x: 0, y: 0, width: 0, height: 0 },
+    { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
+    { label: "CANTIDAD", x: 55, y: 97, width: 71, height: 69 },
+    { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
+    { label: "CODIGO DE BARRA", x: 157, y: 447, width: 119, height: 14 },
+    { label: "NUM DE VENTA", x: 54, y: 57, width: 159, height: 27 },
     { label: "SKU", x: 0, y: 0, width: 0, height: 0 },
     { label: "PRODUCTO", x: 0, y: 0, width: 0, height: 0 },
 ];
@@ -479,3 +479,5 @@ export default function Home() {
     </main>
   );
 }
+
+    
