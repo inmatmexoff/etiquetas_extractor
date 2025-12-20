@@ -17,34 +17,23 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type === "application/pdf") {
       setPdfFile(file);
       setError(null);
       setExtractedData(null);
-      
-      // Reset QR code value for new file
       setQrCodeValue(null);
-      
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setPdfDataUri(e.target?.result as string);
       };
       reader.readAsDataURL(file);
 
-      // Scan for QR code
-      try {
-        // The library needs a file object to scan, not a data URI
-        const html5QrCode = new Html5Qrcode("qr-reader", true);
-        const decodedText = await html5QrCode.scanFile(file, false);
-        console.log("QR Code Found:", decodedText);
-        setQrCodeValue(decodedText);
-      } catch (err) {
-        setQrCodeValue(null);
-        console.log("QR Code scan failed or no QR code found.", err);
-      }
-
+      // We need to create a new file object for the scanner as it can be consumed.
+      const fileForScanner = new File([file], file.name, {type: file.type});
+      scanQrCode(fileForScanner);
     } else {
       setPdfFile(null);
       setPdfDataUri(null);
@@ -52,6 +41,19 @@ export default function Home() {
       setError("Por favor, sube un archivo PDF válido.");
     }
   };
+
+  const scanQrCode = async (file: File) => {
+      try {
+        const html5QrCode = new Html5Qrcode("qr-reader", /* verbose= */ false);
+        const decodedText = await html5QrCode.scanFile(file, /* showImage= */ false);
+        console.log("QR Code Found:", decodedText);
+        setQrCodeValue(decodedText);
+      } catch (err) {
+        setQrCodeValue(null);
+        console.log("QR Code scan failed or no QR code found.", err);
+      }
+  }
+
 
   const handleExtract = async () => {
     if (!pdfDataUri) {
@@ -66,11 +68,10 @@ export default function Home() {
     try {
         const result = await extractPurchaseOrder({ pdfDataUri: pdfDataUri });
         
-        // This is the correct place to merge the QR code data
-        if (qrCodeValue && result.lineItems.length > 0) {
+        if (qrCodeValue && result.lineItems?.length > 0) {
             const updatedLineItems = result.lineItems.map(item => ({
                 ...item,
-                codigo: item.codigo || qrCodeValue,
+                codigo: qrCodeValue,
             }));
             const updatedResult = { ...result, lineItems: updatedLineItems };
             setExtractedData(updatedResult);
@@ -149,15 +150,15 @@ export default function Home() {
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {extractedData.lineItems.map((item, index) => (
+                        {extractedData.lineItems?.map((item, index) => (
                             <TableRow key={index}>
-                            <TableCell>{extractedData.cliente}</TableCell>
-                            <TableCell>{extractedData.fecha}</TableCell>
-                            <TableCell>{extractedData.numVenta}</TableCell>
-                            <TableCell>{extractedData.fechaEntrega}</TableCell>
-                            <TableCell>{extractedData.cp}</TableCell>
-                            <TableCell>{extractedData.ciudad}</TableCell>
-                            <TableCell>{extractedData.estado}</TableCell>
+                            <TableCell>{index === 0 ? extractedData.cliente : ''}</TableCell>
+                            <TableCell>{index === 0 ? extractedData.fecha : ''}</TableCell>
+                            <TableCell>{index === 0 ? extractedData.numVenta : ''}</TableCell>
+                            <TableCell>{index === 0 ? extractedData.fechaEntrega : ''}</TableCell>
+                            <TableCell>{index === 0 ? extractedData.cp : ''}</TableCell>
+                            <TableCell>{index === 0 ? extractedData.ciudad : ''}</TableCell>
+                            <TableCell>{index === 0 ? extractedData.estado : ''}</TableCell>
                             <TableCell>{item.codigo}</TableCell>
                             <TableCell>{item.sku}</TableCell>
                             <TableCell>{item.producto}</TableCell>

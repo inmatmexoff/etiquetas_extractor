@@ -24,7 +24,7 @@ const LineItemSchema = z.object({
 
 const PurchaseOrderSchema = z.object({
   numVenta: z.string().optional().describe("The sales order number (Num de Venta). It can sometimes be '20000' or be prefixed by it."),
-  cliente: z.string().describe("The full name of the person or company buying the goods (Cliente)."),
+  cliente: z.string().describe("The full name of the person or company buying the goods (Cliente). Can be a person's name like 'Héctor Javier Rodríguez Long' or 'Liliana María Pichardo Palhares'."),
   fecha: z.string().describe("The date of the purchase order."),
   fechaEntrega: z.string().optional().describe("The delivery/collection date (Fecha de entrega a colecta)."),
   cp: z.string().optional().describe("The postal code (CP)."),
@@ -41,7 +41,7 @@ const prompt = ai.definePrompt({
   output: {schema: PurchaseOrderSchema},
   prompt: `You are an expert at processing invoices and purchase orders. Your task is to extract structured information from the provided PDF document.
 
-Analyze the document and extract the required fields.
+Analyze the document carefully and extract all the required fields. The 'cliente' field can be a person's full name.
 
 Return the data in the specified JSON format.
 
