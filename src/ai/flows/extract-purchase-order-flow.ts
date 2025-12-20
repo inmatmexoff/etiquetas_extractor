@@ -23,7 +23,7 @@ const LineItemSchema = z.object({
 });
 
 const PurchaseOrderSchema = z.object({
-  numVenta: z.string().optional().describe("The sales order number (Num de Venta). It can sometimes be '20000'."),
+  numVenta: z.string().optional().describe("The sales order number (Num de Venta). It can sometimes be '20000' or be prefixed by it."),
   cliente: z.string().describe("The full name of the person or company buying the goods (Cliente)."),
   fecha: z.string().describe("The date of the purchase order."),
   fechaEntrega: z.string().optional().describe("The delivery/collection date (Fecha de entrega a colecta)."),

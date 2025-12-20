@@ -61,7 +61,9 @@ export default function Home() {
     try {
         const result = await extractPurchaseOrder({ pdfDataUri: pdfDataUri });
         if (qrCodeValue && result.lineItems.length > 0) {
-            result.lineItems[0].codigo = qrCodeValue;
+            result.lineItems.forEach(item => {
+                item.codigo = qrCodeValue;
+            });
         }
         setExtractedData(result);
     } catch (err) {
