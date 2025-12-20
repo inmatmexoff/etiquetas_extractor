@@ -94,34 +94,49 @@ export default function Home() {
   };
 
   const renderPage = async (pageIndex: number) => {
-    if (!pdfDocRef.current || renderTasks.current[pageIndex]) return;
-  
-    try {
-      const page = await pdfDocRef.current.getPage(pageIndex + 1);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = canvasRefs.current[pageIndex];
-  
-      if (canvas) {
-        const context = canvas.getContext("2d");
-        if (canvas.height !== viewport.height || canvas.width !== viewport.width) {
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
+    // If there's already a task for this page, wait for it to complete.
+    if(renderTasks.current[pageIndex]) {
+        try {
+            await renderTasks.current[pageIndex].promise;
+        } catch(e) {
+             // It might have been cancelled, that's okay.
         }
-        if (context) {
-          const renderContext = {
+    }
+
+    if (!pdfDocRef.current || !canvasRefs.current[pageIndex]) return;
+
+    // Don't re-render if canvas size is already correct (already rendered)
+    const page = await pdfDocRef.current.getPage(pageIndex + 1);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = canvasRefs.current[pageIndex]!;
+    
+    if (canvas.height === viewport.height && canvas.width === viewport.width) {
+        return; // Already rendered correctly
+    }
+    
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    const context = canvas.getContext("2d");
+
+    if (context) {
+        const renderContext = {
             canvasContext: context,
             viewport: viewport,
-          };
-          // Store the render task
-          renderTasks.current[pageIndex] = page.render(renderContext);
-          await renderTasks.current[pageIndex].promise;
+        };
+        // Store the render task promise
+        const task = page.render(renderContext);
+        renderTasks.current[pageIndex] = task;
+
+        try {
+            await task.promise;
+        } catch (error) {
+            console.error("Page render cancelled or failed:", error);
+        } finally {
+            // Clear the task once complete, so it can be re-run if needed
+            if (renderTasks.current[pageIndex] === task) {
+                 renderTasks.current[pageIndex] = null;
+            }
         }
-      }
-    } catch (e) {
-      console.error("Failed to render page", e);
-    } finally {
-      // Clear the task once complete
-      renderTasks.current[pageIndex] = null;
     }
   };
   
@@ -153,7 +168,8 @@ export default function Home() {
         if (!this.result) return;
         const typedArray = new Uint8Array(this.result as ArrayBuffer);
         try {
-          const doc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+          const loadingTask = pdfjsLib.getDocument({ data: typedArray });
+          const doc = await loadingTask.promise;
           pdfDocRef.current = doc;
           renderTasks.current = new Array(doc.numPages).fill(null);
           setNumPages(doc.numPages);
@@ -202,7 +218,7 @@ export default function Home() {
     const pos = getCanvasAndMousePos(e, pageIndex);
     if (!pos) return;
 
-    // Redraw the page and existing selections, then the new rectangle on top
+    // Redraw the page from scratch and then all selections
     renderPage(pageIndex).then(() => {
       drawSelectionsForPage(pageIndex);
       const canvas = canvasRefs.current[pageIndex];
@@ -231,7 +247,7 @@ export default function Home() {
 
     if (width < 5 || height < 5) {
       setStartPos(null);
-      drawAllSelections();
+      drawAllSelections(); // Redraw to clear temporary rectangle
       return;
     }
     
@@ -244,6 +260,7 @@ export default function Home() {
       label: activeLabel,
     };
     
+    // Replace existing selection for the same label, or add new one
     const otherSelections = selections.filter(s => s.label !== activeLabel);
     setSelections([...otherSelections, newSelection]);
     setStartPos(null);
