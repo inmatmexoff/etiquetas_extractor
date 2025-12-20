@@ -218,19 +218,17 @@ export default function Home() {
             const itemsInRect = textContent.items.filter((item: any) => {
                 const tx = item.transform[4];
                 const ty = item.transform[5];
-                const width = item.width;
-                const height = item.height;
 
-                // Convert PDF coordinates to canvas coordinates
+                // Convert PDF coordinates to canvas coordinates (origin is top-left)
                 const pdfX = tx;
                 const pdfY = viewport.height - ty;
 
-                // Simple AABB (Axis-Aligned Bounding Box) collision detection
+                // Check if the starting point of the text item is inside the rectangle
                 return (
-                    pdfX < rect.x + rect.width &&
-                    pdfX + width > rect.x &&
-                    pdfY < rect.y + rect.height &&
-                    pdfY + height > rect.y
+                    pdfX >= rect.x &&
+                    pdfX <= rect.x + rect.width &&
+                    pdfY >= rect.y &&
+                    pdfY <= rect.y + rect.height
                 );
             });
 
@@ -425,3 +423,4 @@ export default function Home() {
     
 
     
+
