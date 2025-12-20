@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { extractText } from "@/ai/flows/extract-text-flow";
 
 // Set up the worker for PDF.js
 if (typeof window !== 'undefined') {
@@ -32,6 +33,7 @@ export default function Home() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState<{ x: number, y: number, page: number } | null>(null);
   const pdfDocRef = useRef<any>(null);
+  const [extractedData, setExtractedData] = useState<Record<string, string>>({});
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -41,6 +43,7 @@ export default function Home() {
       setNumPages(null);
       pdfDocRef.current = null;
       canvasRefs.current = [];
+      setExtractedData({});
     }
   };
 
@@ -51,10 +54,39 @@ export default function Home() {
     }
   };
 
-  const handleExtract = () => {
-    // Placeholder for future OCR/extraction logic
-    console.log("Extracting data from selections:", selections);
-    alert("La funcionalidad de extracción de texto se implementará en el siguiente paso.");
+  const handleExtract = async () => {
+    const newExtractedData: Record<string, string> = {};
+    for (const selection of selections) {
+      const canvas = canvasRefs.current[selection.page - 1];
+      if (canvas) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = selection.width;
+        tempCanvas.height = selection.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (tempCtx) {
+          tempCtx.drawImage(
+            canvas,
+            selection.x,
+            selection.y,
+            selection.width,
+            selection.height,
+            0,
+            0,
+            selection.width,
+            selection.height
+          );
+          const dataUri = tempCanvas.toDataURL('image/jpeg');
+          try {
+            const text = await extractText({ photoDataUri: dataUri });
+            newExtractedData[selection.label] = text;
+          } catch (error) {
+            console.error("Error extracting text for label:", selection.label, error);
+            newExtractedData[selection.label] = "Error de extracción";
+          }
+        }
+      }
+    }
+    setExtractedData(prev => ({...prev, ...newExtractedData}));
   };
 
   const renderPage = async (pageIndex: number) => {
@@ -271,7 +303,7 @@ export default function Home() {
                         <Label>{label}</Label>
                         <Input
                             readOnly
-                            value={"Texto no extraído"}
+                            value={extractedData[label] || "Texto no extraído"}
                             className="bg-muted"
                         />
                         </div>
