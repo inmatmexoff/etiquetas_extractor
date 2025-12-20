@@ -216,18 +216,29 @@ export default function Home() {
             const textContent = await page.getTextContent();
             
             const itemsInRect = textContent.items.filter((item: any) => {
-                const [scaleX, , , scaleY, x, y] = item.transform;
-                const itemX = x;
-                const itemY = viewport.height - y;
-                const itemWidth = item.width;
-                const itemHeight = item.height;
+                // item.transform is an array: [scaleX, skewY, skewX, scaleY, x, y]
+                const tx = item.transform[4];
+                const ty = item.transform[5];
+                
+                // item's bounding box in PDF coordinates (origin at bottom-left)
+                const itemX1 = tx;
+                const itemY1 = ty;
+                const itemX2 = tx + item.width;
+                const itemY2 = ty + item.height;
 
-                // Check for overlap between the item's bounding box and the drawn rectangle
+                // Convert canvas rect to PDF coordinates
+                // The Y-axis is inverted
+                const rectX1 = rect.x;
+                const rectY1 = viewport.height - rect.y - rect.height;
+                const rectX2 = rect.x + rect.width;
+                const rectY2 = viewport.height - rect.y;
+
+                // Check for overlap (AABB collision detection)
                 return (
-                    itemX < rect.x + rect.width &&
-                    itemX + itemWidth > rect.x &&
-                    itemY < rect.y + rect.height &&
-                    itemY + itemHeight > rect.y
+                    itemX1 < rectX2 &&
+                    itemX2 > rectX1 &&
+                    itemY1 < rectY2 &&
+                    itemY2 > rectY1
                 );
             });
 
@@ -416,5 +427,7 @@ export default function Home() {
       </div>
     </main>
   );
+
+    
 
     
