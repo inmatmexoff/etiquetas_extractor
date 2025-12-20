@@ -214,35 +214,31 @@ export default function Home() {
 
         for (const rect of rectangles) {
             const page = await pdfDoc.getPage(rect.page);
-            // Use the same viewport scale that was used for rendering
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
-            console.log("Text content from PDF:", textContent.items);
-
+            
             // Function to check if a text item's bounding box intersects with the drawn rectangle
             const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
-                // PDF's coordinate system origin is bottom-left
-                // Canvas's coordinate system origin is top-left
                 const [, , , , tx, ty] = pdfTextItem.transform;
                 const textWidth = pdfTextItem.width;
-                const textHeight = pdfTextItem.height; // This can be unreliable
-
+                
                 // Convert PDF coordinates to Canvas coordinates
                 const canvasX = tx;
+                // The 'y' coordinate in PDF is from the bottom, so we invert it
                 const canvasY = viewport.height - ty;
-                
-                // Add a small padding for tolerance
-                const pad = 5; 
-                
+
                 // AABB collision detection (Axis-Aligned Bounding Box)
-                const rect1 = { x: canvasX, y: canvasY - textHeight, width: textWidth, height: textHeight };
+                const rect1 = { x: canvasX, y: canvasY, width: textWidth, height: pdfTextItem.height }; // height can be unreliable
                 const rect2 = { x: drawnRect.x, y: drawnRect.y, width: drawnRect.width, height: drawnRect.height };
+
+                // Add a small padding for tolerance
+                const pad = 5;
 
                 return (
                     rect1.x < rect2.x + rect2.width + pad &&
                     rect1.x + rect1.width > rect2.x - pad &&
                     rect1.y < rect2.y + rect2.height + pad &&
-                    rect1.y + rect1.height > rect2.y - pad
+                    rect1.y + pdfTextItem.height > rect2.y - pad // Use pdfTextItem.height directly
                 );
             };
 
@@ -263,7 +259,11 @@ export default function Home() {
         }
 
         if (data.every(d => d.value === '')) {
-            setError("No se pudo extraer texto de las áreas definidas. Intenta dibujarlas de nuevo y revisa la consola del navegador.");
+             setError("No se pudo extraer texto de las áreas definidas. Revisa las coordenadas y la lógica de intersección.");
+             console.log("Rectangles:", rectangles);
+             const pageForLog = await pdfDoc.getPage(rectangles[0].page);
+             const contentForLog = await pageForLog.getTextContent();
+             console.log("PDF Text Content:", contentForLog.items.map((item:any) => ({text: item.str, transform: item.transform})));
         } else {
             setError(null);
         }
@@ -281,91 +281,90 @@ export default function Home() {
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div id="qr-reader" style={{ display: 'none' }}></div>
       <div className="container mx-auto max-w-7xl space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold tracking-tight text-primary">
-                  Extractor de Facturas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid w-full max-w-sm items-center gap-2">
-                  <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
-                  <Input
-                    id="pdf-upload"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleFileChange}
-                    className="file:text-primary file:font-medium"
-                    disabled={isLoading}
-                  />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold tracking-tight text-primary">
+              Extractor de Facturas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid w-full max-w-sm items-center gap-2">
+              <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
+              <Input
+                id="pdf-upload"
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileChange}
+                className="file:text-primary file:font-medium"
+                disabled={isLoading}
+              />
+            </div>
+            {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+            {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
+          </CardContent>
+        </Card>
+        
+        {pdfDoc && (
+          <Card>
+            <CardHeader>
+               <div className="flex justify-between items-center">
+                <CardTitle>Vista Previa del PDF</CardTitle>
+                <div className="flex items-center gap-2">
+                    <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span>
+                        Página {pageNum} de {numPages}
+                    </span>
+                    <Button onClick={onNextPage} disabled={pageNum >= numPages || pageRendering} variant="outline" size="icon">
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
                 </div>
-                {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-                {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-              </CardContent>
-            </Card>
-            
-            {pdfDoc && (
-              <Card>
-                <CardHeader>
-                   <div className="flex justify-between items-center">
-                    <CardTitle>Vista Previa del PDF</CardTitle>
-                    <div className="flex items-center gap-2">
-                        <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <span>
-                            Página {pageNum} de {numPages}
-                        </span>
-                        <Button onClick={onNextPage} disabled={pageNum >= numPages || pageRendering} variant="outline" size="icon">
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[80vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-100 dark:bg-gray-900">
-                    <div
-                      ref={drawingAreaRef}
-                      className="absolute top-0 left-0 cursor-crosshair"
-                      onMouseDown={handleMouseDown}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                      onMouseLeave={handleMouseUp}
-                    >
-                      <canvas ref={canvasRef}></canvas>
-                      {rectangles.filter(r => r.page === pageNum).map((rect, index) => (
-                          <div
-                            key={index}
-                            className="absolute border-2 border-destructive"
+               </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[80vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-100 dark:bg-gray-900">
+                <div
+                  ref={drawingAreaRef}
+                  className="absolute top-0 left-0 cursor-crosshair"
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                >
+                  <canvas ref={canvasRef}></canvas>
+                  {rectangles.filter(r => r.page === pageNum).map((rect, index) => (
+                      <div
+                        key={index}
+                        className="absolute border-2 border-destructive"
+                        style={{
+                            left: rect.x,
+                            top: rect.y,
+                            width: rect.width,
+                            height: rect.height,
+                        }}
+                      >
+                        <span className="absolute -top-6 left-0 text-sm bg-destructive text-destructive-foreground px-1 rounded-sm">{rect.label}</span>
+                      </div>
+                  ))}
+                   {currentRect && (
+                        <div
+                            className="absolute border-2 border-dashed border-primary"
                             style={{
-                                left: rect.x,
-                                top: rect.y,
-                                width: rect.width,
-                                height: rect.height,
+                                left: currentRect.x,
+                                top: currentRect.y,
+                                width: currentRect.width,
+                                height: currentRect.height,
                             }}
-                          >
-                            <span className="absolute -top-6 left-0 text-sm bg-destructive text-destructive-foreground px-1 rounded-sm">{rect.label}</span>
-                          </div>
-                      ))}
-                       {currentRect && (
-                            <div
-                                className="absolute border-2 border-dashed border-primary"
-                                style={{
-                                    left: currentRect.x,
-                                    top: currentRect.y,
-                                    width: currentRect.width,
-                                    height: currentRect.height,
-                                }}
-                            />
-                        )}
-                    </div>
-                    {pageRendering && <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center">Cargando...</div>}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-        </div>
+                        />
+                    )}
+                </div>
+                {pageRendering && <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center">Cargando...</div>}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
              {(currentRect || rectangles.length > 0) && (
@@ -441,4 +440,5 @@ export default function Home() {
       </div>
     </main>
   );
-}
+
+    
