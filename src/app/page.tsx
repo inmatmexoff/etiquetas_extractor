@@ -125,7 +125,7 @@ export default function Home() {
                 </CardContent>
             </Card>
         )}
-
+        
         {extractedData && (
           <Card>
             <CardHeader>
@@ -152,26 +152,52 @@ export default function Home() {
                         <TableBody>
                         {extractedData.lineItems?.map((item, index) => (
                             <TableRow key={index}>
-                            <TableCell>{index === 0 ? extractedData.cliente : ''}</TableCell>
-                            <TableCell>{index === 0 ? extractedData.fecha : ''}</TableCell>
-                            <TableCell>{index === 0 ? extractedData.numVenta : ''}</TableCell>
-                            <TableCell>{index === 0 ? extractedData.fechaEntrega : ''}</TableCell>
-                            <TableCell>{index === 0 ? extractedData.cp : ''}</TableCell>
-                            <TableCell>{index === 0 ? extractedData.ciudad : ''}</TableCell>
-                            <TableCell>{index === 0 ? extractedData.estado : ''}</TableCell>
+                            {index === 0 ? (
+                                <>
+                                    <TableCell>{extractedData.cliente}</TableCell>
+                                    <TableCell>{extractedData.fecha}</TableCell>
+                                    <TableCell>{extractedData.numVenta}</TableCell>
+                                    <TableCell>{extractedData.fechaEntrega}</TableCell>
+                                    <TableCell>{extractedData.cp}</TableCell>
+                                    <TableCell>{extractedData.ciudad}</TableCell>
+                                    <TableCell>{extractedData.estado}</TableCell>
+                                </>
+                            ) : (
+                                <>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                </>
+                            )}
                             <TableCell>{item.codigo}</TableCell>
                             <TableCell>{item.sku}</TableCell>
                             <TableCell>{item.producto}</TableCell>
                             <TableCell className="text-right">{item.cantidad}</TableCell>
                             </TableRow>
                         ))}
+                        {(!extractedData.lineItems || extractedData.lineItems.length === 0) && (
+                            <TableRow>
+                                <TableCell>{extractedData.cliente}</TableCell>
+                                <TableCell>{extractedData.fecha}</TableCell>
+                                <TableCell>{extractedData.numVenta}</TableCell>
+                                <TableCell>{extractedData.fechaEntrega}</TableCell>
+                                <TableCell>{extractedData.cp}</TableCell>
+                                <TableCell>{extractedData.ciudad}</TableCell>
+                                <TableCell>{extractedData.estado}</TableCell>
+                                <TableCell colSpan={4} className="text-center">No se encontraron productos.</TableCell>
+                            </TableRow>
+                        )}
                         </TableBody>
                     </Table>
                 </div>
             </CardContent>
           </Card>
         )}
-        
+
         {pdfDataUri && !extractedData && !isLoading && (
           <Card>
             <CardHeader>
