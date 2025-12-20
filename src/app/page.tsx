@@ -1,23 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// Set up the worker for PDF.js
+if (typeof window !== 'undefined') {
+  (window as any).pdfjsWorker = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+}
+
 export default function Home() {
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
-      }
-      const url = URL.createObjectURL(file);
-      setPdfUrl(url);
+      setPdfFile(file);
     }
   };
+
+  useEffect(() => {
+    if (!pdfFile || typeof window === 'undefined') return;
+
+    const renderPdf = async () => {
+      const pdfjsLib = (window as any).pdfjsLib;
+      if (!pdfjsLib) {
+        console.error("PDF.js library not found.");
+        return;
+      }
+      
+      const fileReader = new FileReader();
+      fileReader.onload = async function() {
+        if (!this.result) return;
+        const typedArray = new Uint8Array(this.result as ArrayBuffer);
+        const pdfDoc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+        setNumPages(pdfDoc.numPages);
+
+        canvasRefs.current = Array(pdfDoc.numPages).fill(null);
+
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+          const page = await pdfDoc.getPage(i);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = canvasRefs.current[i-1];
+          if (canvas) {
+            const context = canvas.getContext("2d");
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            if (context) {
+              const renderContext = {
+                canvasContext: context,
+                viewport: viewport,
+              };
+              await page.render(renderContext).promise;
+            }
+          }
+        }
+      };
+      fileReader.readAsArrayBuffer(pdfFile);
+    };
+
+    renderPdf();
+
+  }, [pdfFile]);
 
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
@@ -42,25 +89,20 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {pdfUrl && (
+        {pdfFile && (
           <Card>
             <CardHeader>
               <CardTitle>Vista Previa del PDF</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[calc(100vh-20rem)] w-full">
-                <object
-                  data={pdfUrl}
-                  type="application/pdf"
-                  width="100%"
-                  height="100%"
-                  className="rounded-md border"
-                >
-                  <p>
-                    Tu navegador no soporta la previsualización de PDFs. 
-                    Puedes <a href={pdfUrl}>descargarlo aquí</a>.
-                  </p>
-                </object>
+              <div className="h-[calc(100vh-20rem)] w-full overflow-auto rounded-md border">
+                {numPages && Array.from(new Array(numPages), (el, index) => (
+                  <canvas
+                    key={`page_${index + 1}`}
+                    ref={el => canvasRefs.current[index] = el}
+                    className="mx-auto my-4 block"
+                  />
+                ))}
               </div>
             </CardContent>
           </Card>
