@@ -23,6 +23,8 @@ export default function Home() {
       setPdfFile(file);
       setError(null);
       setExtractedData(null);
+      
+      // Reset QR code value for new file
       setQrCodeValue(null);
       
       const reader = new FileReader();
@@ -33,11 +35,14 @@ export default function Home() {
 
       // Scan for QR code
       try {
-        const html5QrCode = new Html5Qrcode("qr-reader");
+        // The library needs a file object to scan, not a data URI
+        const html5QrCode = new Html5Qrcode("qr-reader", true);
         const decodedText = await html5QrCode.scanFile(file, false);
+        console.log("QR Code Found:", decodedText);
         setQrCodeValue(decodedText);
       } catch (err) {
-        console.log("QR Code scan failed, continuing without it.", err);
+        setQrCodeValue(null);
+        console.log("QR Code scan failed or no QR code found.", err);
       }
 
     } else {
@@ -60,12 +65,19 @@ export default function Home() {
 
     try {
         const result = await extractPurchaseOrder({ pdfDataUri: pdfDataUri });
+        
+        // This is the correct place to merge the QR code data
         if (qrCodeValue && result.lineItems.length > 0) {
-            result.lineItems.forEach(item => {
-                item.codigo = qrCodeValue;
-            });
+            const updatedLineItems = result.lineItems.map(item => ({
+                ...item,
+                codigo: qrCodeValue,
+            }));
+            const updatedResult = { ...result, lineItems: updatedLineItems };
+            setExtractedData(updatedResult);
+        } else {
+            setExtractedData(result);
         }
-        setExtractedData(result);
+
     } catch (err) {
         console.error("Error durante la extracción:", err);
         setError("Ocurrió un error al extraer la información. Por favor, inténtalo de nuevo.");
