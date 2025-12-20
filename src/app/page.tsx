@@ -26,15 +26,15 @@ interface Rectangle {
   width: number;
   height: number;
   label: string;
-  page: number;
 }
 
 interface ExtractedData {
     label: string;
     value: string;
+    page: number;
 }
 
-const PREDEFINED_RECTANGLES: Omit<Rectangle, 'page'>[] = [
+const PREDEFINED_RECTANGLES: Rectangle[] = [
     { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
     { label: "CANTIDAD", x: 51, y: 44, width: 83, height: 81 },
     { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
@@ -67,7 +67,7 @@ export default function Home() {
 
   useEffect(() => {
     // Load predefined rectangles when component mounts
-    setRectangles(PREDEFINED_RECTANGLES.map(r => ({ ...r, page: 1 })));
+    setRectangles(PREDEFINED_RECTANGLES);
   }, []);
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export default function Home() {
         setNumPages(doc.numPages);
         setPageNum(1);
         // Reset rectangles to predefined ones for the first page
-        setRectangles(PREDEFINED_RECTANGLES.map(r => ({ ...r, page: pageNum })));
+        setRectangles(PREDEFINED_RECTANGLES);
         setExtractedData([]); // Clear extracted data for new PDF
       } catch (err) {
         console.error("Error loading PDF:", err);
@@ -99,8 +99,6 @@ export default function Home() {
   useEffect(() => {
     if (pdfDoc) {
       renderPage(pageNum);
-      // Update page number for predefined rectangles
-      setRectangles(rects => rects.map(r => PREDEFINED_RECTANGLES.find(pr => pr.label === r.label) ? { ...r, page: pageNum } : r));
     }
   }, [pdfDoc, pageNum]);
 
@@ -178,7 +176,7 @@ export default function Home() {
   }
 
   const handleResetRectangles = () => {
-    setRectangles(PREDEFINED_RECTANGLES.map(r => ({ ...r, page: pageNum })));
+    setRectangles(PREDEFINED_RECTANGLES);
   };
 
   const handleExtractData = async () => {
@@ -188,29 +186,26 @@ export default function Home() {
     setError(null);
 
     try {
-        const data: ExtractedData[] = [];
+        const allData: ExtractedData[] = [];
 
-        for (const rect of rectangles) {
-            const page = await pdfDoc.getPage(rect.page);
+        for (let currentPageNum = 1; currentPageNum <= numPages; currentPageNum++) {
+            const page = await pdfDoc.getPage(currentPageNum);
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
             const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
+              const [fontHeight, _, __, fontWidth, x, y] = pdfTextItem.transform;
+              const textWidth = pdfTextItem.width;
+              
               const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
-              const x = tx[4];
-              const y = tx[5];
-              
-              const textWidth = pdfTextItem.width * viewport.scale;
-              const textHeight = pdfTextItem.height * viewport.scale;
+              const textX = tx[4];
+              const textY = tx[5];
 
-              const textY = y - textHeight;
-              
-              const pad = 2; // Tolerance in pixels
               const r1 = {
-                x: x,
+                x: textX,
                 y: textY,
                 width: textWidth,
-                height: textHeight,
+                height: fontHeight, 
               };
 
               const r2 = {
@@ -220,6 +215,8 @@ export default function Home() {
                 height: drawnRect.height
               };
 
+              // Check for intersection with tolerance
+              const pad = 5;
               return (
                 r1.x < r2.x + r2.width + pad &&
                 r1.x + r1.width > r2.x - pad &&
@@ -227,32 +224,32 @@ export default function Home() {
                 r1.y + r1.height > r2.y - pad
               );
             };
+            
+            for (const rect of rectangles) {
+                const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect));
 
-            const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect));
+                itemsInRect.sort((a: any, b: any) => {
+                    const yA = a.transform[5];
+                    const yB = b.transform[5];
+                    if (Math.abs(yA - yB) < 2) {
+                        return a.transform[4] - b.transform[4];
+                    }
+                    return yB - yA;
+                });
 
-             itemsInRect.sort((a: any, b: any) => {
-                const yA = a.transform[5];
-                const yB = b.transform[5];
-                if (Math.abs(yA - yB) < 2) {
-                    return a.transform[4] - b.transform[4];
+                const extractedText = itemsInRect.map((item: any) => item.str).join(' ');
+                if (extractedText.trim() !== '') {
+                    allData.push({ label: rect.label, value: extractedText.trim(), page: currentPageNum });
                 }
-                return yB - yA;
-            });
-
-            const extractedText = itemsInRect.map((item: any) => item.str).join(' ');
-            data.push({ label: rect.label, value: extractedText.trim() });
+            }
         }
 
-        if (data.every(d => d.value === '')) {
-             setError("No se pudo extraer texto de las áreas definidas. Revisa las coordenadas y la lógica de intersección.");
-             console.log("Rectangles:", rectangles);
-             const pageForLog = await pdfDoc.getPage(rectangles[0].page);
-             const contentForLog = await pageForLog.getTextContent();
-             console.log("PDF Text Content:", contentForLog.items.map((item:any) => ({text: item.str, transform: item.transform, width: item.width, height: item.height })));
+        if (allData.length === 0) {
+             setError("No se pudo extraer texto de ninguna página utilizando las áreas definidas.");
         } else {
             setError(null);
         }
-        setExtractedData(data);
+        setExtractedData(allData);
 
     } catch(e) {
         console.error("Error extracting data", e);
@@ -289,7 +286,7 @@ export default function Home() {
           </CardContent>
         </Card>
         
-        <div className="grid grid-cols-1 gap-8">
+        <div className="space-y-8">
           <Card>
               <CardHeader>
                   <CardTitle>Áreas Definidas</CardTitle>
@@ -299,7 +296,7 @@ export default function Home() {
                       {rectangles.map((rect, index) => (
                           <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
                               <div>
-                                  <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
+                                  <span className="font-medium">{rect.label}</span>
                                   <p className="text-xs text-muted-foreground">
                                       x: {Math.round(rect.x)}, y: {Math.round(rect.y)}, w: {Math.round(rect.width)}, h: {Math.round(rect.height)}
                                   </p>
@@ -314,7 +311,7 @@ export default function Home() {
               <CardFooter className="flex-wrap gap-2">
                   <Button onClick={handleExtractData} disabled={isLoading || rectangles.length === 0}>
                       <FileText className="mr-2 h-4 w-4" />
-                      {isLoading ? 'Extrayendo...' : 'Extraer Datos'}
+                      {isLoading ? 'Extrayendo...' : 'Extraer Datos de Todas las Páginas'}
                   </Button>
                   <Button onClick={handleResetRectangles} variant="outline">
                       <RotateCcw className="mr-2 h-4 w-4" />
@@ -348,7 +345,7 @@ export default function Home() {
                     className="absolute top-0 left-0"
                   >
                     <canvas ref={canvasRef}></canvas>
-                    {rectangles.filter(r => r.page === pageNum).map((rect, index) => (
+                    {rectangles.map((rect, index) => (
                         <div
                           key={index}
                           className="absolute border-2 border-destructive"
@@ -378,6 +375,7 @@ export default function Home() {
                       <Table>
                           <TableHeader>
                               <TableRow>
+                                  <TableHead>Página</TableHead>
                                   <TableHead>Campo</TableHead>
                                   <TableHead>Valor</TableHead>
                               </TableRow>
@@ -385,6 +383,7 @@ export default function Home() {
                           <TableBody>
                               {extractedData.map((data, index) => (
                                   <TableRow key={index}>
+                                      <TableCell>{data.page}</TableCell>
                                       <TableCell className="font-medium">{data.label}</TableCell>
                                       <TableCell>{data.value}</TableCell>
                                   </TableRow>
@@ -398,7 +397,5 @@ export default function Home() {
       </div>
     </main>
   );
-
-    
 
     
