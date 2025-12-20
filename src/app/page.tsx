@@ -447,15 +447,17 @@ export default function Home() {
                 <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1" className="border-b-0">
                         <Card>
-                            <AccordionTrigger className="w-full p-6 data-[state=closed]:rounded-lg data-[state=open]:rounded-t-lg hover:no-underline">
+                           <CardHeader>
                                 <div className="flex w-full flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                    <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
-                                    <Button onClick={(e) => { e.stopPropagation(); saveToDatabase(); }} disabled={isLoading}>
+                                     <AccordionTrigger className="w-full justify-between">
+                                        <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
+                                     </AccordionTrigger>
+                                    <Button onClick={saveToDatabase} disabled={isLoading} className="sm:w-auto w-full">
                                         <Database className="mr-2 h-4 w-4" />
                                         Guardar en Base de Datos
                                     </Button>
                                 </div>
-                            </AccordionTrigger>
+                            </CardHeader>
                             <AccordionContent>
                                <CardContent>
                                     <div className="overflow-x-auto">
