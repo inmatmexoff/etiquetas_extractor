@@ -217,26 +217,32 @@ export default function Home() {
             // Use the same viewport scale that was used for rendering
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
-            
+            console.log("Text content from PDF:", textContent.items);
+
             // Function to check if a text item's bounding box intersects with the drawn rectangle
             const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
-                const [fontWidth, , , fontHeight, x, y] = pdfTextItem.transform;
-                const textWidth = pdfTextItem.width * fontWidth;
-                const textHeight = pdfTextItem.height * fontHeight;
-                
-                // Convert PDF coordinates (origin bottom-left) to canvas coordinates (origin top-left)
-                const textX = x;
-                const textY = viewport.height - y - textHeight;
+                // PDF's coordinate system origin is bottom-left
+                // Canvas's coordinate system origin is top-left
+                const [, , , , tx, ty] = pdfTextItem.transform;
+                const textWidth = pdfTextItem.width;
+                const textHeight = pdfTextItem.height; // This can be unreliable
 
+                // Convert PDF coordinates to Canvas coordinates
+                const canvasX = tx;
+                const canvasY = viewport.height - ty;
+                
                 // Add a small padding for tolerance
                 const pad = 5; 
                 
-                // Check for overlap (AABB collision detection)
+                // AABB collision detection (Axis-Aligned Bounding Box)
+                const rect1 = { x: canvasX, y: canvasY - textHeight, width: textWidth, height: textHeight };
+                const rect2 = { x: drawnRect.x, y: drawnRect.y, width: drawnRect.width, height: drawnRect.height };
+
                 return (
-                    textX < drawnRect.x + drawnRect.width + pad &&
-                    textX + textWidth > drawnRect.x - pad &&
-                    textY < drawnRect.y + drawnRect.height + pad &&
-                    textY + textHeight > drawnRect.y - pad
+                    rect1.x < rect2.x + rect2.width + pad &&
+                    rect1.x + rect1.width > rect2.x - pad &&
+                    rect1.y < rect2.y + rect2.height + pad &&
+                    rect1.y + rect1.height > rect2.y - pad
                 );
             };
 
@@ -272,103 +278,32 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-background p-4 md:p-8 flex flex-col items-center">
+    <main className="min-h-screen bg-background p-4 md:p-8">
       <div id="qr-reader" style={{ display: 'none' }}></div>
       <div className="container mx-auto max-w-7xl space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-2xl font-bold tracking-tight text-primary">
-                      Extractor de Facturas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid w-full max-w-sm items-center gap-2">
-                      <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
-                      <Input
-                        id="pdf-upload"
-                        type="file"
-                        accept="application/pdf"
-                        onChange={handleFileChange}
-                        className="file:text-primary file:font-medium"
-                        disabled={isLoading}
-                      />
-                    </div>
-                    {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-                    {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-                  </CardContent>
-                </Card>
-
-                {(currentRect || rectangles.length > 0) && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Áreas Definidas</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {currentRect && (
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Input
-                                        placeholder="Etiqueta para la nueva área"
-                                        value={newLabel}
-                                        onChange={(e) => setNewLabel(e.target.value)}
-                                        className="h-9"
-                                    />
-                                    <Button onClick={handleSaveRectangle} size="sm">Guardar</Button>
-                                    <Button onClick={() => setCurrentRect(null)} variant="ghost" size="sm">Cancelar</Button>
-                                </div>
-                            )}
-                             <ul className="space-y-2">
-                                {rectangles.map((rect, index) => (
-                                    <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
-                                        <div>
-                                            <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
-                                            <p className="text-xs text-muted-foreground">
-                                                x: {Math.round(rect.x)}, y: {Math.round(rect.y)}, w: {Math.round(rect.width)}, h: {Math.round(rect.height)}
-                                            </p>
-                                        </div>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteRectangle(index)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </CardContent>
-                        <CardFooter>
-                            <Button onClick={handleExtractData} disabled={isLoading || rectangles.length === 0}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                {isLoading ? 'Extrayendo...' : 'Extraer Datos'}
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                )}
-
-                {extractedData.length > 0 && (
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Resultados de la Extracción</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Campo</TableHead>
-                                        <TableHead>Valor</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {extractedData.map((data, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell className="font-medium">{data.label}</TableCell>
-                                            <TableCell>{data.value}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold tracking-tight text-primary">
+                  Extractor de Facturas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid w-full max-w-sm items-center gap-2">
+                  <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
+                  <Input
+                    id="pdf-upload"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                    className="file:text-primary file:font-medium"
+                    disabled={isLoading}
+                  />
+                </div>
+                {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+                {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
+              </CardContent>
+            </Card>
             
             {pdfDoc && (
               <Card>
@@ -431,6 +366,78 @@ export default function Home() {
               </Card>
             )}
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+             {(currentRect || rectangles.length > 0) && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Áreas Definidas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {currentRect && (
+                            <div className="flex items-center gap-2 mb-4">
+                                <Input
+                                    placeholder="Etiqueta para la nueva área"
+                                    value={newLabel}
+                                    onChange={(e) => setNewLabel(e.target.value)}
+                                    className="h-9"
+                                />
+                                <Button onClick={handleSaveRectangle} size="sm">Guardar</Button>
+                                <Button onClick={() => setCurrentRect(null)} variant="ghost" size="sm">Cancelar</Button>
+                            </div>
+                        )}
+                         <ul className="space-y-2">
+                            {rectangles.map((rect, index) => (
+                                <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
+                                    <div>
+                                        <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
+                                        <p className="text-xs text-muted-foreground">
+                                            x: {Math.round(rect.x)}, y: {Math.round(rect.y)}, w: {Math.round(rect.width)}, h: {Math.round(rect.height)}
+                                        </p>
+                                    </div>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteRectangle(index)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={handleExtractData} disabled={isLoading || rectangles.length === 0}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            {isLoading ? 'Extrayendo...' : 'Extraer Datos'}
+                        </Button>
+                    </CardFooter>
+                </Card>
+            )}
+
+            {extractedData.length > 0 && (
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Resultados de la Extracción</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Campo</TableHead>
+                                    <TableHead>Valor</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {extractedData.map((data, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell className="font-medium">{data.label}</TableCell>
+                                        <TableCell>{data.value}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+
       </div>
     </main>
   );
