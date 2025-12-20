@@ -271,7 +271,7 @@ export default function Home() {
                         }
                     }
                 } else if (rect.label === 'CODIGO DE BARRA') {
-                    const numbers = extractedText.match(/\d+/g);
+                    const numbers = extractedText.match(/\d{4,}/g);
                     extractedText = numbers ? numbers.join(' ') : '';
                 }
 
@@ -454,3 +454,5 @@ export default function Home() {
     </main>
   );
 }
+
+    
