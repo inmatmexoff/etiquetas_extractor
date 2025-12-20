@@ -39,5 +39,6 @@ const extractTextFlow = ai.defineFlow(
 );
 
 export async function extractText(input: ExtractTextInput): Promise<string> {
-    return extractTextFlow(input);
+    const result = await extractTextFlow(input);
+    return result ?? '';
 }
