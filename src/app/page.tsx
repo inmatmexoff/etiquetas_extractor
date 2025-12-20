@@ -160,7 +160,7 @@ export default function Home() {
                     }
                 } else if (rect.label === 'CODIGO DE BARRA') {
                     const numbers = extractedText.match(/\d{4,}/g);
-                    extractedText = numbers ? numbers.join(' ') : '';
+                    extractedText = numbers ? numbers[0] : ''; // Take only the first number
                 } else if (rect.label === 'NUM DE VENTA') {
                     extractedText = extractedText.replace(/Venta:/gi, '').trim();
                 } else if (rect.label === 'SKU') {
