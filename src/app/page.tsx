@@ -34,6 +34,8 @@ interface ExtractedData {
     value: string;
 }
 
+const PDF_RENDER_SCALE = 1.5;
+
 export default function Home() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
@@ -99,7 +101,7 @@ export default function Home() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       
-      const viewport = page.getViewport({ scale: 1.5 });
+      const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
       canvas.height = viewport.height;
       canvas.width = viewport.width;
 
@@ -212,30 +214,36 @@ export default function Home() {
 
         for (const rect of rectangles) {
             const page = await pdfDoc.getPage(rect.page);
-            const viewport = page.getViewport({ scale: 1.5 });
+            // Use the same viewport scale that was used for rendering
+            const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
-            console.log(`Text content for page ${rect.page}:`, textContent.items);
+            // Function to check if a text item's bounding box intersects with the drawn rectangle
+            const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
+                const [fontWidth, , , fontHeight, x, y] = pdfTextItem.transform;
+                const textWidth = pdfTextItem.width * fontWidth;
+                const textHeight = pdfTextItem.height * fontHeight;
+                
+                // Convert PDF coordinates (origin bottom-left) to canvas coordinates (origin top-left)
+                const textX = x;
+                const textY = viewport.height - y - textHeight;
 
-            const itemsInRect = textContent.items.filter((item: any) => {
-                const tx = item.transform[4];
-                const ty = item.transform[5];
-
-                // Convert PDF coordinates to canvas coordinates (origin is top-left)
-                const pdfX = tx;
-                const pdfY = viewport.height - ty;
-
-                // Check if the starting point of the text item is inside the rectangle
+                // Add a small padding for tolerance
+                const pad = 5; 
+                
+                // Check for overlap (AABB collision detection)
                 return (
-                    pdfX >= rect.x &&
-                    pdfX <= rect.x + rect.width &&
-                    pdfY >= rect.y &&
-                    pdfY <= rect.y + rect.height
+                    textX < drawnRect.x + drawnRect.width + pad &&
+                    textX + textWidth > drawnRect.x - pad &&
+                    textY < drawnRect.y + drawnRect.height + pad &&
+                    textY + textHeight > drawnRect.y - pad
                 );
-            });
+            };
+
+            const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect));
 
             // Sort by y then x to read in a natural order
-            itemsInRect.sort((a: any, b: any) => {
+             itemsInRect.sort((a: any, b: any) => {
                 const yA = a.transform[5];
                 const yB = b.transform[5];
                 if (Math.abs(yA - yB) < 5) { // If on the same line (approx)
@@ -427,5 +435,3 @@ export default function Home() {
     </main>
   );
 }
-
-    
