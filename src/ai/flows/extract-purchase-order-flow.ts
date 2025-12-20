@@ -16,14 +16,14 @@ const ExtractPurchaseOrderInputSchema = z.object({
 export type ExtractPurchaseOrderInput = z.infer<typeof ExtractPurchaseOrderInputSchema>;
 
 const LineItemSchema = z.object({
-    codigo: z.string().optional().describe("The product code."),
+    codigo: z.string().optional().describe("The product code. Can be obtained from a QR code."),
     sku: z.string().optional().describe("The SKU of the product."),
     producto: z.string().describe("The name of the product or item."),
     cantidad: z.number().describe("The quantity of the item."),
 });
 
 const PurchaseOrderSchema = z.object({
-  numVenta: z.string().optional().describe("The sales order number (Num de Venta)."),
+  numVenta: z.string().optional().describe("The sales order number (Num de Venta). It can sometimes be '20000'."),
   cliente: z.string().describe("The full name of the person or company buying the goods (Cliente)."),
   fecha: z.string().describe("The date of the purchase order."),
   fechaEntrega: z.string().optional().describe("The delivery/collection date (Fecha de entrega a colecta)."),

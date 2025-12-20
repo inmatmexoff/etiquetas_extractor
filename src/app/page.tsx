@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { extractPurchaseOrder, PurchaseOrder } from "@/ai/flows/extract-purchase-order-flow";
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function Home() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -14,27 +15,41 @@ export default function Home() {
   const [extractedData, setExtractedData] = useState<PurchaseOrder | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type === "application/pdf") {
       setPdfFile(file);
       setError(null);
       setExtractedData(null);
+      setQrCodeValue(null);
+      
       const reader = new FileReader();
       reader.onload = (e) => {
         setPdfDataUri(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+
+      // Scan for QR code
+      try {
+        const html5QrCode = new Html5Qrcode("qr-reader");
+        const decodedText = await html5QrCode.scanFile(file, false);
+        setQrCodeValue(decodedText);
+      } catch (err) {
+        console.log("QR Code scan failed, continuing without it.", err);
+      }
+
     } else {
       setPdfFile(null);
       setPdfDataUri(null);
+      setQrCodeValue(null);
       setError("Por favor, sube un archivo PDF válido.");
     }
   };
 
   const handleExtract = async () => {
-    if (!pdfFile) {
+    if (!pdfDataUri) {
       setError("Por favor, primero sube un archivo PDF.");
       return;
     }
@@ -43,33 +58,23 @@ export default function Home() {
     setError(null);
     setExtractedData(null);
 
-    const reader = new FileReader();
-    reader.readAsDataURL(pdfFile);
-    reader.onload = async (e) => {
-        const dataUri = e.target?.result as string;
-        if (!dataUri) {
-            setError("No se pudo leer el archivo PDF.");
-            setIsLoading(false);
-            return;
+    try {
+        const result = await extractPurchaseOrder({ pdfDataUri: pdfDataUri });
+        if (qrCodeValue && result.lineItems.length > 0) {
+            result.lineItems[0].codigo = qrCodeValue;
         }
-        try {
-            const result = await extractPurchaseOrder({ pdfDataUri: dataUri });
-            setExtractedData(result);
-        } catch (err) {
-            console.error("Error durante la extracción:", err);
-            setError("Ocurrió un error al extraer la información. Por favor, inténtalo de nuevo.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    reader.onerror = () => {
-        setError("Error al leer el archivo.");
+        setExtractedData(result);
+    } catch (err) {
+        console.error("Error durante la extracción:", err);
+        setError("Ocurrió un error al extraer la información. Por favor, inténtalo de nuevo.");
+    } finally {
         setIsLoading(false);
     }
   };
 
   return (
     <main className="min-h-screen bg-background p-4 md:p-8 flex flex-col items-center">
+      <div id="qr-reader" style={{ display: 'none' }}></div>
       <div className="container mx-auto max-w-4xl space-y-8">
         <Card>
             <CardHeader>
@@ -169,7 +174,7 @@ export default function Home() {
           </Card>
         )}
         
-        {pdfDataUri && !extractedData && (
+        {pdfDataUri && !extractedData && !isLoading && (
           <Card>
             <CardHeader>
               <CardTitle>Vista Previa del PDF</CardTitle>
