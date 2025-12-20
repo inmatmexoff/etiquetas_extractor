@@ -444,7 +444,7 @@ export default function Home() {
         
         <div className="grid grid-cols-1 gap-8">
           {groupedResults.length > 0 && (
-                <Accordion type="single" collapsible className="w-full">
+                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
                     <AccordionItem value="item-1" className="border-b-0">
                         <Card>
                            <CardHeader>
@@ -526,7 +526,12 @@ export default function Home() {
                               height: rect.height,
                           }}
                         >
-                          <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">{rect.label}</span>
+                          <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
+                            {rect.label}
+                          </span>
+                          <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
+                            x:{rect.x}, y:{rect.y}, w:{rect.width}, h:{rect.height}
+                          </span>
                         </div>
                     ))}
                   </div>
