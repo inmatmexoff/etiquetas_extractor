@@ -34,6 +34,12 @@ interface ExtractedData {
     page: number;
 }
 
+type GroupedExtractedData = {
+    page: number;
+    [key: string]: string | number;
+};
+
+
 const PREDEFINED_RECTANGLES: Rectangle[] = [
     { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
     { label: "CANTIDAD", x: 51, y: 44, width: 83, height: 81 },
@@ -194,18 +200,18 @@ export default function Home() {
             const textContent = await page.getTextContent();
             
             const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
-              const [fontHeight, _, __, fontWidth, x, y] = pdfTextItem.transform;
-              const textWidth = pdfTextItem.width;
-              
               const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
-              const textX = tx[4];
-              const textY = tx[5];
+              const x = tx[4];
+              const y = tx[5];
+
+              const textWidth = pdfTextItem.width * PDF_RENDER_SCALE;
+              const textHeight = pdfTextItem.height * PDF_RENDER_SCALE;
 
               const r1 = {
-                x: textX,
-                y: textY,
+                x: x,
+                y: y,
                 width: textWidth,
-                height: fontHeight, 
+                height: textHeight, 
               };
 
               const r2 = {
@@ -258,6 +264,38 @@ export default function Home() {
         setIsLoading(false);
     }
   }
+
+  const getGroupedData = (): GroupedExtractedData[] => {
+      const grouped: { [key: string]: GroupedExtractedData } = {};
+      const numLabels = PREDEFINED_RECTANGLES.length;
+
+      extractedData.forEach((item, index) => {
+          // Assuming every N items belong to a new record.
+          // We need a more robust way to group if PDFs are not consistent.
+          // For now, we can group by page and occurrences.
+          const recordIndex = Math.floor(index / numLabels);
+          const key = `page-${item.page}-record-${recordIndex}`;
+          
+          if (!grouped[key]) {
+              grouped[key] = { page: item.page };
+          }
+          grouped[key][item.label] = item.value;
+      });
+
+      // A more robust grouping by page, assuming one label per page for now.
+      const pageGroup: { [key:number]: GroupedExtractedData } = {};
+      extractedData.forEach(item => {
+          if (!pageGroup[item.page]) {
+              pageGroup[item.page] = { page: item.page };
+          }
+          pageGroup[item.page][item.label] = item.value;
+      });
+
+      return Object.values(pageGroup);
+  };
+  
+  const groupedResults = getGroupedData();
+  const tableHeaders = ["Página", ...PREDEFINED_RECTANGLES.map(r => r.label)];
 
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
@@ -366,7 +404,7 @@ export default function Home() {
             </Card>
           )}
 
-          {extractedData.length > 0 && (
+          {groupedResults.length > 0 && (
                 <Card className="mt-8">
                   <CardHeader>
                       <CardTitle>Resultados de la Extracción</CardTitle>
@@ -375,17 +413,17 @@ export default function Home() {
                       <Table>
                           <TableHeader>
                               <TableRow>
-                                  <TableHead>Página</TableHead>
-                                  <TableHead>Campo</TableHead>
-                                  <TableHead>Valor</TableHead>
+                                  {tableHeaders.map(header => (
+                                    <TableHead key={header}>{header}</TableHead>
+                                  ))}
                               </TableRow>
                           </TableHeader>
                           <TableBody>
-                              {extractedData.map((data, index) => (
+                              {groupedResults.map((row, index) => (
                                   <TableRow key={index}>
-                                      <TableCell>{data.page}</TableCell>
-                                      <TableCell className="font-medium">{data.label}</TableCell>
-                                      <TableCell>{data.value}</TableCell>
+                                     {tableHeaders.map(header => (
+                                        <TableCell key={header}>{(row[header] as string) || ''}</TableCell>
+                                     ))}
                                   </TableRow>
                               ))}
                           </TableBody>
@@ -397,5 +435,4 @@ export default function Home() {
       </div>
     </main>
   );
-
-    
+}
