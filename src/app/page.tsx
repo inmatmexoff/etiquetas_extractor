@@ -215,6 +215,8 @@ export default function Home() {
             const viewport = page.getViewport({ scale: 1.5 });
             const textContent = await page.getTextContent();
             
+            console.log(`Text content for page ${rect.page}:`, textContent.items);
+
             const itemsInRect = textContent.items.filter((item: any) => {
                 const tx = item.transform[4];
                 const ty = item.transform[5];
@@ -247,7 +249,7 @@ export default function Home() {
         }
 
         if (data.every(d => d.value === '')) {
-            setError("No se pudo extraer texto de las áreas definidas. Intenta dibujarlas de nuevo.");
+            setError("No se pudo extraer texto de las áreas definidas. Intenta dibujarlas de nuevo y revisa la consola del navegador.");
         } else {
             setError(null);
         }
@@ -311,7 +313,12 @@ export default function Home() {
                              <ul className="space-y-2">
                                 {rectangles.map((rect, index) => (
                                     <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
-                                        <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
+                                        <div>
+                                            <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
+                                            <p className="text-xs text-muted-foreground">
+                                                x: {Math.round(rect.x)}, y: {Math.round(rect.y)}, w: {Math.round(rect.width)}, h: {Math.round(rect.height)}
+                                            </p>
+                                        </div>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteRectangle(index)}>
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -419,8 +426,6 @@ export default function Home() {
       </div>
     </main>
   );
+}
 
     
-
-    
-
