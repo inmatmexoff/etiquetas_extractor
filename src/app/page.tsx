@@ -266,23 +266,7 @@ export default function Home() {
   }
 
   const getGroupedData = (): GroupedExtractedData[] => {
-      const grouped: { [key: string]: GroupedExtractedData } = {};
-      const numLabels = PREDEFINED_RECTANGLES.length;
-
-      extractedData.forEach((item, index) => {
-          // Assuming every N items belong to a new record.
-          // We need a more robust way to group if PDFs are not consistent.
-          // For now, we can group by page and occurrences.
-          const recordIndex = Math.floor(index / numLabels);
-          const key = `page-${item.page}-record-${recordIndex}`;
-          
-          if (!grouped[key]) {
-              grouped[key] = { page: item.page };
-          }
-          grouped[key][item.label] = item.value;
-      });
-
-      // A more robust grouping by page, assuming one label per page for now.
+      // Grouping by page
       const pageGroup: { [key:number]: GroupedExtractedData } = {};
       extractedData.forEach(item => {
           if (!pageGroup[item.page]) {
@@ -347,7 +331,7 @@ export default function Home() {
                   </ul>
               </CardContent>
               <CardFooter className="flex-wrap gap-2">
-                  <Button onClick={handleExtractData} disabled={isLoading || rectangles.length === 0}>
+                  <Button onClick={handleExtractData} disabled={isLoading || !pdfDoc || rectangles.length === 0}>
                       <FileText className="mr-2 h-4 w-4" />
                       {isLoading ? 'Extrayendo...' : 'Extraer Datos de Todas las Páginas'}
                   </Button>
@@ -422,7 +406,9 @@ export default function Home() {
                               {groupedResults.map((row, index) => (
                                   <TableRow key={index}>
                                      {tableHeaders.map(header => (
-                                        <TableCell key={header}>{(row[header] as string) || ''}</TableCell>
+                                        <TableCell key={header}>
+                                            {header === "Página" ? row.page : (row[header] as string) || ''}
+                                        </TableCell>
                                      ))}
                                   </TableRow>
                               ))}
@@ -435,4 +421,5 @@ export default function Home() {
       </div>
     </main>
   );
-}
+
+    
