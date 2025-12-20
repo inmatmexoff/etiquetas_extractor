@@ -47,7 +47,7 @@ const PREDEFINED_RECTANGLES_DEFAULT: Rectangle[] = [
     { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
     { label: "CANTIDAD", x: 51, y: 44, width: 83, height: 81 },
     { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
-    { label: "CODIGO DE BARRA", x: 52, y: 347, width: 355, height: 167 },
+    { label: "CODIGO DE BARRA", x: 52, y: 347, width: 355, height: 120 },
     { label: "NUM DE VENTA", x: 47, y: 165, width: 165, height: 20 },
     { label: "SKU", x: 47, y: 135, width: 384, height: 20 },
     { label: "PRODUCTO", x: 139, y: 52, width: 277, height: 47 },
@@ -444,7 +444,7 @@ export default function Home() {
         
         <div className="grid grid-cols-1 gap-8">
           {groupedResults.length > 0 && (
-                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+                <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1" className="border-b-0">
                         <Card>
                            <CardHeader>
