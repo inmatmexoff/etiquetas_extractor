@@ -301,6 +301,8 @@ export default function Home() {
                     extractedText = numbers ? numbers.join(' ') : '';
                 } else if (rect.label === 'NUM DE VENTA') {
                     extractedText = extractedText.replace(/Venta:/gi, '').trim();
+                } else if (rect.label === 'SKU') {
+                    extractedText = extractedText.replace(/SKU:/gi, '').trim();
                 }
 
 
