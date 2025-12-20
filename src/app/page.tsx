@@ -243,7 +243,12 @@ export default function Home() {
                     return yB - yA;
                 });
 
-                const extractedText = itemsInRect.map((item: any) => item.str).join(' ');
+                let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
+                
+                if (rect.label === 'CANTIDAD') {
+                    extractedText = extractedText.replace(/Cantidad/gi, '').trim();
+                }
+
                 if (extractedText.trim() !== '') {
                     allData.push({ label: rect.label, value: extractedText.trim(), page: currentPageNum });
                 }
