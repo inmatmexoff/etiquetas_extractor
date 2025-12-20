@@ -79,9 +79,13 @@ export default function Home() {
             setExtractedData(result);
         }
 
-    } catch (err) {
+    } catch (err: any) {
         console.error("Error durante la extracción:", err);
-        setError("Ocurrió un error al extraer la información. Por favor, inténtalo de nuevo.");
+        if (err.message && (err.message.includes("429") || err.message.toLowerCase().includes("too many requests"))) {
+            setError("Has superado la cuota de uso. Por favor, espera un minuto antes de intentarlo de nuevo.");
+        } else {
+            setError("Ocurrió un error al extraer la información. Por favor, inténtalo de nuevo.");
+        }
     } finally {
         setIsLoading(false);
     }
