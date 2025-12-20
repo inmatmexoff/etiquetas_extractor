@@ -57,6 +57,9 @@ export default function Home() {
   const handleExtract = async () => {
     const newExtractedData: Record<string, string> = {};
     for (const selection of selections) {
+      // Ensure the page is rendered before extraction
+      await renderPage(selection.page - 1); 
+
       const canvas = canvasRefs.current[selection.page - 1];
       if (canvas && selection.width > 0 && selection.height > 0) {
         const tempCanvas = document.createElement('canvas');
@@ -91,23 +94,27 @@ export default function Home() {
 
   const renderPage = async (pageIndex: number) => {
     if (!pdfDocRef.current) return;
-    const page = await pdfDocRef.current.getPage(pageIndex + 1);
-    const viewport = page.getViewport({ scale: 1.5 });
-    const canvas = canvasRefs.current[pageIndex];
+    try {
+        const page = await pdfDocRef.current.getPage(pageIndex + 1);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = canvasRefs.current[pageIndex];
 
-    if (canvas) {
-      const context = canvas.getContext("2d");
-      if(canvas.height !== viewport.height || canvas.width !== viewport.width){
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-      }
-      if (context) {
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport,
-        };
-        await page.render(renderContext).promise;
-      }
+        if (canvas) {
+        const context = canvas.getContext("2d");
+        if(canvas.height !== viewport.height || canvas.width !== viewport.width){
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+        }
+        if (context) {
+            const renderContext = {
+            canvasContext: context,
+            viewport: viewport,
+            };
+            await page.render(renderContext).promise;
+        }
+        }
+    } catch(e) {
+        console.error("Failed to render page", e);
     }
   };
 
@@ -158,7 +165,7 @@ export default function Home() {
     if (pdfDocRef.current) {
         drawAllSelections();
     }
-  }, [selections]);
+  }, [selections, activeLabel]); // Rerender if active label changes to clear temp rect
 
   const getCanvasAndMousePos = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
     const canvas = canvasRefs.current[pageIndex];
@@ -182,21 +189,19 @@ export default function Home() {
     const pos = getCanvasAndMousePos(e, pageIndex);
     if (!pos) return;
     
-    const canvas = canvasRefs.current[pageIndex];
-    if(!canvas) return;
-    const context = canvas.getContext("2d");
-    if(context){
-        // Redraw page and existing selections first
-        renderPage(pageIndex).then(() => {
-            drawSelectionsForPage(pageIndex);
-            // Then draw the temporary rectangle
+    // Efficient redraw
+    drawAllSelections().then(() => {
+        const canvas = canvasRefs.current[pageIndex];
+        if(!canvas) return;
+        const context = canvas.getContext("2d");
+        if(context) {
             const width = pos.x - startPos.x;
             const height = pos.y - startPos.y;
             context.strokeStyle = "green";
             context.lineWidth = 2;
             context.strokeRect(startPos.x, startPos.y, width, height);
-        });
-    }
+        }
+    });
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
@@ -211,7 +216,7 @@ export default function Home() {
 
     if (width < 5 || height < 5) {
       setStartPos(null);
-      drawAllSelections(); // Redraw to clear temporary rectangle
+      drawAllSelections();
       return;
     }
     
@@ -224,7 +229,6 @@ export default function Home() {
       label: activeLabel,
     };
     
-    // Remove existing selection for the same label before adding the new one
     const otherSelections = selections.filter(s => s.label !== activeLabel);
     setSelections([...otherSelections, newSelection]);
     setStartPos(null);
