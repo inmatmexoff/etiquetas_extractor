@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
-import { ChevronLeft, ChevronRight, Trash2, FileText, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 
@@ -86,149 +86,8 @@ export default function Home() {
     setRectangles(PREDEFINED_RECTANGLES_DEFAULT);
   }, []);
 
-  useEffect(() => {
-    if (!pdfFile || !pdfjsLib) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
-      try {
-        const doc = await pdfjsLib.getDocument({ data: typedArray }).promise;
-        setPdfDoc(doc);
-        setNumPages(doc.numPages);
-        setPageNum(1);
-        // Reset rectangles to predefined ones for the first page
-        setRectangles(PREDEFINED_RECTANGLES_DEFAULT);
-        setExtractedData([]); // Clear extracted data for new PDF
-      } catch (err) {
-        console.error("Error loading PDF:", err);
-        setError("No se pudo cargar el archivo PDF.");
-      }
-    };
-    reader.readAsArrayBuffer(pdfFile);
-
-    // We need to create a new file object for the scanner as it can be consumed.
-    const fileForScanner = new File([pdfFile], pdfFile.name, { type: pdfFile.type });
-    scanQrCode(fileForScanner);
-  }, [pdfFile]);
-
-  useEffect(() => {
-    if (pdfDoc) {
-      renderPage(pageNum);
-    }
-  }, [pdfDoc, pageNum]);
-
-  const renderPage = async (num: number) => {
-    if (!pdfDoc || pageRendering) return;
-
-    setPageRendering(true);
-    try {
-      const page = await pdfDoc.getPage(num);
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      
-      const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
-      if (drawingAreaRef.current) {
-        drawingAreaRef.current.style.width = `${viewport.width}px`;
-        drawingAreaRef.current.style.height = `${viewport.height}px`;
-      }
-
-      const renderContext = {
-        canvasContext: ctx,
-        viewport: viewport,
-      };
-      await page.render(renderContext).promise;
-    } catch(e) {
-        console.error("Error rendering page", e);
-    } finally {
-        setPageRendering(false);
-    }
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === "application/pdf") {
-      setPdfFile(file);
-      setError(null);
-      setQrCodeValue(null);
-      setPdfDoc(null);
-    } else {
-      setPdfFile(null);
-      setPdfDoc(null);
-      setQrCodeValue(null);
-      setError("Por favor, sube un archivo PDF válido.");
-    }
-  };
-
-  const scanQrCode = async (file: File) => {
-    try {
-      const html5QrCode = new Html5Qrcode("qr-reader", /* verbose= */ false);
-      const decodedText = await html5QrCode.scanFile(file, /* showImage= */ false);
-      console.log("QR Code Found:", decodedText);
-      setQrCodeValue(decodedText);
-    } catch (err) {
-      setQrCodeValue(null);
-      console.log("QR Code scan failed or no QR code found.", err);
-    }
-  };
-  
-  const onPrevPage = () => {
-    if (pageNum <= 1) return;
-    setPageNum(pageNum - 1);
-  };
-
-  const onNextPage = () => {
-    if (pageNum >= numPages) return;
-    setPageNum(pageNum + 1);
-  };
-
-  const handleDeleteRectangle = (index: number) => {
-    setRectangles(rectangles.filter((_, i) => i !== index));
-  }
-
-  const handleResetRectangles = () => {
-    setRectangles(PREDEFINED_RECTANGLES_DEFAULT);
-  };
-
-  const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
-      const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
-      const x = tx[4];
-      const y = tx[5];
-
-      const textWidth = pdfTextItem.width * PDF_RENDER_SCALE;
-      const textHeight = pdfTextItem.height * PDF_RENDER_SCALE;
-
-      const r1 = {
-        x: x,
-        y: y,
-        width: textWidth,
-        height: textHeight, 
-      };
-
-      const r2 = {
-        x: drawnRect.x,
-        y: drawnRect.y,
-        width: drawnRect.width,
-        height: drawnRect.height
-      };
-
-      // Check for intersection with tolerance
-      const pad = 5;
-      return (
-        r1.x < r2.x + r2.width + pad &&
-        r1.x + r1.width > r2.x - pad &&
-        r1.y < r2.y + r2.height + pad &&
-        r1.y + r1.height > r2.y - pad
-      );
-    };
-
-  const handleExtractData = async () => {
-    if (!pdfDoc) return;
+  const handleExtractData = async (doc: any) => {
+    if (!doc) return;
     setIsLoading(true);
     setExtractedData([]);
     setError(null);
@@ -236,8 +95,8 @@ export default function Home() {
     try {
         const allData: ExtractedData[] = [];
 
-        for (let currentPageNum = 1; currentPageNum <= numPages; currentPageNum++) {
-            const page = await pdfDoc.getPage(currentPageNum);
+        for (let currentPageNum = 1; currentPageNum <= doc.numPages; currentPageNum++) {
+            const page = await doc.getPage(currentPageNum);
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
@@ -331,6 +190,138 @@ export default function Home() {
     }
   }
 
+  useEffect(() => {
+    if (!pdfFile || !pdfjsLib) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
+      try {
+        const doc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+        setPdfDoc(doc);
+        setNumPages(doc.numPages);
+        setPageNum(1);
+        setExtractedData([]); // Clear extracted data for new PDF
+        handleExtractData(doc); // Auto-extract data
+      } catch (err) {
+        console.error("Error loading PDF:", err);
+        setError("No se pudo cargar el archivo PDF.");
+      }
+    };
+    reader.readAsArrayBuffer(pdfFile);
+
+    // We need to create a new file object for the scanner as it can be consumed.
+    const fileForScanner = new File([pdfFile], pdfFile.name, { type: pdfFile.type });
+    scanQrCode(fileForScanner);
+  }, [pdfFile]);
+
+  useEffect(() => {
+    if (pdfDoc) {
+      renderPage(pageNum);
+    }
+  }, [pdfDoc, pageNum]);
+
+  const renderPage = async (num: number) => {
+    if (!pdfDoc || pageRendering) return;
+
+    setPageRendering(true);
+    try {
+      const page = await pdfDoc.getPage(num);
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      
+      const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      if (drawingAreaRef.current) {
+        drawingAreaRef.current.style.width = `${viewport.width}px`;
+        drawingAreaRef.current.style.height = `${viewport.height}px`;
+      }
+
+      const renderContext = {
+        canvasContext: ctx,
+        viewport: viewport,
+      };
+      await page.render(renderContext).promise;
+    } catch(e) {
+        console.error("Error rendering page", e);
+    } finally {
+        setPageRendering(false);
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === "application/pdf") {
+      setPdfFile(file);
+      setError(null);
+      setQrCodeValue(null);
+      setPdfDoc(null);
+    } else {
+      setPdfFile(null);
+      setPdfDoc(null);
+      setQrCodeValue(null);
+      setError("Por favor, sube un archivo PDF válido.");
+    }
+  };
+
+  const scanQrCode = async (file: File) => {
+    try {
+      const html5QrCode = new Html5Qrcode("qr-reader", /* verbose= */ false);
+      const decodedText = await html5QrCode.scanFile(file, /* showImage= */ false);
+      console.log("QR Code Found:", decodedText);
+      setQrCodeValue(decodedText);
+    } catch (err) {
+      setQrCodeValue(null);
+      console.log("QR Code scan failed or no QR code found.", err);
+    }
+  };
+  
+  const onPrevPage = () => {
+    if (pageNum <= 1) return;
+    setPageNum(pageNum - 1);
+  };
+
+  const onNextPage = () => {
+    if (pageNum >= numPages) return;
+    setPageNum(pageNum + 1);
+  };
+
+  const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
+      const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
+      const x = tx[4];
+      const y = tx[5];
+
+      const textWidth = pdfTextItem.width * PDF_RENDER_SCALE;
+      const textHeight = pdfTextItem.height * PDF_RENDER_SCALE;
+
+      const r1 = {
+        x: x,
+        y: y,
+        width: textWidth,
+        height: textHeight, 
+      };
+
+      const r2 = {
+        x: drawnRect.x,
+        y: drawnRect.y,
+        width: drawnRect.width,
+        height: drawnRect.height
+      };
+
+      // Check for intersection with tolerance
+      const pad = 5;
+      return (
+        r1.x < r2.x + r2.width + pad &&
+        r1.x + r1.width > r2.x - pad &&
+        r1.y < r2.y + r2.height + pad &&
+        r1.y + r1.height > r2.y - pad
+      );
+    };
+
   const getGroupedData = (): GroupedExtractedData[] => {
       // Grouping by page
       const pageGroup: { [key:number]: GroupedExtractedData } = {};
@@ -371,45 +362,13 @@ export default function Home() {
             </div>
             {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
             {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
+             {isLoading && <p className="mt-2 text-sm text-primary">Extrayendo datos...</p>}
           </CardContent>
         </Card>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card>
-              <CardHeader>
-                  <CardTitle>Áreas Definidas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                    <ul className="space-y-2">
-                      {rectangles.map((rect, index) => (
-                          <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
-                              <div>
-                                  <span className="font-medium">{rect.label}</span>
-                                  <p className="text-xs text-muted-foreground">
-                                      x: {Math.round(rect.x)}, y: {Math.round(rect.y)}, w: {Math.round(rect.width)}, h: {Math.round(rect.height)}
-                                  </p>
-                              </div>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteRectangle(index)}>
-                                  <Trash2 className="h-4 w-4" />
-                              </Button>
-                          </li>
-                      ))}
-                  </ul>
-              </CardContent>
-              <CardFooter className="flex-wrap gap-2">
-                  <Button onClick={handleExtractData} disabled={isLoading || !pdfDoc}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      {isLoading ? 'Extrayendo...' : 'Extraer Datos de Todas las Páginas'}
-                  </Button>
-                  <Button onClick={handleResetRectangles} variant="outline">
-                      <RotateCcw className="mr-2 h-4 w-4" />
-                      Restablecer Áreas
-                  </Button>
-              </CardFooter>
-          </Card>
-          
           {groupedResults.length > 0 && (
-                <Card>
+                <Card className="md:col-span-2">
                   <CardHeader>
                       <CardTitle>Resultados de la Extracción</CardTitle>
                   </CardHeader>
