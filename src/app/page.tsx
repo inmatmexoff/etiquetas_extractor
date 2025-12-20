@@ -235,29 +235,24 @@ export default function Home() {
 
     try {
         const allData: ExtractedData[] = [];
-        let activeRectangles = PREDEFINED_RECTANGLES_DEFAULT;
-
-        // --- Pre-check logic ---
-        const firstPage = await pdfDoc.getPage(1);
-        const firstPageViewport = firstPage.getViewport({ scale: PDF_RENDER_SCALE });
-        const firstPageTextContent = await firstPage.getTextContent();
-        
-        const skuArea = PREDEFINED_RECTANGLES_DEFAULT.find(r => r.label === 'SKU');
-        if (skuArea) {
-            const itemsInSkuArea = firstPageTextContent.items.filter((item: any) => intersects(item, skuArea, firstPageViewport));
-            const skuText = itemsInSkuArea.map((item: any) => item.str).join(' ');
-            if (skuText.includes("Prepará el paquete")) {
-                activeRectangles = ALTERNATIVE_RECTANGLES;
-            }
-        }
-        setRectangles(activeRectangles);
-        // --- End of pre-check ---
 
         for (let currentPageNum = 1; currentPageNum <= numPages; currentPageNum++) {
             const page = await pdfDoc.getPage(currentPageNum);
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
+            // --- Per-Page Rectangle Selection Logic ---
+            let activeRectangles = PREDEFINED_RECTANGLES_DEFAULT;
+            const skuArea = PREDEFINED_RECTANGLES_DEFAULT.find(r => r.label === 'SKU');
+            if (skuArea) {
+                const itemsInSkuArea = textContent.items.filter((item: any) => intersects(item, skuArea, viewport));
+                const skuText = itemsInSkuArea.map((item: any) => item.str).join(' ');
+                if (skuText.includes("Prepará el paquete")) {
+                    activeRectangles = ALTERNATIVE_RECTANGLES;
+                }
+            }
+            // --- End of Per-Page Logic ---
+
             for (const rect of activeRectangles) {
                 const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
 
