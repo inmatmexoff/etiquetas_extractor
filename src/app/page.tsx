@@ -219,31 +219,40 @@ export default function Home() {
             
             // Function to check if a text item's bounding box intersects with the drawn rectangle
             const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
-                const [fontSize, , , , tx, ty] = pdfTextItem.transform;
+              // Use the official pdf.js utility function to transform the text item's box.
+              // This returns [x1, y1, x2, y2] in canvas coordinates.
+              const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
+              const [x, y] = [tx[4], tx[5]];
+              
+              const textWidth = pdfTextItem.width * viewport.scale;
+              const textHeight = pdfTextItem.height * viewport.scale;
 
-                // Convert PDF coordinates to Canvas coordinates
-                // tx and ty are the bottom-left corner of the text
-                const textX = tx;
-                const textY = viewport.height - ty;
-                
-                const textWidth = pdfTextItem.width;
-                // Approximate height, as pdf.js doesn't provide it reliably.
-                // We can use the font size as a rough guide.
-                const textHeight = pdfTextItem.height;
+              // The y coordinate from pdf.js is from the bottom, so we need to adjust it
+              // to match the canvas's top-left origin. The height of the text is a good approximation.
+              const textY = y - textHeight;
 
-                // AABB collision detection (Axis-Aligned Bounding Box)
-                const rect1 = { x: textX, y: textY - textHeight, width: textWidth, height: textHeight };
-                const rect2 = { x: drawnRect.x, y: drawnRect.y, width: drawnRect.width, height: drawnRect.height };
+              // AABB collision detection (Axis-Aligned Bounding Box) with a small tolerance
+              const pad = 2; // Tolerance in pixels
+              const r1 = {
+                x: textX,
+                y: textY,
+                width: textWidth,
+                height: textHeight,
+              };
 
-                // Add a small padding for tolerance
-                const pad = 5;
+              const r2 = {
+                x: drawnRect.x,
+                y: drawnRect.y,
+                width: drawnRect.width,
+                height: drawnRect.height
+              };
 
-                return (
-                    rect1.x < rect2.x + rect2.width + pad &&
-                    rect1.x + rect1.width > rect2.x - pad &&
-                    rect1.y < rect2.y + rect2.height + pad &&
-                    rect1.y + rect1.height > rect2.y - pad
-                );
+              return (
+                r1.x < r2.x + r2.width + pad &&
+                r1.x + r1.width > r2.x - pad &&
+                r1.y < r2.y + r2.height + pad &&
+                r1.y + r1.height > r2.y - pad
+              );
             };
 
             const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect));
@@ -285,29 +294,28 @@ export default function Home() {
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div id="qr-reader" style={{ display: 'none' }}></div>
       <div className="container mx-auto max-w-7xl space-y-8">
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold tracking-tight text-primary">
-              Extractor de Facturas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid w-full max-w-sm items-center gap-2">
-              <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
-              <Input
-                id="pdf-upload"
-                type="file"
-                accept="application/pdf"
-                onChange={handleFileChange}
-                className="file:text-primary file:font-medium"
-                disabled={isLoading}
-              />
-            </div>
-            {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-            {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold tracking-tight text-primary">
+                Extractor de Facturas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid w-full max-w-sm items-center gap-2">
+                <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
+                <Input
+                  id="pdf-upload"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                  className="file:text-primary file:font-medium"
+                  disabled={isLoading}
+                />
+              </div>
+              {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+              {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
+            </CardContent>
+          </Card>
         
         {pdfDoc && (
           <Card>
