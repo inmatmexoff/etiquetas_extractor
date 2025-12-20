@@ -49,14 +49,18 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <div className="h-[calc(100vh-20rem)] w-full">
-                <embed
-                  src={pdfUrl}
+                <object
+                  data={pdfUrl}
                   type="application/pdf"
-                  title="Vista previa del PDF"
                   width="100%"
                   height="100%"
                   className="rounded-md border"
-                />
+                >
+                  <p>
+                    Tu navegador no soporta la previsualización de PDFs. 
+                    Puedes <a href={pdfUrl}>descargarlo aquí</a>.
+                  </p>
+                </object>
               </div>
             </CardContent>
           </Card>
