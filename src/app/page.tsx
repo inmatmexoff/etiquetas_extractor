@@ -34,6 +34,7 @@ export default function Home() {
   const [startPos, setStartPos] = useState<{ x: number, y: number, page: number } | null>(null);
   const pdfDocRef = useRef<any>(null);
   const [extractedData, setExtractedData] = useState<Record<string, string>>({});
+  const renderTasks = useRef<any[]>([]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -93,30 +94,37 @@ export default function Home() {
   };
 
   const renderPage = async (pageIndex: number) => {
-    if (!pdfDocRef.current) return;
+    if (!pdfDocRef.current || renderTasks.current[pageIndex]) return;
+  
     try {
-        const page = await pdfDocRef.current.getPage(pageIndex + 1);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = canvasRefs.current[pageIndex];
-
-        if (canvas) {
+      const page = await pdfDocRef.current.getPage(pageIndex + 1);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = canvasRefs.current[pageIndex];
+  
+      if (canvas) {
         const context = canvas.getContext("2d");
-        if(canvas.height !== viewport.height || canvas.width !== viewport.width){
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+        if (canvas.height !== viewport.height || canvas.width !== viewport.width) {
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
         }
         if (context) {
-            const renderContext = {
+          const renderContext = {
             canvasContext: context,
             viewport: viewport,
-            };
-            await page.render(renderContext).promise;
+          };
+          // Store the render task
+          renderTasks.current[pageIndex] = page.render(renderContext);
+          await renderTasks.current[pageIndex].promise;
         }
-        }
-    } catch(e) {
-        console.error("Failed to render page", e);
+      }
+    } catch (e) {
+      console.error("Failed to render page", e);
+    } finally {
+      // Clear the task once complete
+      renderTasks.current[pageIndex] = null;
     }
   };
+  
 
   const drawAllSelections = async () => {
     if (!pdfDocRef.current) return;
@@ -128,31 +136,36 @@ export default function Home() {
 
   useEffect(() => {
     if (!pdfFile || typeof window === 'undefined') return;
-
+  
     const loadPdf = async () => {
       const pdfjsLib = (window as any).pdfjsLib;
       if (!pdfjsLib) {
         console.error("PDF.js library not found.");
         return;
       }
-      
+  
+      // Cancel any ongoing render tasks
+      renderTasks.current.forEach(task => task?.cancel());
+      renderTasks.current = [];
+  
       const fileReader = new FileReader();
       fileReader.onload = async function() {
         if (!this.result) return;
         const typedArray = new Uint8Array(this.result as ArrayBuffer);
         try {
-            const doc = await pdfjsLib.getDocument({ data: typedArray }).promise;
-            pdfDocRef.current = doc;
-            setNumPages(doc.numPages);
-        } catch(error) {
-            console.error("Error loading PDF:", error);
+          const doc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+          pdfDocRef.current = doc;
+          renderTasks.current = new Array(doc.numPages).fill(null);
+          setNumPages(doc.numPages);
+        } catch (error) {
+          console.error("Error loading PDF:", error);
         }
       };
       fileReader.readAsArrayBuffer(pdfFile);
     };
-
+  
     loadPdf();
-
+  
   }, [pdfFile]);
 
   useEffect(() => {
@@ -188,21 +201,23 @@ export default function Home() {
     if (!isDrawing || !startPos || startPos.page !== pageIndex) return;
     const pos = getCanvasAndMousePos(e, pageIndex);
     if (!pos) return;
-    
-    // Efficient redraw
-    drawAllSelections().then(() => {
-        const canvas = canvasRefs.current[pageIndex];
-        if(!canvas) return;
-        const context = canvas.getContext("2d");
-        if(context) {
-            const width = pos.x - startPos.x;
-            const height = pos.y - startPos.y;
-            context.strokeStyle = "green";
-            context.lineWidth = 2;
-            context.strokeRect(startPos.x, startPos.y, width, height);
-        }
+
+    // Redraw the page and existing selections, then the new rectangle on top
+    renderPage(pageIndex).then(() => {
+      drawSelectionsForPage(pageIndex);
+      const canvas = canvasRefs.current[pageIndex];
+      if(!canvas) return;
+      const context = canvas.getContext("2d");
+      if(context) {
+        const width = pos.x - startPos.x;
+        const height = pos.y - startPos.y;
+        context.strokeStyle = "green";
+        context.lineWidth = 2;
+        context.strokeRect(startPos.x, startPos.y, width, height);
+      }
     });
   };
+  
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
     if (!isDrawing || !startPos || !activeLabel || startPos.page !== pageIndex) return;
