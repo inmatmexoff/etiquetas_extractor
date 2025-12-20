@@ -58,7 +58,7 @@ export default function Home() {
     const newExtractedData: Record<string, string> = {};
     for (const selection of selections) {
       const canvas = canvasRefs.current[selection.page - 1];
-      if (canvas) {
+      if (canvas && selection.width > 0 && selection.height > 0) {
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = selection.width;
         tempCanvas.height = selection.height;
@@ -205,12 +205,21 @@ export default function Home() {
     if (!pos) return;
 
     setIsDrawing(false);
+
+    const width = Math.abs(pos.x - startPos.x);
+    const height = Math.abs(pos.y - startPos.y);
+
+    if (width < 5 || height < 5) {
+      setStartPos(null);
+      renderPage(pageIndex); // Redraw to clear temporary rectangle
+      return;
+    }
     
     const newSelection: Selection = {
       x: Math.min(startPos.x, pos.x),
       y: Math.min(startPos.y, pos.y),
-      width: Math.abs(pos.x - startPos.x),
-      height: Math.abs(pos.y - startPos.y),
+      width: width,
+      height: height,
       page: pageIndex + 1,
       label: activeLabel,
     };
@@ -342,3 +351,5 @@ export default function Home() {
     </main>
   );
 }
+
+    
