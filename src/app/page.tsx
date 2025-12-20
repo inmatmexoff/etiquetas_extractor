@@ -217,21 +217,15 @@ export default function Home() {
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
-            // Function to check if a text item's bounding box intersects with the drawn rectangle
             const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
-              // Use the official pdf.js utility function to transform the text item's box.
-              // This returns [x1, y1, x2, y2] in canvas coordinates.
               const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
               const [x, y] = [tx[4], tx[5]];
               
               const textWidth = pdfTextItem.width * viewport.scale;
               const textHeight = pdfTextItem.height * viewport.scale;
 
-              // The y coordinate from pdf.js is from the bottom, so we need to adjust it
-              // to match the canvas's top-left origin. The height of the text is a good approximation.
               const textY = y - textHeight;
 
-              // AABB collision detection (Axis-Aligned Bounding Box) with a small tolerance
               const pad = 2; // Tolerance in pixels
               const r1 = {
                 x: x,
@@ -257,14 +251,13 @@ export default function Home() {
 
             const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect));
 
-            // Sort by y then x to read in a natural order
              itemsInRect.sort((a: any, b: any) => {
                 const yA = a.transform[5];
                 const yB = b.transform[5];
-                if (Math.abs(yA - yB) < 2) { // If on the same line (approx)
-                    return a.transform[4] - b.transform[4]; // Sort by X
+                if (Math.abs(yA - yB) < 2) {
+                    return a.transform[4] - b.transform[4];
                 }
-                return yB - yA; // Sort by Y (descending as PDF coords are bottom-up)
+                return yB - yA;
             });
 
             const extractedText = itemsInRect.map((item: any) => item.str).join(' ');
@@ -317,6 +310,79 @@ export default function Home() {
           </CardContent>
         </Card>
         
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {(currentRect || rectangles.length > 0) && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Áreas Definidas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {currentRect && (
+                        <div className="flex items-center gap-2 mb-4">
+                            <Input
+                                placeholder="Etiqueta para la nueva área"
+                                value={newLabel}
+                                onChange={(e) => setNewLabel(e.target.value)}
+                                className="h-9"
+                            />
+                            <Button onClick={handleSaveRectangle} size="sm">Guardar</Button>
+                            <Button onClick={() => setCurrentRect(null)} variant="ghost" size="sm">Cancelar</Button>
+                        </div>
+                    )}
+                      <ul className="space-y-2">
+                        {rectangles.map((rect, index) => (
+                            <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
+                                <div>
+                                    <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
+                                    <p className="text-xs text-muted-foreground">
+                                        x: {Math.round(rect.x)}, y: {Math.round(rect.y)}, w: {Math.round(rect.width)}, h: {Math.round(rect.height)}
+                                    </p>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteRectangle(index)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                </CardContent>
+                {rectangles.length > 0 && (
+                    <CardFooter>
+                        <Button onClick={handleExtractData} disabled={isLoading}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            {isLoading ? 'Extrayendo...' : 'Extraer Datos'}
+                        </Button>
+                    </CardFooter>
+                )}
+            </Card>
+            )}
+
+            {extractedData.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                        <CardTitle>Resultados de la Extracción</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Campo</TableHead>
+                                    <TableHead>Valor</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {extractedData.map((data, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell className="font-medium">{data.label}</TableCell>
+                                        <TableCell>{data.value}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+
         {pdfDoc && (
           <Card>
             <CardHeader>
@@ -377,81 +443,7 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
-        
-        <div className="grid grid-cols-1 gap-8 items-start">
-             {(currentRect || rectangles.length > 0) && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Áreas Definidas</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {currentRect && (
-                            <div className="flex items-center gap-2 mb-4">
-                                <Input
-                                    placeholder="Etiqueta para la nueva área"
-                                    value={newLabel}
-                                    onChange={(e) => setNewLabel(e.target.value)}
-                                    className="h-9"
-                                />
-                                <Button onClick={handleSaveRectangle} size="sm">Guardar</Button>
-                                <Button onClick={() => setCurrentRect(null)} variant="ghost" size="sm">Cancelar</Button>
-                            </div>
-                        )}
-                         <ul className="space-y-2">
-                            {rectangles.map((rect, index) => (
-                                <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
-                                    <div>
-                                        <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
-                                        <p className="text-xs text-muted-foreground">
-                                            x: {Math.round(rect.x)}, y: {Math.round(rect.y)}, w: {Math.round(rect.width)}, h: {Math.round(rect.height)}
-                                        </p>
-                                    </div>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteRectangle(index)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
-                    </CardContent>
-                    <CardFooter>
-                        <Button onClick={handleExtractData} disabled={isLoading || rectangles.length === 0}>
-                            <FileText className="mr-2 h-4 w-4" />
-                            {isLoading ? 'Extrayendo...' : 'Extraer Datos'}
-                        </Button>
-                    </CardFooter>
-                </Card>
-            )}
-
-            {extractedData.length > 0 && (
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Resultados de la Extracción</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Campo</TableHead>
-                                    <TableHead>Valor</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {extractedData.map((data, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell className="font-medium">{data.label}</TableCell>
-                                        <TableCell>{data.value}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
-        </div>
-        
       </div>
     </main>
   );
-
-    
-
+}
