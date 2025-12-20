@@ -159,10 +159,11 @@ export default function Home() {
                         }
                     }
                 } else if (rect.label === 'CODIGO DE BARRA') {
-                    const numbers = extractedText.match(/\d{4,}/g);
-                    extractedText = numbers ? numbers[0] : ''; // Take only the first number
+                    const numbers = extractedText.match(/\d+/g);
+                    extractedText = numbers ? numbers.join('') : '';
                 } else if (rect.label === 'NUM DE VENTA') {
-                    extractedText = extractedText.replace(/Venta:/gi, '').trim();
+                    const numbers = extractedText.match(/\d+/g);
+                    extractedText = numbers ? numbers.join('') : '';
                 } else if (rect.label === 'SKU') {
                     extractedText = extractedText.replace(/SKU:/gi, '').trim();
                 }
