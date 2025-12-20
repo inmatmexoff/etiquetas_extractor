@@ -234,7 +234,7 @@ export default function Home() {
               // AABB collision detection (Axis-Aligned Bounding Box) with a small tolerance
               const pad = 2; // Tolerance in pixels
               const r1 = {
-                x: textX,
+                x: x,
                 y: textY,
                 width: textWidth,
                 height: textHeight,
@@ -294,28 +294,28 @@ export default function Home() {
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div id="qr-reader" style={{ display: 'none' }}></div>
       <div className="container mx-auto max-w-7xl space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold tracking-tight text-primary">
-                Extractor de Facturas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid w-full max-w-sm items-center gap-2">
-                <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
-                <Input
-                  id="pdf-upload"
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handleFileChange}
-                  className="file:text-primary file:font-medium"
-                  disabled={isLoading}
-                />
-              </div>
-              {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-              {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold tracking-tight text-primary">
+              Extractor de Facturas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid w-full max-w-sm items-center gap-2">
+              <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
+              <Input
+                id="pdf-upload"
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileChange}
+                className="file:text-primary file:font-medium"
+                disabled={isLoading}
+              />
+            </div>
+            {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+            {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
+          </CardContent>
+        </Card>
         
         {pdfDoc && (
           <Card>
@@ -378,7 +378,7 @@ export default function Home() {
           </Card>
         )}
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        <div className="grid grid-cols-1 gap-8 items-start">
              {(currentRect || rectangles.length > 0) && (
                 <Card>
                     <CardHeader>
@@ -454,3 +454,4 @@ export default function Home() {
   );
 
     
+
