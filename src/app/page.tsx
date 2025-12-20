@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, FileText } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 
 // HACK: Make pdfjs work on nextjs
 let pdfjsLib: any = null;
@@ -24,6 +26,12 @@ interface Rectangle {
   width: number;
   height: number;
   label: string;
+  page: number;
+}
+
+interface ExtractedData {
+    label: string;
+    value: string;
 }
 
 export default function Home() {
@@ -41,9 +49,13 @@ export default function Home() {
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
-  const [currentRect, setCurrentRect] = useState<Omit<Rectangle, "label"> | null>(null);
+  const [currentRect, setCurrentRect] = useState<Omit<Rectangle, "label" | "page"> | null>(null);
   const [rectangles, setRectangles] = useState<Rectangle[]>([]);
   const [newLabel, setNewLabel] = useState("");
+
+  // Extraction state
+  const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
+
 
   useEffect(() => {
     if (!pdfFile || !pdfjsLib) return;
@@ -57,6 +69,7 @@ export default function Home() {
         setNumPages(doc.numPages);
         setPageNum(1);
         setRectangles([]); // Clear rectangles for new PDF
+        setExtractedData([]); // Clear extracted data for new PDF
       } catch (err) {
         console.error("Error loading PDF:", err);
         setError("No se pudo cargar el archivo PDF.");
@@ -178,7 +191,7 @@ export default function Home() {
 
   const handleSaveRectangle = () => {
     if (currentRect && newLabel.trim() !== "") {
-        setRectangles([...rectangles, { ...currentRect, label: newLabel.trim() }]);
+        setRectangles([...rectangles, { ...currentRect, label: newLabel.trim(), page: pageNum }]);
         setCurrentRect(null);
         setNewLabel("");
     }
@@ -188,12 +201,54 @@ export default function Home() {
     setRectangles(rectangles.filter((_, i) => i !== index));
   }
 
+  const handleExtractData = async () => {
+    if (!pdfDoc || rectangles.length === 0) return;
+    setIsLoading(true);
+    setExtractedData([]);
+
+    try {
+        const data: ExtractedData[] = [];
+
+        for (const rect of rectangles) {
+            const page = await pdfDoc.getPage(rect.page);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const textContent = await page.getTextContent();
+            
+            let extractedText = '';
+
+            for (const item of textContent.items) {
+                // The transform property is [scaleX, skewY, skewX, scaleY, x, y]
+                const [scaleX, , , scaleY, x, y] = item.transform;
+
+                // PDF coordinates start from bottom-left, canvas from top-left.
+                // We need to transform the y-coordinate.
+                const itemX = x;
+                const itemY = viewport.height - y;
+                
+                // Simple check if the text item's origin is within the rectangle
+                // A more robust check would consider the text item's width and height
+                 if (itemX >= rect.x && itemX <= (rect.x + rect.width) &&
+                    itemY >= rect.y && itemY <= (rect.y + rect.height)) {
+                    extractedText += item.str + ' ';
+                }
+            }
+             data.push({ label: rect.label, value: extractedText.trim() });
+        }
+        setExtractedData(data);
+    } catch(e) {
+        console.error("Error extracting data", e);
+        setError("Ocurrió un error al extraer los datos.");
+    } finally {
+        setIsLoading(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background p-4 md:p-8 flex flex-col items-center">
       <div id="qr-reader" style={{ display: 'none' }}></div>
       <div className="container mx-auto max-w-7xl space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
+            <div className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-2xl font-bold tracking-tight text-primary">
@@ -218,7 +273,7 @@ export default function Home() {
                 </Card>
 
                 {(currentRect || rectangles.length > 0) && (
-                    <Card className="mt-4">
+                    <Card>
                         <CardHeader>
                             <CardTitle>Áreas Definidas</CardTitle>
                         </CardHeader>
@@ -238,13 +293,45 @@ export default function Home() {
                              <ul className="space-y-2">
                                 {rectangles.map((rect, index) => (
                                     <li key={index} className="flex justify-between items-center bg-muted p-2 rounded-md">
-                                        <span className="font-medium">{rect.label}</span>
+                                        <span className="font-medium">{rect.label} (Pág. {rect.page})</span>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteRectangle(index)}>
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </li>
                                 ))}
                             </ul>
+                        </CardContent>
+                        <CardFooter>
+                            <Button onClick={handleExtractData} disabled={isLoading || rectangles.length === 0}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                {isLoading ? 'Extrayendo...' : 'Extraer Datos'}
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                )}
+
+                {extractedData.length > 0 && (
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Resultados de la Extracción</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Campo</TableHead>
+                                        <TableHead>Valor</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {extractedData.map((data, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell className="font-medium">{data.label}</TableCell>
+                                            <TableCell>{data.value}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         </CardContent>
                     </Card>
                 )}
@@ -279,7 +366,7 @@ export default function Home() {
                       onMouseLeave={handleMouseUp}
                     >
                       <canvas ref={canvasRef}></canvas>
-                      {rectangles.map((rect, index) => (
+                      {rectangles.filter(r => r.page === pageNum).map((rect, index) => (
                           <div
                             key={index}
                             className="absolute border-2 border-destructive"
