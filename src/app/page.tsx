@@ -205,6 +205,7 @@ export default function Home() {
     if (!pdfDoc || rectangles.length === 0) return;
     setIsLoading(true);
     setExtractedData([]);
+    setError(null);
 
     try {
         const data: ExtractedData[] = [];
@@ -214,27 +215,41 @@ export default function Home() {
             const viewport = page.getViewport({ scale: 1.5 });
             const textContent = await page.getTextContent();
             
-            let extractedText = '';
-
-            for (const item of textContent.items) {
-                // The transform property is [scaleX, skewY, skewX, scaleY, x, y]
+            const itemsInRect = textContent.items.filter((item: any) => {
                 const [scaleX, , , scaleY, x, y] = item.transform;
-
-                // PDF coordinates start from bottom-left, canvas from top-left.
-                // We need to transform the y-coordinate.
                 const itemX = x;
                 const itemY = viewport.height - y;
-                
-                // Simple check if the text item's origin is within the rectangle
-                // A more robust check would consider the text item's width and height
-                 if (itemX >= rect.x && itemX <= (rect.x + rect.width) &&
-                    itemY >= rect.y && itemY <= (rect.y + rect.height)) {
-                    extractedText += item.str + ' ';
+                const itemWidth = item.width;
+                const itemHeight = item.height;
+
+                // Check for overlap between the item's bounding box and the drawn rectangle
+                return (
+                    itemX < rect.x + rect.width &&
+                    itemX + itemWidth > rect.x &&
+                    itemY < rect.y + rect.height &&
+                    itemY + itemHeight > rect.y
+                );
+            });
+
+            // Sort by y then x to read in a natural order
+            itemsInRect.sort((a: any, b: any) => {
+                const yA = a.transform[5];
+                const yB = b.transform[5];
+                if (Math.abs(yA - yB) < 5) { // If on the same line (approx)
+                    return a.transform[4] - b.transform[4]; // Sort by X
                 }
-            }
-             data.push({ label: rect.label, value: extractedText.trim() });
+                return yB - yA; // Sort by Y (descending as PDF coords are bottom-up)
+            });
+
+            const extractedText = itemsInRect.map((item: any) => item.str).join(' ');
+            data.push({ label: rect.label, value: extractedText.trim() });
+        }
+
+        if (data.every(d => d.value === '')) {
+            setError("No se pudo extraer texto de las áreas definidas. Intenta dibujarlas de nuevo.");
         }
         setExtractedData(data);
+
     } catch(e) {
         console.error("Error extracting data", e);
         setError("Ocurrió un error al extraer los datos.");
@@ -356,7 +371,7 @@ export default function Home() {
                    </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[80vh] w-full rounded-md border overflow-auto flex justify-center items-start relative">
+                  <div className="h-[80vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-100 dark:bg-gray-900">
                     <div
                       ref={drawingAreaRef}
                       className="absolute top-0 left-0 cursor-crosshair"
@@ -401,4 +416,5 @@ export default function Home() {
       </div>
     </main>
   );
-}
+
+    
