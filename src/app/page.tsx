@@ -358,6 +358,10 @@ export default function Home() {
     setError(null);
 
     try {
+      const now = new Date();
+      const imp_date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
+
       const payload = groupedResults.map((row) => ({
         deli_date: row["FECHA ENTREGA"],
         quantity: Number(row["CANTIDAD"]) || null,
@@ -366,6 +370,8 @@ export default function Home() {
         sales_num: row["NUM DE VENTA"] || null,
         sku: row["SKU"] || null,
         product: row["PRODUCTO"] || null,
+        imp_date: imp_date,
+        hour: hour,
       }));
 
       const { error } = await supabase
