@@ -248,13 +248,27 @@ export default function Home() {
                 if (rect.label === 'CANTIDAD') {
                     extractedText = extractedText.replace(/Cantidad/gi, '').trim();
                 } else if (rect.label === 'FECHA ENTREGA') {
-                    extractedText = extractedText.replace(/ENTREGAR/gi, '').trim();
-                    const dateParts = extractedText.split('/');
-                    if (dateParts.length === 3) {
-                        const day = dateParts[0];
-                        const month = dateParts[1];
-                        const year = dateParts[2];
+                    const monthMap: { [key: string]: string } = {
+                        'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
+                        'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
+                    };
+                    const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
+                    
+                    let cleanText = extractedText.replace(/ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
+                    
+                    const datePartsNumeric = cleanText.split('/');
+                    if (datePartsNumeric.length === 3) {
+                        const day = datePartsNumeric[0].padStart(2, '0');
+                        const month = datePartsNumeric[1].padStart(2, '0');
+                        const year = datePartsNumeric[2];
                         extractedText = `${year}-${month}-${day}`;
+                    } else if (datePartsNumeric.length === 2) {
+                        const day = datePartsNumeric[0].padStart(2, '0');
+                        const monthStr = datePartsNumeric[1].toLowerCase();
+                        const month = monthMap[monthStr];
+                        if (month) {
+                            extractedText = `2025-${month}-${day}`;
+                        }
                     }
                 }
 
