@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, UploadCloud, Database } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
@@ -402,62 +402,80 @@ export default function Home() {
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div id="qr-reader" style={{ display: 'none' }}></div>
       <div className="container mx-auto max-w-7xl space-y-8">
+        <header className="text-center">
+            <h1 className="text-4xl font-bold tracking-tight text-primary">
+                Extractor de Etiquetas de Envío
+            </h1>
+            <p className="mt-2 text-lg text-muted-foreground">
+                Sube un archivo PDF para extraer y visualizar la información de las etiquetas automáticamente.
+            </p>
+        </header>
         <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold tracking-tight text-primary">
-              Extractor de Facturas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid w-full max-w-sm items-center gap-2">
-              <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
+          <CardContent className="p-6">
+            <div className="grid w-full items-center gap-2">
+              <Label htmlFor="pdf-upload" className="sr-only">Sube tu factura en PDF</Label>
               <Input
                 id="pdf-upload"
                 type="file"
                 accept="application/pdf"
                 onChange={handleFileChange}
-                className="file:text-primary file:font-medium"
+                className="hidden"
                 disabled={isLoading}
               />
+              <label
+                htmlFor="pdf-upload"
+                className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-accent transition-colors"
+              >
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
+                      <p className="mb-2 text-sm text-muted-foreground">
+                          <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra y suelta
+                      </p>
+                      <p className="text-xs text-muted-foreground">Solo archivos PDF</p>
+                  </div>
+              </label>
             </div>
-            {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-            {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-             {isLoading && <p className="mt-2 text-sm text-primary">Extrayendo o guardando datos...</p>}
+            {error && <p className="mt-4 text-sm text-destructive font-medium">{error}</p>}
+            {qrCodeValue && <p className="mt-4 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
+             {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Extrayendo o guardando datos...</p>}
           </CardContent>
         </Card>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-8">
           {groupedResults.length > 0 && (
-                <Card className="md:col-span-2">
+                <Card className="col-span-1">
                   <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <CardTitle>Resultados de la Extracción</CardTitle>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <CardTitle className="text-xl">Resultados de la Extracción</CardTitle>
                        <Button onClick={saveToDatabase} disabled={isLoading}>
-                        Guardar en DB
+                        <Database className="mr-2 h-4 w-4" />
+                        Guardar en Base de Datos
                       </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
-                      <Table>
-                          <TableHeader>
-                              <TableRow>
-                                  {tableHeaders.map(header => (
-                                    <TableHead key={header}>{header}</TableHead>
-                                  ))}
-                              </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                              {groupedResults.map((row, index) => (
-                                  <TableRow key={index}>
-                                     {tableHeaders.map(header => (
-                                        <TableCell key={header}>
-                                            {header === "Página" ? row.page : (row[header] as string) || ''}
-                                        </TableCell>
-                                     ))}
-                                  </TableRow>
-                              ))}
-                          </TableBody>
-                      </Table>
+                      <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    {tableHeaders.map(header => (
+                                      <TableHead key={header} className="font-semibold">{header}</TableHead>
+                                    ))}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {groupedResults.map((row, index) => (
+                                    <TableRow key={index}>
+                                       {tableHeaders.map(header => (
+                                          <TableCell key={header}>
+                                              {header === "Página" ? row.page : (row[header] as string) || ''}
+                                          </TableCell>
+                                       ))}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                      </div>
                   </CardContent>
               </Card>
           )}
@@ -467,12 +485,12 @@ export default function Home() {
             <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle>Vista Previa del PDF</CardTitle>
+                  <CardTitle className="text-xl">Vista Previa del PDF</CardTitle>
                   <div className="flex items-center gap-2">
                       <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
                           <ChevronLeft className="h-4 w-4" />
                       </Button>
-                      <span>
+                      <span className="text-sm font-medium tabular-nums">
                           Página {pageNum} de {numPages}
                       </span>
                       <Button onClick={onNextPage} disabled={pageNum >= numPages || pageRendering} variant="outline" size="icon">
@@ -482,16 +500,16 @@ export default function Home() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-[80vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-100 dark:bg-gray-900">
+                <div className="h-[80vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50">
                   <div
                     ref={drawingAreaRef}
                     className="absolute top-0 left-0"
                   >
                     <canvas ref={canvasRef}></canvas>
-                    {rectangles.map((rect, index) => (
+                    {pageNum === 1 && rectangles.map((rect, index) => (
                         <div
                           key={index}
-                          className="absolute border-2 border-destructive"
+                          className="absolute border-2 border-destructive/70"
                           style={{
                               left: rect.x,
                               top: rect.y,
@@ -499,11 +517,11 @@ export default function Home() {
                               height: rect.height,
                           }}
                         >
-                          <span className="absolute -top-6 left-0 text-sm bg-destructive text-destructive-foreground px-1 rounded-sm">{rect.label}</span>
+                          <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">{rect.label}</span>
                         </div>
                     ))}
                   </div>
-                  {pageRendering && <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center">Cargando...</div>}
+                  {pageRendering && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center font-medium">Cargando...</div>}
                 </div>
               </CardContent>
             </Card>
