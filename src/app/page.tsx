@@ -112,21 +112,43 @@ export default function Home() {
               <CardTitle>Información Extraída</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div>
-                            <Label>Nombre del Comprador</Label>
-                            <p className="font-semibold">{extractedData.buyerName}</p>
+                            <Label>Cliente</Label>
+                            <p className="font-semibold">{extractedData.cliente}</p>
                         </div>
                          <div>
                             <Label>Fecha</Label>
-                            <p className="font-semibold">{extractedData.date}</p>
+                            <p className="font-semibold">{extractedData.fecha}</p>
+                        </div>
+                        <div>
+                            <Label>Num de Venta</Label>
+                            <p className="font-semibold">{extractedData.numVenta}</p>
+                        </div>
+                         <div>
+                            <Label>Fecha de entrega a colecta</Label>
+                            <p className="font-semibold">{extractedData.fechaEntrega}</p>
+                        </div>
+                        <div>
+                            <Label>CP</Label>
+                            <p className="font-semibold">{extractedData.cp}</p>
+                        </div>
+                        <div>
+                            <Label>Ciudad</Label>
+                            <p className="font-semibold">{extractedData.ciudad}</p>
+                        </div>
+                         <div>
+                            <Label>Estado</Label>
+                            <p className="font-semibold">{extractedData.estado}</p>
                         </div>
                     </div>
                     <h4 className="font-semibold mt-4">Productos</h4>
                     <Table>
                         <TableHeader>
                         <TableRow>
+                            <TableHead>Código</TableHead>
+                            <TableHead>SKU</TableHead>
                             <TableHead>Producto</TableHead>
                             <TableHead className="text-right">Cantidad</TableHead>
                         </TableRow>
@@ -134,8 +156,10 @@ export default function Home() {
                         <TableBody>
                         {extractedData.lineItems.map((item, index) => (
                             <TableRow key={index}>
-                            <TableCell>{item.productName}</TableCell>
-                            <TableCell className="text-right">{item.quantity}</TableCell>
+                            <TableCell>{item.codigo}</TableCell>
+                            <TableCell>{item.sku}</TableCell>
+                            <TableCell>{item.producto}</TableCell>
+                            <TableCell className="text-right">{item.cantidad}</TableCell>
                             </TableRow>
                         ))}
                         </TableBody>

@@ -16,13 +16,20 @@ const ExtractPurchaseOrderInputSchema = z.object({
 export type ExtractPurchaseOrderInput = z.infer<typeof ExtractPurchaseOrderInputSchema>;
 
 const LineItemSchema = z.object({
-    productName: z.string().describe("The name of the product or item."),
-    quantity: z.number().describe("The quantity of the item."),
+    codigo: z.string().optional().describe("The product code."),
+    sku: z.string().optional().describe("The SKU of the product."),
+    producto: z.string().describe("The name of the product or item."),
+    cantidad: z.number().describe("The quantity of the item."),
 });
 
 const PurchaseOrderSchema = z.object({
-  buyerName: z.string().describe("The full name of the person or company buying the goods."),
-  date: z.string().describe("The date of the purchase order."),
+  numVenta: z.string().optional().describe("The sales order number (Num de Venta)."),
+  cliente: z.string().describe("The full name of the person or company buying the goods (Cliente)."),
+  fecha: z.string().describe("The date of the purchase order."),
+  fechaEntrega: z.string().optional().describe("The delivery/collection date (Fecha de entrega a colecta)."),
+  cp: z.string().optional().describe("The postal code (CP)."),
+  estado: z.string().optional().describe("The state (Estado)."),
+  ciudad: z.string().optional().describe("The city (Ciudad)."),
   lineItems: z.array(LineItemSchema).describe("An array of all the products or services listed in the purchase order."),
 });
 export type PurchaseOrder = z.infer<typeof PurchaseOrderSchema>;
@@ -34,7 +41,7 @@ const prompt = ai.definePrompt({
   output: {schema: PurchaseOrderSchema},
   prompt: `You are an expert at processing invoices and purchase orders. Your task is to extract structured information from the provided PDF document.
 
-Analyze the document and extract the buyer's name, the date of the order, and all line items, including the product name and quantity for each.
+Analyze the document and extract the required fields.
 
 Return the data in the specified JSON format.
 
