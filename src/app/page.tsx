@@ -219,16 +219,20 @@ export default function Home() {
             
             // Function to check if a text item's bounding box intersects with the drawn rectangle
             const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
-                const [, , , , tx, ty] = pdfTextItem.transform;
-                const textWidth = pdfTextItem.width;
-                
+                const [fontSize, , , , tx, ty] = pdfTextItem.transform;
+
                 // Convert PDF coordinates to Canvas coordinates
-                const canvasX = tx;
-                // The 'y' coordinate in PDF is from the bottom, so we invert it
-                const canvasY = viewport.height - ty;
+                // tx and ty are the bottom-left corner of the text
+                const textX = tx;
+                const textY = viewport.height - ty;
+                
+                const textWidth = pdfTextItem.width;
+                // Approximate height, as pdf.js doesn't provide it reliably.
+                // We can use the font size as a rough guide.
+                const textHeight = pdfTextItem.height;
 
                 // AABB collision detection (Axis-Aligned Bounding Box)
-                const rect1 = { x: canvasX, y: canvasY, width: textWidth, height: pdfTextItem.height }; // height can be unreliable
+                const rect1 = { x: textX, y: textY - textHeight, width: textWidth, height: textHeight };
                 const rect2 = { x: drawnRect.x, y: drawnRect.y, width: drawnRect.width, height: drawnRect.height };
 
                 // Add a small padding for tolerance
@@ -238,7 +242,7 @@ export default function Home() {
                     rect1.x < rect2.x + rect2.width + pad &&
                     rect1.x + rect1.width > rect2.x - pad &&
                     rect1.y < rect2.y + rect2.height + pad &&
-                    rect1.y + pdfTextItem.height > rect2.y - pad // Use pdfTextItem.height directly
+                    rect1.y + rect1.height > rect2.y - pad
                 );
             };
 
@@ -248,7 +252,7 @@ export default function Home() {
              itemsInRect.sort((a: any, b: any) => {
                 const yA = a.transform[5];
                 const yB = b.transform[5];
-                if (Math.abs(yA - yB) < 5) { // If on the same line (approx)
+                if (Math.abs(yA - yB) < 2) { // If on the same line (approx)
                     return a.transform[4] - b.transform[4]; // Sort by X
                 }
                 return yB - yA; // Sort by Y (descending as PDF coords are bottom-up)
@@ -263,7 +267,7 @@ export default function Home() {
              console.log("Rectangles:", rectangles);
              const pageForLog = await pdfDoc.getPage(rectangles[0].page);
              const contentForLog = await pageForLog.getTextContent();
-             console.log("PDF Text Content:", contentForLog.items.map((item:any) => ({text: item.str, transform: item.transform})));
+             console.log("PDF Text Content:", contentForLog.items.map((item:any) => ({text: item.str, transform: item.transform, width: item.width, height: item.height })));
         } else {
             setError(null);
         }
@@ -365,8 +369,8 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
              {(currentRect || rectangles.length > 0) && (
                 <Card>
                     <CardHeader>
@@ -436,7 +440,7 @@ export default function Home() {
                 </Card>
             )}
         </div>
-
+        
       </div>
     </main>
   );
