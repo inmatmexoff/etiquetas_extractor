@@ -46,7 +46,7 @@ const PREDEFINED_RECTANGLES: Rectangle[] = [
     { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
     { label: "CODIGO DE BARRA", x: 52, y: 347, width: 355, height: 167 },
     { label: "NUM DE VENTA", x: 47, y: 158, width: 175, height: 20 },
-    { label: "SKU", x: 47, y: 122, width: 384, height: 20 },
+    { label: "SKU", x: 47, y: 130, width: 384, height: 20 },
     { label: "PRODUCTO", x: 139, y: 52, width: 277, height: 47 },
 ];
 
