@@ -47,7 +47,7 @@ const PREDEFINED_RECTANGLES_DEFAULT: Rectangle[] = [
     { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
     { label: "CANTIDAD", x: 51, y: 44, width: 83, height: 81 },
     { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
-    { label: "CODIGO DE BARRA", x: 52, y: 347, width: 355, height: 120 },
+    { label: "CODIGO DE BARRA", x: 52, y: 347, width: 355, height: 100 },
     { label: "NUM DE VENTA", x: 47, y: 165, width: 165, height: 20 },
     { label: "SKU", x: 47, y: 135, width: 384, height: 20 },
     { label: "PRODUCTO", x: 139, y: 52, width: 277, height: 47 },
@@ -509,7 +509,7 @@ export default function Home() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-[80vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50">
+                <div className="h-[50vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50">
                   <div
                     ref={drawingAreaRef}
                     className="absolute top-0 left-0"
