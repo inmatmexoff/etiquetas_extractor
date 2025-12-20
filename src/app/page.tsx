@@ -373,7 +373,6 @@ export default function Home() {
 
       alert("Etiquetas guardadas correctamente ✅");
     } catch (e: any) {
-      console.error(e);
       setError("Error al guardar en la base de datos");
     } finally {
       setIsLoading(false);
