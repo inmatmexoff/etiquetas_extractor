@@ -8,11 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { extractPurchaseOrder, PurchaseOrder } from "@/ai/flows/extract-purchase-order-flow";
 
-// Set up the worker for PDF.js
-if (typeof window !== 'undefined') {
-  (window as any).pdfjsWorker = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
-}
-
 export default function Home() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfDataUri, setPdfDataUri] = useState<string | null>(null);
@@ -150,7 +145,7 @@ export default function Home() {
           </Card>
         )}
         
-        {pdfDataUri && (
+        {pdfDataUri && !extractedData && (
           <Card>
             <CardHeader>
               <CardTitle>Vista Previa del PDF</CardTitle>
