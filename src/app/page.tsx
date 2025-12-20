@@ -97,31 +97,28 @@ export default function Home() {
 
     if (canvas) {
       const context = canvas.getContext("2d");
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
+      if(canvas.height !== viewport.height || canvas.width !== viewport.width){
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+      }
       if (context) {
         const renderContext = {
           canvasContext: context,
           viewport: viewport,
         };
         await page.render(renderContext).promise;
-        drawSelectionsForPage(pageIndex);
       }
     }
   };
 
-  const renderAllPages = async () => {
+  const drawAllSelections = async () => {
     if (!pdfDocRef.current) return;
-    const numPages = pdfDocRef.current.numPages;
-    canvasRefs.current = Array(numPages).fill(null).map((_, i) => canvasRefs.current[i] || null);
-
-    const renderPromises = [];
-    for (let i = 0; i < numPages; i++) {
-        renderPromises.push(renderPage(i));
+    for (let i = 0; i < pdfDocRef.current.numPages; i++) {
+        await renderPage(i);
+        drawSelectionsForPage(i);
     }
-    await Promise.all(renderPromises);
-  };
-  
+  }
+
   useEffect(() => {
     if (!pdfFile || typeof window === 'undefined') return;
 
@@ -153,13 +150,13 @@ export default function Home() {
 
   useEffect(() => {
     if (numPages) {
-        renderAllPages();
+        drawAllSelections();
     }
   }, [numPages]); 
 
   useEffect(() => {
     if (pdfDocRef.current) {
-        renderAllPages();
+        drawAllSelections();
     }
   }, [selections]);
 
@@ -180,22 +177,25 @@ export default function Home() {
     setStartPos({ x: pos.x, y: pos.y, page: pageIndex });
   };
 
-  const handleMouseMove = async (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
     if (!isDrawing || !startPos || startPos.page !== pageIndex) return;
     const pos = getCanvasAndMousePos(e, pageIndex);
     if (!pos) return;
-
-    await renderPage(pageIndex);
     
     const canvas = canvasRefs.current[pageIndex];
     if(!canvas) return;
     const context = canvas.getContext("2d");
     if(context){
-        const width = pos.x - startPos.x;
-        const height = pos.y - startPos.y;
-        context.strokeStyle = "green";
-        context.lineWidth = 2;
-        context.strokeRect(startPos.x, startPos.y, width, height);
+        // Redraw page and existing selections first
+        renderPage(pageIndex).then(() => {
+            drawSelectionsForPage(pageIndex);
+            // Then draw the temporary rectangle
+            const width = pos.x - startPos.x;
+            const height = pos.y - startPos.y;
+            context.strokeStyle = "green";
+            context.lineWidth = 2;
+            context.strokeRect(startPos.x, startPos.y, width, height);
+        });
     }
   };
 
@@ -211,7 +211,7 @@ export default function Home() {
 
     if (width < 5 || height < 5) {
       setStartPos(null);
-      renderPage(pageIndex); // Redraw to clear temporary rectangle
+      drawAllSelections(); // Redraw to clear temporary rectangle
       return;
     }
     
@@ -351,5 +351,3 @@ export default function Home() {
     </main>
   );
 }
-
-    
