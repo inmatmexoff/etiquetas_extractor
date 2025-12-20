@@ -1,387 +1,168 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { extractText } from "@/ai/flows/extract-text-flow";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { extractPurchaseOrder, PurchaseOrder } from "@/ai/flows/extract-purchase-order-flow";
 
 // Set up the worker for PDF.js
 if (typeof window !== 'undefined') {
   (window as any).pdfjsWorker = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 }
 
-type Selection = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  page: number;
-  label: string;
-};
-
 export default function Home() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [numPages, setNumPages] = useState<number | null>(null);
-  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
-  const [labels, setLabels] = useState<string[]>([]);
-  const [newLabel, setNewLabel] = useState("");
-  const [activeLabel, setActiveLabel] = useState<string | null>(null);
-  const [selections, setSelections] = useState<Selection[]>([]);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [startPos, setStartPos] = useState<{ x: number, y: number, page: number } | null>(null);
-  const pdfDocRef = useRef<any>(null);
-  const [extractedData, setExtractedData] = useState<Record<string, string>>({});
-  const renderTasks = useRef<any[]>([]);
+  const [pdfDataUri, setPdfDataUri] = useState<string | null>(null);
+  const [extractedData, setExtractedData] = useState<PurchaseOrder | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (file && file.type === "application/pdf") {
       setPdfFile(file);
-      setSelections([]);
-      setNumPages(null);
-      pdfDocRef.current = null;
-      canvasRefs.current = [];
-      setExtractedData({});
-    }
-  };
-
-  const handleAddLabel = () => {
-    if (newLabel && !labels.includes(newLabel)) {
-      setLabels([...labels, newLabel]);
-      setNewLabel("");
+      setError(null);
+      setExtractedData(null);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPdfDataUri(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPdfFile(null);
+      setPdfDataUri(null);
+      setError("Por favor, sube un archivo PDF válido.");
     }
   };
 
   const handleExtract = async () => {
-    const newExtractedData: Record<string, string> = {};
-    for (const selection of selections) {
-      // Ensure the page is rendered before extraction
-      await renderPage(selection.page - 1); 
-
-      const canvas = canvasRefs.current[selection.page - 1];
-      if (canvas && selection.width > 0 && selection.height > 0) {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = selection.width;
-        tempCanvas.height = selection.height;
-        const tempCtx = tempCanvas.getContext('2d');
-        if (tempCtx) {
-          tempCtx.drawImage(
-            canvas,
-            selection.x,
-            selection.y,
-            selection.width,
-            selection.height,
-            0,
-            0,
-            selection.width,
-            selection.height
-          );
-          const dataUri = tempCanvas.toDataURL('image/jpeg');
-          try {
-            const text = await extractText({ photoDataUri: dataUri });
-            newExtractedData[selection.label] = text;
-          } catch (error) {
-            console.error("Error extracting text for label:", selection.label, error);
-            newExtractedData[selection.label] = "Error de extracción";
-          }
-        }
-      }
-    }
-    setExtractedData(prev => ({...prev, ...newExtractedData}));
-  };
-
-  const renderPage = async (pageIndex: number) => {
-    // If there's already a task for this page, wait for it to complete.
-    if(renderTasks.current[pageIndex]) {
-        try {
-            await renderTasks.current[pageIndex].promise;
-        } catch(e) {
-             // It might have been cancelled, that's okay.
-        }
-    }
-
-    if (!pdfDocRef.current || !canvasRefs.current[pageIndex]) return;
-
-    // Don't re-render if canvas size is already correct (already rendered)
-    const page = await pdfDocRef.current.getPage(pageIndex + 1);
-    const viewport = page.getViewport({ scale: 1.5 });
-    const canvas = canvasRefs.current[pageIndex]!;
-    
-    if (canvas.height === viewport.height && canvas.width === viewport.width) {
-        return; // Already rendered correctly
-    }
-    
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-    const context = canvas.getContext("2d");
-
-    if (context) {
-        const renderContext = {
-            canvasContext: context,
-            viewport: viewport,
-        };
-        // Store the render task promise
-        const task = page.render(renderContext);
-        renderTasks.current[pageIndex] = task;
-
-        try {
-            await task.promise;
-        } catch (error) {
-            console.error("Page render cancelled or failed:", error);
-        } finally {
-            // Clear the task once complete, so it can be re-run if needed
-            if (renderTasks.current[pageIndex] === task) {
-                 renderTasks.current[pageIndex] = null;
-            }
-        }
-    }
-  };
-  
-
-  const drawAllSelections = async () => {
-    if (!pdfDocRef.current) return;
-    for (let i = 0; i < pdfDocRef.current.numPages; i++) {
-        await renderPage(i);
-        drawSelectionsForPage(i);
-    }
-  }
-
-  useEffect(() => {
-    if (!pdfFile || typeof window === 'undefined') return;
-  
-    const loadPdf = async () => {
-      const pdfjsLib = (window as any).pdfjsLib;
-      if (!pdfjsLib) {
-        console.error("PDF.js library not found.");
-        return;
-      }
-  
-      // Cancel any ongoing render tasks
-      renderTasks.current.forEach(task => task?.cancel());
-      renderTasks.current = [];
-  
-      const fileReader = new FileReader();
-      fileReader.onload = async function() {
-        if (!this.result) return;
-        const typedArray = new Uint8Array(this.result as ArrayBuffer);
-        try {
-          const loadingTask = pdfjsLib.getDocument({ data: typedArray });
-          const doc = await loadingTask.promise;
-          pdfDocRef.current = doc;
-          renderTasks.current = new Array(doc.numPages).fill(null);
-          setNumPages(doc.numPages);
-        } catch (error) {
-          console.error("Error loading PDF:", error);
-        }
-      };
-      fileReader.readAsArrayBuffer(pdfFile);
-    };
-  
-    loadPdf();
-  
-  }, [pdfFile]);
-
-  useEffect(() => {
-    if (numPages) {
-        drawAllSelections();
-    }
-  }, [numPages]); 
-
-  useEffect(() => {
-    if (pdfDocRef.current) {
-        drawAllSelections();
-    }
-  }, [selections, activeLabel]); // Rerender if active label changes to clear temp rect
-
-  const getCanvasAndMousePos = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
-    const canvas = canvasRefs.current[pageIndex];
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    return { canvas, x, y };
-  };
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
-    if (!activeLabel) return;
-    const pos = getCanvasAndMousePos(e, pageIndex);
-    if (!pos) return;
-    setIsDrawing(true);
-    setStartPos({ x: pos.x, y: pos.y, page: pageIndex });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
-    if (!isDrawing || !startPos || startPos.page !== pageIndex) return;
-    const pos = getCanvasAndMousePos(e, pageIndex);
-    if (!pos) return;
-
-    // Redraw the page from scratch and then all selections
-    renderPage(pageIndex).then(() => {
-      drawSelectionsForPage(pageIndex);
-      const canvas = canvasRefs.current[pageIndex];
-      if(!canvas) return;
-      const context = canvas.getContext("2d");
-      if(context) {
-        const width = pos.x - startPos.x;
-        const height = pos.y - startPos.y;
-        context.strokeStyle = "green";
-        context.lineWidth = 2;
-        context.strokeRect(startPos.x, startPos.y, width, height);
-      }
-    });
-  };
-  
-
-  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>, pageIndex: number) => {
-    if (!isDrawing || !startPos || !activeLabel || startPos.page !== pageIndex) return;
-    const pos = getCanvasAndMousePos(e, pageIndex);
-    if (!pos) return;
-
-    setIsDrawing(false);
-
-    const width = Math.abs(pos.x - startPos.x);
-    const height = Math.abs(pos.y - startPos.y);
-
-    if (width < 5 || height < 5) {
-      setStartPos(null);
-      drawAllSelections(); // Redraw to clear temporary rectangle
+    if (!pdfFile) {
+      setError("Por favor, primero sube un archivo PDF.");
       return;
     }
     
-    const newSelection: Selection = {
-      x: Math.min(startPos.x, pos.x),
-      y: Math.min(startPos.y, pos.y),
-      width: width,
-      height: height,
-      page: pageIndex + 1,
-      label: activeLabel,
+    setIsLoading(true);
+    setError(null);
+    setExtractedData(null);
+
+    const reader = new FileReader();
+    reader.readAsDataURL(pdfFile);
+    reader.onload = async (e) => {
+        const dataUri = e.target?.result as string;
+        if (!dataUri) {
+            setError("No se pudo leer el archivo PDF.");
+            setIsLoading(false);
+            return;
+        }
+        try {
+            const result = await extractPurchaseOrder({ pdfDataUri: dataUri });
+            setExtractedData(result);
+        } catch (err) {
+            console.error("Error durante la extracción:", err);
+            setError("Ocurrió un error al extraer la información. Por favor, inténtalo de nuevo.");
+        } finally {
+            setIsLoading(false);
+        }
     };
-    
-    // Replace existing selection for the same label, or add new one
-    const otherSelections = selections.filter(s => s.label !== activeLabel);
-    setSelections([...otherSelections, newSelection]);
-    setStartPos(null);
+    reader.onerror = () => {
+        setError("Error al leer el archivo.");
+        setIsLoading(false);
+    }
   };
-  
-  const drawSelectionsForPage = (pageIndex: number) => {
-    const canvas = canvasRefs.current[pageIndex];
-    if(!canvas) return;
-    const context = canvas.getContext('2d');
-    if(!context) return;
-
-    const pageSelections = selections.filter(s => s.page === pageIndex + 1);
-    pageSelections.forEach(sel => {
-        context.strokeStyle = 'green';
-        context.lineWidth = 2;
-        context.strokeRect(sel.x, sel.y, sel.width, sel.height);
-        context.fillStyle = 'rgba(0, 255, 0, 0.1)';
-        context.fillRect(sel.x, sel.y, sel.width, sel.height);
-        context.font = '12px Arial';
-        context.fillStyle = 'green';
-        context.fillText(sel.label, sel.x, sel.y > 10 ? sel.y - 2 : sel.y + 10);
-    });
-  }
-
 
   return (
-    <main className="min-h-screen bg-background p-4 md:p-8">
-      <div className="container mx-auto space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-2xl font-bold tracking-tight text-primary">
-                    Extractor de Información de PDF
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid w-full max-w-sm items-center gap-2">
-                    <Label htmlFor="pdf-upload">Sube tu archivo PDF</Label>
-                    <Input
-                        id="pdf-upload"
-                        type="file"
-                        accept="application/pdf"
-                        onChange={handleFileChange}
-                        className="file:text-primary file:font-medium"
-                    />
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Etiquetas de Información</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex gap-2 mb-4">
-                        <Input 
-                            value={newLabel}
-                            onChange={(e) => setNewLabel(e.target.value)}
-                            placeholder="Ej: Nombre, Dirección..."
-                        />
-                        <Button onClick={handleAddLabel}>Añadir</Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {labels.map(label => (
-                            <Badge 
-                                key={label}
-                                variant={activeLabel === label ? 'default' : 'secondary'}
-                                onClick={() => setActiveLabel(label === activeLabel ? null : label)}
-                                className="cursor-pointer"
-                            >
-                                {label}
-                            </Badge>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Información Extraída</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                    {labels.map(label => (
-                        <div key={label}>
-                        <Label>{label}</Label>
-                        <Input
-                            readOnly
-                            value={extractedData[label] || "Texto no extraído"}
-                            className="bg-muted"
-                        />
-                        </div>
-                    ))}
-                    </div>
-                    <Button onClick={handleExtract} className="w-full">Extraer Información</Button>
-                </CardContent>
-            </Card>
-        </div>
-
-        {pdfFile && (
-          <div>
-            <Card>
-                <CardHeader>
-                <CardTitle>Vista Previa del PDF</CardTitle>
-                </CardHeader>
-                <CardContent>
-                <div className="h-full w-full overflow-auto rounded-md border" style={{maxHeight: '80vh'}}>
-                    {numPages && Array.from(new Array(numPages), (el, index) => (
-                    <canvas
-                        key={`page_${index + 1}`}
-                        ref={el => canvasRefs.current[index] = el}
-                        className="mx-auto my-4 block"
-                        onMouseDown={(e) => handleMouseDown(e, index)}
-                        onMouseMove={(e) => handleMouseMove(e, index)}
-                        onMouseUp={(e) => handleMouseUp(e, index)}
-                        style={{ cursor: activeLabel ? 'crosshair' : 'default' }}
-                    />
-                    ))}
+    <main className="min-h-screen bg-background p-4 md:p-8 flex flex-col items-center">
+      <div className="container mx-auto max-w-4xl space-y-8">
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-2xl font-bold tracking-tight text-primary">
+                Extractor Inteligente de Facturas
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="grid w-full max-w-sm items-center gap-2">
+                <Label htmlFor="pdf-upload">Sube tu factura en PDF</Label>
+                <Input
+                    id="pdf-upload"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                    className="file:text-primary file:font-medium"
+                    disabled={isLoading}
+                />
                 </div>
+                 {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+            </CardContent>
+            <CardFooter>
+                 <Button onClick={handleExtract} disabled={!pdfFile || isLoading}>
+                    {isLoading ? "Extrayendo..." : "Extraer Información"}
+                </Button>
+            </CardFooter>
+        </Card>
+
+        {isLoading && (
+            <Card>
+                <CardContent className="p-6 flex items-center justify-center">
+                    <p>Analizando documento... por favor espera.</p>
                 </CardContent>
             </Card>
-          </div>
+        )}
+
+        {extractedData && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Información Extraída</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label>Nombre del Comprador</Label>
+                            <p className="font-semibold">{extractedData.buyerName}</p>
+                        </div>
+                         <div>
+                            <Label>Fecha</Label>
+                            <p className="font-semibold">{extractedData.date}</p>
+                        </div>
+                    </div>
+                    <h4 className="font-semibold mt-4">Productos</h4>
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Producto</TableHead>
+                            <TableHead className="text-right">Cantidad</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {extractedData.lineItems.map((item, index) => (
+                            <TableRow key={index}>
+                            <TableCell>{item.productName}</TableCell>
+                            <TableCell className="text-right">{item.quantity}</TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {pdfDataUri && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Vista Previa del PDF</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[80vh] w-full rounded-md border">
+                <object data={pdfDataUri} type="application/pdf" width="100%" height="100%">
+                    <p>Tu navegador no puede mostrar el PDF. Puedes descargarlo para verlo.</p>
+                </object>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </main>
