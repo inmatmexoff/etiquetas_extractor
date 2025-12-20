@@ -6,13 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { extractPurchaseOrder, PurchaseOrder } from "@/ai/flows/extract-purchase-order-flow";
 import { Html5Qrcode } from "html5-qrcode";
 
 export default function Home() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfDataUri, setPdfDataUri] = useState<string | null>(null);
-  const [extractedData, setExtractedData] = useState<PurchaseOrder | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
@@ -22,7 +20,6 @@ export default function Home() {
     if (file && file.type === "application/pdf") {
       setPdfFile(file);
       setError(null);
-      setExtractedData(null);
       setQrCodeValue(null);
 
       const reader = new FileReader();
@@ -63,29 +60,14 @@ export default function Home() {
     
     setIsLoading(true);
     setError(null);
-    setExtractedData(null);
 
     try {
-        const result = await extractPurchaseOrder({ pdfDataUri: pdfDataUri });
-        
-        if (qrCodeValue && result.lineItems?.length > 0) {
-            const updatedLineItems = result.lineItems.map(item => ({
-                ...item,
-                codigo: qrCodeValue,
-            }));
-            const updatedResult = { ...result, lineItems: updatedLineItems };
-            setExtractedData(updatedResult);
-        } else {
-            setExtractedData(result);
-        }
+        // AI Extraction logic removed. This will be replaced with coordinate-based extraction.
+        console.log("Extraction logic to be implemented.");
 
     } catch (err: any) {
         console.error("Error durante la extracción:", err);
-        if (err.message && (err.message.includes("429") || err.message.toLowerCase().includes("too many requests"))) {
-            setError("Has superado la cuota de uso. Por favor, espera un minuto antes de intentarlo de nuevo.");
-        } else {
-            setError("Ocurrió un error al extraer la información. Por favor, inténtalo de nuevo.");
-        }
+        setError("Ocurrió un error al extraer la información. Por favor, inténtalo de nuevo.");
     } finally {
         setIsLoading(false);
     }
@@ -98,7 +80,7 @@ export default function Home() {
         <Card>
             <CardHeader>
                 <CardTitle className="text-2xl font-bold tracking-tight text-primary">
-                Extractor Inteligente de Facturas
+                Extractor de Facturas
                 </CardTitle>
             </CardHeader>
             <CardContent>
@@ -114,95 +96,16 @@ export default function Home() {
                 />
                 </div>
                  {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+                 {qrCodeValue && <p className="mt-2 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
             </CardContent>
             <CardFooter>
                  <Button onClick={handleExtract} disabled={!pdfFile || isLoading}>
-                    {isLoading ? "Extrayendo..." : "Extraer Información"}
+                    {isLoading ? "Extrayendo..." : "Extraer Información (Próximamente)"}
                 </Button>
             </CardFooter>
         </Card>
-
-        {isLoading && (
-            <Card>
-                <CardContent className="p-6 flex items-center justify-center">
-                    <p>Analizando documento... por favor espera.</p>
-                </CardContent>
-            </Card>
-        )}
         
-        {extractedData && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Información Extraída</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead>Cliente</TableHead>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Num de Venta</TableHead>
-                            <TableHead>Fecha de Entrega</TableHead>
-                            <TableHead>CP</TableHead>
-                            <TableHead>Ciudad</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead>Código</TableHead>
-                            <TableHead>SKU</TableHead>
-                            <TableHead>Producto</TableHead>
-                            <TableHead className="text-right">Cantidad</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {extractedData.lineItems?.map((item, index) => (
-                            <TableRow key={index}>
-                            {index === 0 ? (
-                                <>
-                                    <TableCell>{extractedData.cliente}</TableCell>
-                                    <TableCell>{extractedData.fecha}</TableCell>
-                                    <TableCell>{extractedData.numVenta}</TableCell>
-                                    <TableCell>{extractedData.fechaEntrega}</TableCell>
-                                    <TableCell>{extractedData.cp}</TableCell>
-                                    <TableCell>{extractedData.ciudad}</TableCell>
-                                    <TableCell>{extractedData.estado}</TableCell>
-                                </>
-                            ) : (
-                                <>
-                                    <TableCell></TableCell>
-                                    <TableCell></TableCell>
-                                    <TableCell></TableCell>
-                                    <TableCell></TableCell>
-                                    <TableCell></TableCell>
-                                    <TableCell></TableCell>
-                                    <TableCell></TableCell>
-                                </>
-                            )}
-                            <TableCell>{item.codigo}</TableCell>
-                            <TableCell>{item.sku}</TableCell>
-                            <TableCell>{item.producto}</TableCell>
-                            <TableCell className="text-right">{item.cantidad}</TableCell>
-                            </TableRow>
-                        ))}
-                        {(!extractedData.lineItems || extractedData.lineItems.length === 0) && (
-                            <TableRow>
-                                <TableCell>{extractedData.cliente}</TableCell>
-                                <TableCell>{extractedData.fecha}</TableCell>
-                                <TableCell>{extractedData.numVenta}</TableCell>
-                                <TableCell>{extractedData.fechaEntrega}</TableCell>
-                                <TableCell>{extractedData.cp}</TableCell>
-                                <TableCell>{extractedData.ciudad}</TableCell>
-                                <TableCell>{extractedData.estado}</TableCell>
-                                <TableCell colSpan={4} className="text-center">No se encontraron productos.</TableCell>
-                            </TableRow>
-                        )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {pdfDataUri && !extractedData && !isLoading && (
+        {pdfDataUri && (
           <Card>
             <CardHeader>
               <CardTitle>Vista Previa del PDF</CardTitle>

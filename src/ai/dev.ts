@@ -1,2 +1,1 @@
-// Flows will be imported for their side effects in this file.
-import './flows/extract-purchase-order-flow';
+// Flows are no longer in use. This file can be removed.
