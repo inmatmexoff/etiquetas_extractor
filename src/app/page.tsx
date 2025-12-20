@@ -10,6 +10,7 @@ import { Html5Qrcode } from "html5-qrcode";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabaseClient";
+import { useToast } from "@/hooks/use-toast";
 
 
 // HACK: Make pdfjs work on nextjs
@@ -81,6 +82,7 @@ export default function Home() {
 
   // Extraction state
   const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Load predefined rectangles when component mounts
@@ -369,11 +371,21 @@ export default function Home() {
         .from("etiquetas_i")
         .insert(payload);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      alert("Etiquetas guardadas correctamente ✅");
+      toast({
+        title: "Éxito",
+        description: "Etiquetas guardadas correctamente en la base de datos.",
+      });
+
     } catch (e: any) {
-      setError("Error al guardar en la base de datos");
+        toast({
+            variant: "destructive",
+            title: "Error al guardar",
+            description: e.message || "Ocurrió un error desconocido al guardar en la base de datos.",
+        });
     } finally {
       setIsLoading(false);
     }
