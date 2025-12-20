@@ -197,7 +197,8 @@ export default function Home() {
             
             const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
               const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
-              const [x, y] = [tx[4], tx[5]];
+              const x = tx[4];
+              const y = tx[5];
               
               const textWidth = pdfTextItem.width * viewport.scale;
               const textHeight = pdfTextItem.height * viewport.scale;
@@ -288,7 +289,7 @@ export default function Home() {
           </CardContent>
         </Card>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        <div className="grid grid-cols-1 gap-8">
           <Card>
               <CardHeader>
                   <CardTitle>Áreas Definidas</CardTitle>
@@ -323,7 +324,7 @@ export default function Home() {
           </Card>
           
           {pdfDoc && (
-            <Card className="md:col-start-2 md:row-start-1 md:row-span-2">
+            <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Vista Previa del PDF</CardTitle>
@@ -369,7 +370,7 @@ export default function Home() {
           )}
 
           {extractedData.length > 0 && (
-                <Card className="md:col-span-2 mt-8">
+                <Card className="mt-8">
                   <CardHeader>
                       <CardTitle>Resultados de la Extracción</CardTitle>
                   </CardHeader>
@@ -397,5 +398,7 @@ export default function Home() {
       </div>
     </main>
   );
+
+    
 
     
