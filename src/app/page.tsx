@@ -70,7 +70,7 @@ export default function Home() {
         if (qrCodeValue && result.lineItems.length > 0) {
             const updatedLineItems = result.lineItems.map(item => ({
                 ...item,
-                codigo: qrCodeValue,
+                codigo: item.codigo || qrCodeValue,
             }));
             const updatedResult = { ...result, lineItems: updatedLineItems };
             setExtractedData(updatedResult);
@@ -89,7 +89,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background p-4 md:p-8 flex flex-col items-center">
       <div id="qr-reader" style={{ display: 'none' }}></div>
-      <div className="container mx-auto max-w-4xl space-y-8">
+      <div className="container mx-auto max-w-7xl space-y-8">
         <Card>
             <CardHeader>
                 <CardTitle className="text-2xl font-bold tracking-tight text-primary">
@@ -131,59 +131,40 @@ export default function Home() {
               <CardTitle>Información Extraída</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="space-y-6">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div>
-                            <Label>Cliente</Label>
-                            <p className="font-semibold">{extractedData.cliente}</p>
-                        </div>
-                         <div>
-                            <Label>Fecha</Label>
-                            <p className="font-semibold">{extractedData.fecha}</p>
-                        </div>
-                        <div>
-                            <Label>Num de Venta</Label>
-                            <p className="font-semibold">{extractedData.numVenta}</p>
-                        </div>
-                         <div>
-                            <Label>Fecha de entrega a colecta</Label>
-                            <p className="font-semibold">{extractedData.fechaEntrega}</p>
-                        </div>
-                        <div>
-                            <Label>CP</Label>
-                            <p className="font-semibold">{extractedData.cp}</p>
-                        </div>
-                        <div>
-                            <Label>Ciudad</Label>
-                            <p className="font-semibold">{extractedData.ciudad}</p>
-                        </div>
-                         <div>
-                            <Label>Estado</Label>
-                            <p className="font-semibold">{extractedData.estado}</p>
-                        </div>
-                    </div>
-                    <h4 className="font-semibold mt-4">Productos</h4>
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead>Código</TableHead>
-                            <TableHead>SKU</TableHead>
-                            <TableHead>Producto</TableHead>
-                            <TableHead className="text-right">Cantidad</TableHead>
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Num de Venta</TableHead>
+                        <TableHead>Fecha de Entrega</TableHead>
+                        <TableHead>CP</TableHead>
+                        <TableHead>Ciudad</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Código</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Producto</TableHead>
+                        <TableHead className="text-right">Cantidad</TableHead>
+                    </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {extractedData.lineItems.map((item, index) => (
+                        <TableRow key={index}>
+                        <TableCell>{extractedData.cliente}</TableCell>
+                        <TableCell>{extractedData.fecha}</TableCell>
+                        <TableCell>{extractedData.numVenta}</TableCell>
+                        <TableCell>{extractedData.fechaEntrega}</TableCell>
+                        <TableCell>{extractedData.cp}</TableCell>
+                        <TableCell>{extractedData.ciudad}</TableCell>
+                        <TableCell>{extractedData.estado}</TableCell>
+                        <TableCell>{item.codigo}</TableCell>
+                        <TableCell>{item.sku}</TableCell>
+                        <TableCell>{item.producto}</TableCell>
+                        <TableCell className="text-right">{item.cantidad}</TableCell>
                         </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {extractedData.lineItems.map((item, index) => (
-                            <TableRow key={index}>
-                            <TableCell>{item.codigo}</TableCell>
-                            <TableCell>{item.sku}</TableCell>
-                            <TableCell>{item.producto}</TableCell>
-                            <TableCell className="text-right">{item.cantidad}</TableCell>
-                            </TableRow>
-                        ))}
-                        </TableBody>
-                    </Table>
-                </div>
+                    ))}
+                    </TableBody>
+                </Table>
             </CardContent>
           </Card>
         )}
