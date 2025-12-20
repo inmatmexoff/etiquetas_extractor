@@ -131,40 +131,42 @@ export default function Home() {
               <CardTitle>Información Extraída</CardTitle>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Num de Venta</TableHead>
-                        <TableHead>Fecha de Entrega</TableHead>
-                        <TableHead>CP</TableHead>
-                        <TableHead>Ciudad</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>Código</TableHead>
-                        <TableHead>SKU</TableHead>
-                        <TableHead>Producto</TableHead>
-                        <TableHead className="text-right">Cantidad</TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {extractedData.lineItems.map((item, index) => (
-                        <TableRow key={index}>
-                        <TableCell>{extractedData.cliente}</TableCell>
-                        <TableCell>{extractedData.fecha}</TableCell>
-                        <TableCell>{extractedData.numVenta}</TableCell>
-                        <TableCell>{extractedData.fechaEntrega}</TableCell>
-                        <TableCell>{extractedData.cp}</TableCell>
-                        <TableCell>{extractedData.ciudad}</TableCell>
-                        <TableCell>{extractedData.estado}</TableCell>
-                        <TableCell>{item.codigo}</TableCell>
-                        <TableCell>{item.sku}</TableCell>
-                        <TableCell>{item.producto}</TableCell>
-                        <TableCell className="text-right">{item.cantidad}</TableCell>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Num de Venta</TableHead>
+                            <TableHead>Fecha de Entrega</TableHead>
+                            <TableHead>CP</TableHead>
+                            <TableHead>Ciudad</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead>Código</TableHead>
+                            <TableHead>SKU</TableHead>
+                            <TableHead>Producto</TableHead>
+                            <TableHead className="text-right">Cantidad</TableHead>
                         </TableRow>
-                    ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                        {extractedData.lineItems.map((item, index) => (
+                            <TableRow key={index}>
+                            <TableCell>{extractedData.cliente}</TableCell>
+                            <TableCell>{extractedData.fecha}</TableCell>
+                            <TableCell>{extractedData.numVenta}</TableCell>
+                            <TableCell>{extractedData.fechaEntrega}</TableCell>
+                            <TableCell>{extractedData.cp}</TableCell>
+                            <TableCell>{extractedData.ciudad}</TableCell>
+                            <TableCell>{extractedData.estado}</TableCell>
+                            <TableCell>{item.codigo}</TableCell>
+                            <TableCell>{item.sku}</TableCell>
+                            <TableCell>{item.producto}</TableCell>
+                            <TableCell className="text-right">{item.cantidad}</TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
           </Card>
         )}
