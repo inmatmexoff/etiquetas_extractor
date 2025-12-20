@@ -140,7 +140,7 @@ export default function Home() {
         if(context){
             const width = pos.x - startPos.x;
             const height = pos.y - startPos.y;
-            context.strokeStyle = "red";
+            context.strokeStyle = "green";
             context.lineWidth = 2;
             context.strokeRect(startPos.x, startPos.y, width, height);
         }
@@ -175,13 +175,13 @@ export default function Home() {
 
     const pageSelections = selections.filter(s => s.page === pageIndex + 1);
     pageSelections.forEach(sel => {
-        context.strokeStyle = 'blue';
+        context.strokeStyle = 'green';
         context.lineWidth = 2;
         context.strokeRect(sel.x, sel.y, sel.width, sel.height);
-        context.fillStyle = 'rgba(0, 0, 255, 0.1)';
+        context.fillStyle = 'rgba(0, 255, 0, 0.1)';
         context.fillRect(sel.x, sel.y, sel.width, sel.height);
         context.font = '12px Arial';
-        context.fillStyle = 'blue';
+        context.fillStyle = 'green';
         context.fillText(sel.label, sel.x, sel.y > 10 ? sel.y - 2 : sel.y + 10);
     });
   }
