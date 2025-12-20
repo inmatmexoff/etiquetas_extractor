@@ -212,25 +212,25 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div className="container mx-auto space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Card>
-            <CardHeader>
-                <CardTitle className="text-2xl font-bold tracking-tight text-primary">
-                Extractor de Información de PDF
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="grid w-full max-w-sm items-center gap-2">
-                <Label htmlFor="pdf-upload">Sube tu archivo PDF</Label>
-                <Input
-                    id="pdf-upload"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleFileChange}
-                    className="file:text-primary file:font-medium"
-                />
-                </div>
-            </CardContent>
+                <CardHeader>
+                    <CardTitle className="text-2xl font-bold tracking-tight text-primary">
+                    Extractor de Información de PDF
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid w-full max-w-sm items-center gap-2">
+                    <Label htmlFor="pdf-upload">Sube tu archivo PDF</Label>
+                    <Input
+                        id="pdf-upload"
+                        type="file"
+                        accept="application/pdf"
+                        onChange={handleFileChange}
+                        className="file:text-primary file:font-medium"
+                    />
+                    </div>
+                </CardContent>
             </Card>
 
             <Card>
@@ -260,54 +260,50 @@ export default function Home() {
                     </div>
                 </CardContent>
             </Card>
-        </div>
-
-        {pdfFile && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="md:col-span-2">
-              <Card>
-                  <CardHeader>
-                  <CardTitle>Vista Previa del PDF</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                  <div className="h-full w-full overflow-auto rounded-md border" style={{maxHeight: '80vh'}}>
-                      {numPages && Array.from(new Array(numPages), (el, index) => (
-                      <canvas
-                          key={`page_${index + 1}`}
-                          ref={el => canvasRefs.current[index] = el}
-                          className="mx-auto my-4 block"
-                          onMouseDown={(e) => handleMouseDown(e, index)}
-                          onMouseMove={(e) => handleMouseMove(e, index)}
-                          onMouseUp={(e) => handleMouseUp(e, index)}
-                          style={{ cursor: activeLabel ? 'crosshair' : 'default' }}
-                      />
-                      ))}
-                  </div>
-                  </CardContent>
-              </Card>
-            </div>
-            <div>
-              <Card>
+            <Card>
                 <CardHeader>
-                  <CardTitle>Información Extraída</CardTitle>
+                    <CardTitle>Información Extraída</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
+                    <div className="space-y-2">
                     {labels.map(label => (
-                      <div key={label}>
+                        <div key={label}>
                         <Label>{label}</Label>
                         <Input
                             readOnly
                             value={"Texto no extraído"}
                             className="bg-muted"
                         />
-                      </div>
+                        </div>
                     ))}
-                  </div>
-                  <Button onClick={handleExtract} className="w-full">Extraer Información</Button>
+                    </div>
+                    <Button onClick={handleExtract} className="w-full">Extraer Información</Button>
                 </CardContent>
-              </Card>
-            </div>
+            </Card>
+        </div>
+
+        {pdfFile && (
+          <div>
+            <Card>
+                <CardHeader>
+                <CardTitle>Vista Previa del PDF</CardTitle>
+                </CardHeader>
+                <CardContent>
+                <div className="h-full w-full overflow-auto rounded-md border" style={{maxHeight: '80vh'}}>
+                    {numPages && Array.from(new Array(numPages), (el, index) => (
+                    <canvas
+                        key={`page_${index + 1}`}
+                        ref={el => canvasRefs.current[index] = el}
+                        className="mx-auto my-4 block"
+                        onMouseDown={(e) => handleMouseDown(e, index)}
+                        onMouseMove={(e) => handleMouseMove(e, index)}
+                        onMouseUp={(e) => handleMouseUp(e, index)}
+                        style={{ cursor: activeLabel ? 'crosshair' : 'default' }}
+                    />
+                    ))}
+                </div>
+                </CardContent>
+            </Card>
           </div>
         )}
       </div>
