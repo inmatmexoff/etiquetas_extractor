@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, UploadCloud, Database } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 // HACK: Make pdfjs work on nextjs
@@ -443,41 +444,47 @@ export default function Home() {
         
         <div className="grid grid-cols-1 gap-8">
           {groupedResults.length > 0 && (
-                <Card className="col-span-1">
-                  <CardHeader>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <CardTitle className="text-xl">Resultados de la Extracción</CardTitle>
-                       <Button onClick={saveToDatabase} disabled={isLoading}>
-                        <Database className="mr-2 h-4 w-4" />
-                        Guardar en Base de Datos
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                      <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    {tableHeaders.map(header => (
-                                      <TableHead key={header} className="font-semibold">{header}</TableHead>
-                                    ))}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {groupedResults.map((row, index) => (
-                                    <TableRow key={index}>
-                                       {tableHeaders.map(header => (
-                                          <TableCell key={header}>
-                                              {header === "Página" ? row.page : (row[header] as string) || ''}
-                                          </TableCell>
-                                       ))}
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                      </div>
-                  </CardContent>
-              </Card>
+                <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1" className="border-b-0">
+                        <Card>
+                            <AccordionTrigger className="w-full p-6 data-[state=closed]:rounded-lg data-[state=open]:rounded-t-lg hover:no-underline">
+                                <div className="flex w-full flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                    <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
+                                    <Button onClick={(e) => { e.stopPropagation(); saveToDatabase(); }} disabled={isLoading}>
+                                        <Database className="mr-2 h-4 w-4" />
+                                        Guardar en Base de Datos
+                                    </Button>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                               <CardContent>
+                                    <div className="overflow-x-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    {tableHeaders.map(header => (
+                                                        <TableHead key={header} className="font-semibold">{header}</TableHead>
+                                                    ))}
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {groupedResults.map((row, index) => (
+                                                    <TableRow key={index}>
+                                                        {tableHeaders.map(header => (
+                                                            <TableCell key={header}>
+                                                                {header === "Página" ? row.page : (row[header] as string) || ''}
+                                                            </TableCell>
+                                                        ))}
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                            </AccordionContent>
+                        </Card>
+                    </AccordionItem>
+                </Accordion>
           )}
         </div>
 
