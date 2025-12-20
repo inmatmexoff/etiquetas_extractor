@@ -216,29 +216,21 @@ export default function Home() {
             const textContent = await page.getTextContent();
             
             const itemsInRect = textContent.items.filter((item: any) => {
-                // item.transform is an array: [scaleX, skewY, skewX, scaleY, x, y]
                 const tx = item.transform[4];
                 const ty = item.transform[5];
-                
-                // item's bounding box in PDF coordinates (origin at bottom-left)
-                const itemX1 = tx;
-                const itemY1 = ty;
-                const itemX2 = tx + item.width;
-                const itemY2 = ty + item.height;
+                const width = item.width;
+                const height = item.height;
 
-                // Convert canvas rect to PDF coordinates
-                // The Y-axis is inverted
-                const rectX1 = rect.x;
-                const rectY1 = viewport.height - rect.y - rect.height;
-                const rectX2 = rect.x + rect.width;
-                const rectY2 = viewport.height - rect.y;
+                // Convert PDF coordinates to canvas coordinates
+                const pdfX = tx;
+                const pdfY = viewport.height - ty;
 
-                // Check for overlap (AABB collision detection)
+                // Simple AABB (Axis-Aligned Bounding Box) collision detection
                 return (
-                    itemX1 < rectX2 &&
-                    itemX2 > rectX1 &&
-                    itemY1 < rectY2 &&
-                    itemY2 > rectY1
+                    pdfX < rect.x + rect.width &&
+                    pdfX + width > rect.x &&
+                    pdfY < rect.y + rect.height &&
+                    pdfY + height > rect.y
                 );
             });
 
@@ -258,6 +250,8 @@ export default function Home() {
 
         if (data.every(d => d.value === '')) {
             setError("No se pudo extraer texto de las áreas definidas. Intenta dibujarlas de nuevo.");
+        } else {
+            setError(null);
         }
         setExtractedData(data);
 
