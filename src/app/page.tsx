@@ -332,7 +332,16 @@ export default function Home() {
           pageGroup[item.page][item.label] = item.value;
       });
 
-      return Object.values(pageGroup);
+      const grouped = Object.values(pageGroup);
+
+      // Filter out rows that don't have a valid date in 'FECHA ENTREGA'
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      const filtered = grouped.filter(row => {
+          const fechaEntrega = row['FECHA ENTREGA'] as string;
+          return fechaEntrega && dateRegex.test(fechaEntrega);
+      });
+
+      return filtered;
   };
   
   const groupedResults = getGroupedData();
