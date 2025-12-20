@@ -21,11 +21,11 @@ if (typeof window !== "undefined") {
 }
 
 interface Rectangle {
+  label: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  label: string;
 }
 
 interface ExtractedData {
@@ -40,7 +40,7 @@ type GroupedExtractedData = {
 };
 
 
-const PREDEFINED_RECTANGLES: Rectangle[] = [
+const PREDEFINED_RECTANGLES_DEFAULT: Rectangle[] = [
     { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
     { label: "CANTIDAD", x: 51, y: 44, width: 83, height: 81 },
     { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
@@ -48,6 +48,16 @@ const PREDEFINED_RECTANGLES: Rectangle[] = [
     { label: "NUM DE VENTA", x: 47, y: 165, width: 165, height: 20 },
     { label: "SKU", x: 47, y: 135, width: 384, height: 20 },
     { label: "PRODUCTO", x: 139, y: 52, width: 277, height: 47 },
+];
+
+const ALTERNATIVE_RECTANGLES: Rectangle[] = [
+    { label: "FECHA ENTREGA", x: 0, y: 0, width: 0, height: 0 },
+    { label: "CANTIDAD", x: 0, y: 0, width: 0, height: 0 },
+    { label: "CLIENTE INFO", x: 0, y: 0, width: 0, height: 0 },
+    { label: "CODIGO DE BARRA", x: 0, y: 0, width: 0, height: 0 },
+    { label: "NUM DE VENTA", x: 0, y: 0, width: 0, height: 0 },
+    { label: "SKU", x: 0, y: 0, width: 0, height: 0 },
+    { label: "PRODUCTO", x: 0, y: 0, width: 0, height: 0 },
 ];
 
 
@@ -73,7 +83,7 @@ export default function Home() {
 
   useEffect(() => {
     // Load predefined rectangles when component mounts
-    setRectangles(PREDEFINED_RECTANGLES);
+    setRectangles(PREDEFINED_RECTANGLES_DEFAULT);
   }, []);
 
   useEffect(() => {
@@ -88,7 +98,7 @@ export default function Home() {
         setNumPages(doc.numPages);
         setPageNum(1);
         // Reset rectangles to predefined ones for the first page
-        setRectangles(PREDEFINED_RECTANGLES);
+        setRectangles(PREDEFINED_RECTANGLES_DEFAULT);
         setExtractedData([]); // Clear extracted data for new PDF
       } catch (err) {
         console.error("Error loading PDF:", err);
@@ -182,57 +192,74 @@ export default function Home() {
   }
 
   const handleResetRectangles = () => {
-    setRectangles(PREDEFINED_RECTANGLES);
+    setRectangles(PREDEFINED_RECTANGLES_DEFAULT);
   };
 
+  const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
+      const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
+      const x = tx[4];
+      const y = tx[5];
+
+      const textWidth = pdfTextItem.width * PDF_RENDER_SCALE;
+      const textHeight = pdfTextItem.height * PDF_RENDER_SCALE;
+
+      const r1 = {
+        x: x,
+        y: y,
+        width: textWidth,
+        height: textHeight, 
+      };
+
+      const r2 = {
+        x: drawnRect.x,
+        y: drawnRect.y,
+        width: drawnRect.width,
+        height: drawnRect.height
+      };
+
+      // Check for intersection with tolerance
+      const pad = 5;
+      return (
+        r1.x < r2.x + r2.width + pad &&
+        r1.x + r1.width > r2.x - pad &&
+        r1.y < r2.y + r2.height + pad &&
+        r1.y + r1.height > r2.y - pad
+      );
+    };
+
   const handleExtractData = async () => {
-    if (!pdfDoc || rectangles.length === 0) return;
+    if (!pdfDoc) return;
     setIsLoading(true);
     setExtractedData([]);
     setError(null);
 
     try {
         const allData: ExtractedData[] = [];
+        let activeRectangles = PREDEFINED_RECTANGLES_DEFAULT;
+
+        // --- Pre-check logic ---
+        const firstPage = await pdfDoc.getPage(1);
+        const firstPageViewport = firstPage.getViewport({ scale: PDF_RENDER_SCALE });
+        const firstPageTextContent = await firstPage.getTextContent();
+        
+        const skuArea = PREDEFINED_RECTANGLES_DEFAULT.find(r => r.label === 'SKU');
+        if (skuArea) {
+            const itemsInSkuArea = firstPageTextContent.items.filter((item: any) => intersects(item, skuArea, firstPageViewport));
+            const skuText = itemsInSkuArea.map((item: any) => item.str).join(' ');
+            if (skuText.includes("Prepará el paquete")) {
+                activeRectangles = ALTERNATIVE_RECTANGLES;
+            }
+        }
+        setRectangles(activeRectangles);
+        // --- End of pre-check ---
 
         for (let currentPageNum = 1; currentPageNum <= numPages; currentPageNum++) {
             const page = await pdfDoc.getPage(currentPageNum);
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
-            const intersects = (pdfTextItem: any, drawnRect: Rectangle) => {
-              const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
-              const x = tx[4];
-              const y = tx[5];
-
-              const textWidth = pdfTextItem.width * PDF_RENDER_SCALE;
-              const textHeight = pdfTextItem.height * PDF_RENDER_SCALE;
-
-              const r1 = {
-                x: x,
-                y: y,
-                width: textWidth,
-                height: textHeight, 
-              };
-
-              const r2 = {
-                x: drawnRect.x,
-                y: drawnRect.y,
-                width: drawnRect.width,
-                height: drawnRect.height
-              };
-
-              // Check for intersection with tolerance
-              const pad = 5;
-              return (
-                r1.x < r2.x + r2.width + pad &&
-                r1.x + r1.width > r2.x - pad &&
-                r1.y < r2.y + r2.height + pad &&
-                r1.y + r1.height > r2.y - pad
-              );
-            };
-            
-            for (const rect of rectangles) {
-                const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect));
+            for (const rect of activeRectangles) {
+                const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
 
                 itemsInRect.sort((a: any, b: any) => {
                     const yA = a.transform[5];
@@ -313,7 +340,7 @@ export default function Home() {
   };
   
   const groupedResults = getGroupedData();
-  const tableHeaders = ["Página", ...PREDEFINED_RECTANGLES.map(r => r.label)];
+  const tableHeaders = ["Página", ...PREDEFINED_RECTANGLES_DEFAULT.map(r => r.label)];
 
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
@@ -365,7 +392,7 @@ export default function Home() {
                   </ul>
               </CardContent>
               <CardFooter className="flex-wrap gap-2">
-                  <Button onClick={handleExtractData} disabled={isLoading || !pdfDoc || rectangles.length === 0}>
+                  <Button onClick={handleExtractData} disabled={isLoading || !pdfDoc}>
                       <FileText className="mr-2 h-4 w-4" />
                       {isLoading ? 'Extrayendo...' : 'Extraer Datos de Todas las Páginas'}
                   </Button>
