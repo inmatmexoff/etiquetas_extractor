@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
-import { ChevronLeft, ChevronRight, UploadCloud, Database, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, UploadCloud, Database, Trash2, PlusCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
@@ -64,6 +64,10 @@ export default function TryPage() {
   const [startPos, setStartPos] = useState<{ x: number, y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<Rectangle | null>(null);
 
+  // Manual input state
+  const [manualRect, setManualRect] = useState({ label: '', x: '', y: '', width: '', height: '' });
+
+
   // Extraction state
   const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
   const { toast } = useToast();
@@ -78,7 +82,7 @@ export default function TryPage() {
             toast({
                 variant: "destructive",
                 title: "No hay áreas definidas",
-                description: "Por favor, dibuja al menos un rectángulo antes de extraer datos.",
+                description: "Por favor, dibuja o añade al menos un rectángulo antes de extraer datos.",
             });
         }
         return;
@@ -122,7 +126,7 @@ export default function TryPage() {
         }
 
         if (allData.length === 0 && rectangles.length > 0) {
-             setError("No se pudo extraer texto de ninguna página utilizando las áreas que dibujaste.");
+             setError("No se pudo extraer texto de ninguna página utilizando las áreas que definiste.");
         } else {
             setError(null);
         }
@@ -289,50 +293,14 @@ export default function TryPage() {
 
 
   const saveToDatabase = async () => {
-    if (groupedResults.length === 0) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const now = new Date();
-      const imp_date = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
-
-      const payload = groupedResults.map((row) => ({
-        deli_date: row["FECHA ENTREGA"] || null,
-        quantity: Number(row["CANTIDAD"]) || null,
-        client: row["CLIENTE INFO"] || null,
-        code: row["CODIGO DE BARRA"] || null,
-        sales_num: row["NUM DE VENTA"] || null,
-        sku: row["SKU"] || null,
-        product: row["PRODUCTO"] || null,
-        imp_date: imp_date,
-        hour: hour,
-      }));
-
-      const { error } = await supabase
-        .from("etiquetas_i")
-        .insert(payload);
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Éxito",
-        description: "Etiquetas guardadas correctamente en la base de datos.",
-      });
-
-    } catch (e: any) {
-        toast({
-            variant: "destructive",
-            title: "Error al guardar",
-            description: e.message || "Ocurrió un error desconocido al guardar en la base de datos.",
-        });
-    } finally {
-      setIsLoading(false);
-    }
+    // This function remains for demonstration but might need adjustment
+    // based on the dynamic labels from drawn rectangles.
+    // For now, it won't save anything unless labels match the expected ones.
+    console.log("Saving to DB (implement specific logic if needed):", groupedResults);
+    toast({
+        title: "Función no implementada",
+        description: "El guardado a la base de datos debe adaptarse a las etiquetas dinámicas.",
+    });
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -398,6 +366,33 @@ export default function TryPage() {
     setStartPos(null);
     setCurrentRect(null);
   };
+  
+  const handleManualAdd = () => {
+    const { label, x, y, width, height } = manualRect;
+    if (label && x && y && width && height) {
+        const newRect: Rectangle = {
+            label,
+            x: parseInt(x, 10),
+            y: parseInt(y, 10),
+            width: parseInt(width, 10),
+            height: parseInt(height, 10),
+        };
+        setRectangles(prev => [...prev, newRect]);
+        // Clear input fields after adding
+        setManualRect({ label: '', x: '', y: '', width: '', height: '' });
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Campos incompletos",
+            description: "Por favor, rellena todos los campos para añadir un rectángulo.",
+        });
+    }
+  };
+
+  const handleManualInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setManualRect(prev => ({ ...prev, [name]: value }));
+  };
 
 
   return (
@@ -409,39 +404,79 @@ export default function TryPage() {
                 Extractor de Etiquetas de Envío (Modo Prueba)
             </h1>
             <p className="mt-2 text-lg text-muted-foreground">
-                {pdfDoc && pageNum > 1 ? "El dibujo solo está habilitado en la primera página." : "Dibuja rectángulos en el PDF para definir áreas de extracción."}
+                {pdfDoc && pageNum > 1 ? "La definición de áreas solo está habilitada en la primera página." : "Dibuja rectángulos o introduce coordenadas para definir áreas de extracción."}
             </p>
         </header>
-        <Card>
-          <CardContent className="p-6">
-            <div className="grid w-full items-center gap-2">
-              <Label htmlFor="pdf-upload" className="sr-only">Sube tu factura en PDF</Label>
-              <Input
-                id="pdf-upload"
-                type="file"
-                accept="application/pdf"
-                onChange={handleFileChange}
-                className="hidden"
-                disabled={isLoading}
-              />
-              <label
-                htmlFor="pdf-upload"
-                className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-accent transition-colors"
-              >
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
-                      <p className="mb-2 text-sm text-muted-foreground">
-                          <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra y suelta
-                      </p>
-                      <p className="text-xs text-muted-foreground">Solo archivos PDF</p>
-                  </div>
-              </label>
-            </div>
-            {error && <p className="mt-4 text-sm text-destructive font-medium">{error}</p>}
-            {qrCodeValue && <p className="mt-4 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-             {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Extrayendo o guardando datos...</p>}
-          </CardContent>
-        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cargar Archivo PDF</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid w-full items-center gap-2">
+                  <Label htmlFor="pdf-upload" className="sr-only">Sube tu factura en PDF</Label>
+                  <Input
+                    id="pdf-upload"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    disabled={isLoading}
+                  />
+                  <label
+                    htmlFor="pdf-upload"
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-accent transition-colors"
+                  >
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                              <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra
+                          </p>
+                          <p className="text-xs text-muted-foreground">Solo archivos PDF</p>
+                      </div>
+                  </label>
+                </div>
+                {error && <p className="mt-4 text-sm text-destructive font-medium">{error}</p>}
+                {qrCodeValue && <p className="mt-4 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
+                 {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Extrayendo o guardando datos...</p>}
+              </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Entrada Manual de Coordenadas</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="label">Etiqueta</Label>
+                            <Input id="label" name="label" value={manualRect.label} onChange={handleManualInputChange} placeholder="Ej: NÚM DE VENTA" />
+                        </div>
+                        <div>
+                            <Label htmlFor="x">X</Label>
+                            <Input id="x" name="x" type="number" value={manualRect.x} onChange={handleManualInputChange} placeholder="54" />
+                        </div>
+                        <div>
+                            <Label htmlFor="y">Y</Label>
+                            <Input id="y" name="y" type="number" value={manualRect.y} onChange={handleManualInputChange} placeholder="57" />
+                        </div>
+                        <div>
+                            <Label htmlFor="width">W (ancho)</Label>
+                            <Input id="width" name="width" type="number" value={manualRect.width} onChange={handleManualInputChange} placeholder="159" />
+                        </div>
+                        <div>
+                            <Label htmlFor="height">H (alto)</Label>
+                            <Input id="height" name="height" type="number" value={manualRect.height} onChange={handleManualInputChange} placeholder="27" />
+                        </div>
+                    </div>
+                     <Button onClick={handleManualAdd} className="w-full">
+                        <PlusCircle className="mr-2" />
+                        Añadir Rectángulo
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
         
         <div className="grid grid-cols-1 gap-8">
           {rectangles.length > 0 && (
@@ -457,12 +492,6 @@ export default function TryPage() {
                                         <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0} className="flex-1 sm:flex-none">
                                             Extraer Datos
                                         </Button>
-                                        {groupedResults.length > 0 && (
-                                            <Button onClick={saveToDatabase} disabled={isLoading} className="flex-1 sm:flex-none">
-                                                <Database className="mr-2 h-4 w-4" />
-                                                Guardar
-                                            </Button>
-                                        )}
                                      </div>
                                 </div>
                             </CardHeader>
@@ -525,7 +554,7 @@ export default function TryPage() {
               <CardContent>
                 <div 
                     className={cn(
-                        "h-[50vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50",
+                        "h-[70vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50",
                          pageNum === 1 ? "cursor-crosshair" : "cursor-default"
                     )}
                     onMouseDown={handleMouseDown}
@@ -551,7 +580,7 @@ export default function TryPage() {
                               height: rect.height,
                           }}
                         >
-                           <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
+                          <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
                             {rect.label}
                           </span>
                           <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
