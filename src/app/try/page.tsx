@@ -571,7 +571,5 @@ export default function TryPage() {
       </div>
     </main>
   );
-}
-    
 
     
