@@ -338,6 +338,10 @@ export default function TryPage() {
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only allow drawing on the first page
     if (!drawingAreaRef.current || pageNum !== 1 || isDrawing) return;
+    
+    // Prevent starting a draw on a previously drawn rectangle
+    if ((e.target as HTMLElement).closest('.drawn-rectangle')) return;
+
     setIsDrawing(true);
     const rect = drawingAreaRef.current.getBoundingClientRect();
     const x = Math.round(e.clientX - rect.left);
@@ -369,7 +373,7 @@ export default function TryPage() {
     setIsDrawing(false);
     
     // Normalize rectangle in case of drawing backwards
-    const finalRect = { ...currentRect };
+    let finalRect = { ...currentRect };
     if (finalRect.width < 0) {
         finalRect.x = finalRect.x + finalRect.width;
         finalRect.width = -finalRect.width;
@@ -379,9 +383,15 @@ export default function TryPage() {
         finalRect.height = -finalRect.height;
     }
 
-
+    // Ensure rect is not too small before prompting
+    if (finalRect.width < 5 || finalRect.height < 5) {
+        setStartPos(null);
+        setCurrentRect(null);
+        return;
+    }
+    
     const label = prompt("Ingresa un nombre para esta área:", `Area_${rectangles.length + 1}`);
-    if (label && finalRect.width > 5 && finalRect.height > 5) { // Ensure rect is not too small
+    if (label) { 
       setRectangles(prev => [...prev, { ...finalRect, label }]);
     }
     
@@ -533,7 +543,7 @@ export default function TryPage() {
                     {pageNum === 1 && rectangles.map((rect, index) => (
                         <div
                           key={index}
-                          className="absolute border-2 border-destructive/70 pointer-events-none"
+                          className="absolute border-2 border-destructive/70 drawn-rectangle"
                           style={{
                               left: rect.x,
                               top: rect.y,
@@ -571,5 +581,6 @@ export default function TryPage() {
       </div>
     </main>
   );
+}
 
     
