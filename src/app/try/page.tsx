@@ -44,27 +44,6 @@ type GroupedExtractedData = {
 };
 
 
-const PREDEFINED_RECTANGLES_DEFAULT: Rectangle[] = [
-    { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
-    { label: "CANTIDAD", x: 51, y: 44, width: 83, height: 81 },
-    { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
-    { label: "CODIGO DE BARRA", x: 52, y: 445, width: 355, height: 15 },
-    { label: "NUM DE VENTA", x: 47, y: 165, width: 165, height: 20 },
-    { label: "SKU", x: 47, y: 135, width: 384, height: 20 },
-    { label: "PRODUCTO", x: 139, y: 52, width: 277, height: 47 },
-];
-
-const ALTERNATIVE_RECTANGLES: Rectangle[] = [
-    { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
-    { label: "CANTIDAD", x: 55, y: 97, width: 71, height: 69 },
-    { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
-    { label: "CODIGO DE BARRA", x: 52, y: 445, width: 355, height: 15 },
-    { label: "NUM DE VENTA", x: 54, y: 57, width: 159, height: 27 },
-    { label: "SKU", x: 0, y: 0, width: 0, height: 0 },
-    { label: "PRODUCTO", x: 0, y: 0, width: 0, height: 0 },
-];
-
-
 const PDF_RENDER_SCALE = 1.5;
 
 export default function TryPage() {
@@ -91,7 +70,6 @@ export default function TryPage() {
 
   useEffect(() => {
     // We don't load predefined rectangles by default anymore on this page
-    setRectangles([]);
   }, []);
 
   const handleExtractData = async (doc: any) => {
@@ -359,7 +337,7 @@ export default function TryPage() {
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only allow drawing on the first page
-    if (!drawingAreaRef.current || pageNum !== 1) return;
+    if (!drawingAreaRef.current || pageNum !== 1 || isDrawing) return;
     setIsDrawing(true);
     const rect = drawingAreaRef.current.getBoundingClientRect();
     const x = Math.round(e.clientX - rect.left);
