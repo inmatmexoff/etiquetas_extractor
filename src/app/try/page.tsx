@@ -439,9 +439,21 @@ export default function TryPage() {
     if (!isDrawing || !currentRect) return;
     setIsDrawing(false);
     
+    // Normalize rectangle in case of drawing backwards
+    const finalRect = { ...currentRect };
+    if (finalRect.width < 0) {
+        finalRect.x = finalRect.x + finalRect.width;
+        finalRect.width = -finalRect.width;
+    }
+    if (finalRect.height < 0) {
+        finalRect.y = finalRect.y + finalRect.height;
+        finalRect.height = -finalRect.height;
+    }
+
+
     const label = prompt("Ingresa un nombre para esta área:", `Area_${rectangles.length + 1}`);
-    if (label && currentRect.width > 0 && currentRect.height > 0) {
-      setRectangles(prev => [...prev, { ...currentRect, label }]);
+    if (label && finalRect.width > 0 && finalRect.height > 0) {
+      setRectangles(prev => [...prev, { ...finalRect, label }]);
     }
     
     setStartPos(null);
@@ -605,10 +617,10 @@ export default function TryPage() {
                        <div
                           className="absolute border-2 border-blue-500/70"
                           style={{
-                            left: currentRect.x,
-                            top: currentRect.y,
-                            width: currentRect.width,
-                            height: currentRect.height,
+                              left: currentRect.width > 0 ? currentRect.x : currentRect.x + currentRect.width,
+                              top: currentRect.height > 0 ? currentRect.y : currentRect.y + currentRect.height,
+                              width: Math.abs(currentRect.width),
+                              height: Math.abs(currentRect.height),
                           }}
                         />
                     )}
@@ -623,5 +635,7 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
