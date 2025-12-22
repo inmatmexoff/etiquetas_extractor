@@ -551,10 +551,10 @@ export default function TryPage() {
                               height: rect.height,
                           }}
                         >
-                          <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
+                           <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
                             {rect.label}
                           </span>
-                           <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
+                          <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
                             x:{rect.x}, y:{rect.y}, w:{rect.width}, h:{rect.height}
                           </span>
                         </div>
