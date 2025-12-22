@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
-import { ChevronLeft, ChevronRight, UploadCloud, Database, Trash2, PlusCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, UploadCloud, Database, Trash2, PlusCircle, Save } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,7 @@ if (typeof window !== "undefined") {
 }
 
 interface Rectangle {
+  id: number;
   label: string;
   x: number;
   y: number;
@@ -62,7 +63,7 @@ export default function TryPage() {
   const [rectangles, setRectangles] = useState<Rectangle[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState<{ x: number, y: number } | null>(null);
-  const [currentRect, setCurrentRect] = useState<Rectangle | null>(null);
+  const [currentRect, setCurrentRect] = useState<Omit<Rectangle, 'id' | 'label'> & { label: string } | null>(null);
 
   // Manual input state
   const [manualRect, setManualRect] = useState({ label: '', x: '', y: '', width: '', height: '' });
@@ -99,7 +100,6 @@ export default function TryPage() {
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
-            // On this page, we use the dynamically drawn rectangles
             const activeRectangles = rectangles;
 
             for (const rect of activeRectangles) {
@@ -118,7 +118,6 @@ export default function TryPage() {
 
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
-                // Keep the original label from the drawn rectangle
                 if (extractedText.trim() !== '') {
                     allData.push({ label: rect.label, value: extractedText.trim(), page: currentPageNum });
                 }
@@ -151,9 +150,8 @@ export default function TryPage() {
         setPdfDoc(doc);
         setNumPages(doc.numPages);
         setPageNum(1);
-        setExtractedData([]); // Clear extracted data for new PDF
-        setRectangles([]); // Clear drawn rectangles for new PDF
-        // handleExtractData is now called manually via a button
+        setExtractedData([]); 
+        setRectangles([]); 
       } catch (err) {
         console.error("Error loading PDF:", err);
         setError("No se pudo cargar el archivo PDF.");
@@ -161,7 +159,6 @@ export default function TryPage() {
     };
     reader.readAsArrayBuffer(pdfFile);
 
-    // We need to create a new file object for the scanner as it can be consumed.
     const fileForScanner = new File([pdfFile], pdfFile.name, { type: pdfFile.type });
     scanQrCode(fileForScanner);
   }, [pdfFile]);
@@ -223,7 +220,6 @@ export default function TryPage() {
     try {
       const html5QrCode = new Html5Qrcode("qr-reader", /* verbose= */ false);
       const decodedText = await html5QrCode.scanFile(file, /* showImage= */ false);
-      console.log("QR Code Found:", decodedText);
       setQrCodeValue(decodedText);
     } catch (err) {
       setQrCodeValue(null);
@@ -241,7 +237,7 @@ export default function TryPage() {
     setPageNum(pageNum + 1);
   };
 
-  const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
+  const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
       const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
       const x = tx[4];
       const y = tx[5];
@@ -263,7 +259,6 @@ export default function TryPage() {
         height: drawnRect.height
       };
 
-      // Check for intersection with tolerance
       const pad = 5;
       return (
         r1.x < r2.x + r2.width + pad &&
@@ -279,7 +274,6 @@ export default function TryPage() {
           if (!pageGroup[item.page]) {
               pageGroup[item.page] = { page: item.page };
           }
-          // Avoid overwriting labels if they appear multiple times on the same page
           if (!pageGroup[item.page][item.label]) {
              pageGroup[item.page][item.label] = item.value;
           }
@@ -288,26 +282,10 @@ export default function TryPage() {
   };
   
   const groupedResults = getGroupedData();
-  // Headers are now dynamic based on drawn rectangles
   const tableHeaders = ["Página", ...Array.from(new Set(rectangles.map(r => r.label)))];
 
-
-  const saveToDatabase = async () => {
-    // This function remains for demonstration but might need adjustment
-    // based on the dynamic labels from drawn rectangles.
-    // For now, it won't save anything unless labels match the expected ones.
-    console.log("Saving to DB (implement specific logic if needed):", groupedResults);
-    toast({
-        title: "Función no implementada",
-        description: "El guardado a la base de datos debe adaptarse a las etiquetas dinámicas.",
-    });
-  };
-
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only allow drawing on the first page
     if (!drawingAreaRef.current || pageNum !== 1 || isDrawing) return;
-    
-    // Prevent starting a draw on a previously drawn rectangle
     if ((e.target as HTMLElement).closest('.drawn-rectangle')) return;
 
     setIsDrawing(true);
@@ -340,7 +318,6 @@ export default function TryPage() {
     if (!isDrawing || !currentRect || pageNum !== 1) return;
     setIsDrawing(false);
     
-    // Normalize rectangle in case of drawing backwards
     let finalRect = { ...currentRect };
     if (finalRect.width < 0) {
         finalRect.x = finalRect.x + finalRect.width;
@@ -351,7 +328,6 @@ export default function TryPage() {
         finalRect.height = -finalRect.height;
     }
 
-    // Ensure rect is not too small before prompting
     if (finalRect.width < 5 || finalRect.height < 5) {
         setStartPos(null);
         setCurrentRect(null);
@@ -360,7 +336,7 @@ export default function TryPage() {
     
     const label = prompt("Ingresa un nombre para esta área:", `Area_${rectangles.length + 1}`);
     if (label) { 
-      setRectangles(prev => [...prev, { ...finalRect, label }]);
+      setRectangles(prev => [...prev, { ...finalRect, label, id: Date.now() }]);
     }
     
     setStartPos(null);
@@ -371,6 +347,7 @@ export default function TryPage() {
     const { label, x, y, width, height } = manualRect;
     if (label && x && y && width && height) {
         const newRect: Rectangle = {
+            id: Date.now(),
             label,
             x: parseInt(x, 10),
             y: parseInt(y, 10),
@@ -378,7 +355,6 @@ export default function TryPage() {
             height: parseInt(height, 10),
         };
         setRectangles(prev => [...prev, newRect]);
-        // Clear input fields after adding
         setManualRect({ label: '', x: '', y: '', width: '', height: '' });
     } else {
         toast({
@@ -392,6 +368,14 @@ export default function TryPage() {
   const handleManualInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setManualRect(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRectUpdate = (id: number, field: keyof Rectangle, value: string | number) => {
+    setRectangles(prev => prev.map(rect => rect.id === id ? { ...rect, [field]: value } : rect));
+  };
+  
+  const handleRectDelete = (id: number) => {
+    setRectangles(prev => prev.filter(rect => rect.id !== id));
   };
 
 
@@ -408,126 +392,169 @@ export default function TryPage() {
             </p>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Cargar Archivo PDF</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid w-full items-center gap-2">
-                  <Label htmlFor="pdf-upload" className="sr-only">Sube tu factura en PDF</Label>
-                  <Input
-                    id="pdf-upload"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    disabled={isLoading}
-                  />
-                  <label
-                    htmlFor="pdf-upload"
-                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-accent transition-colors"
-                  >
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                              <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra
-                          </p>
-                          <p className="text-xs text-muted-foreground">Solo archivos PDF</p>
-                      </div>
-                  </label>
-                </div>
-                {error && <p className="mt-4 text-sm text-destructive font-medium">{error}</p>}
-                {qrCodeValue && <p className="mt-4 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-                 {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Extrayendo o guardando datos...</p>}
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-1 flex flex-col gap-8">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Cargar Archivo PDF</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid w-full items-center gap-2">
+                      <Label htmlFor="pdf-upload" className="sr-only">Sube tu factura en PDF</Label>
+                      <Input
+                        id="pdf-upload"
+                        type="file"
+                        accept="application/pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        disabled={isLoading}
+                      />
+                      <label
+                        htmlFor="pdf-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-accent transition-colors"
+                      >
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground">
+                                  <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra
+                              </p>
+                              <p className="text-xs text-muted-foreground">Solo archivos PDF</p>
+                          </div>
+                      </label>
+                    </div>
+                    {error && <p className="mt-4 text-sm text-destructive font-medium">{error}</p>}
+                    {qrCodeValue && <p className="mt-4 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
+                     {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Extrayendo o guardando datos...</p>}
+                  </CardContent>
+                </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Entrada Manual de Coordenadas</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Entrada Manual de Coordenadas</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                         <div>
                             <Label htmlFor="label">Etiqueta</Label>
                             <Input id="label" name="label" value={manualRect.label} onChange={handleManualInputChange} placeholder="Ej: NÚM DE VENTA" />
                         </div>
-                        <div>
-                            <Label htmlFor="x">X</Label>
-                            <Input id="x" name="x" type="number" value={manualRect.x} onChange={handleManualInputChange} placeholder="54" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="x">X</Label>
+                                <Input id="x" name="x" type="number" value={manualRect.x} onChange={handleManualInputChange} placeholder="54" />
+                            </div>
+                            <div>
+                                <Label htmlFor="y">Y</Label>
+                                <Input id="y" name="y" type="number" value={manualRect.y} onChange={handleManualInputChange} placeholder="57" />
+                            </div>
+                            <div>
+                                <Label htmlFor="width">W (ancho)</Label>
+                                <Input id="width" name="width" type="number" value={manualRect.width} onChange={handleManualInputChange} placeholder="159" />
+                            </div>
+                            <div>
+                                <Label htmlFor="height">H (alto)</Label>
+                                <Input id="height" name="height" type="number" value={manualRect.height} onChange={handleManualInputChange} placeholder="27" />
+                            </div>
                         </div>
-                        <div>
-                            <Label htmlFor="y">Y</Label>
-                            <Input id="y" name="y" type="number" value={manualRect.y} onChange={handleManualInputChange} placeholder="57" />
-                        </div>
-                        <div>
-                            <Label htmlFor="width">W (ancho)</Label>
-                            <Input id="width" name="width" type="number" value={manualRect.width} onChange={handleManualInputChange} placeholder="159" />
-                        </div>
-                        <div>
-                            <Label htmlFor="height">H (alto)</Label>
-                            <Input id="height" name="height" type="number" value={manualRect.height} onChange={handleManualInputChange} placeholder="27" />
-                        </div>
-                    </div>
-                     <Button onClick={handleManualAdd} className="w-full">
-                        <PlusCircle className="mr-2" />
-                        Añadir Rectángulo
-                    </Button>
-                </CardContent>
-            </Card>
+                         <Button onClick={handleManualAdd} className="w-full">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Añadir Rectángulo
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="lg:col-span-2 flex flex-col gap-8">
+              {rectangles.length > 0 && (
+                  <Card>
+                      <CardHeader>
+                          <CardTitle>Áreas Definidas</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4 max-h-96 overflow-y-auto">
+                          {rectangles.map((rect) => (
+                              <div key={rect.id} className="p-3 border rounded-lg space-y-3 bg-card">
+                                  <div className="flex justify-between items-center">
+                                      <Input
+                                          value={rect.label}
+                                          onChange={(e) => handleRectUpdate(rect.id, 'label', e.target.value)}
+                                          className="text-base font-semibold border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+                                      />
+                                      <Button onClick={() => handleRectDelete(rect.id)} variant="ghost" size="icon" className="h-8 w-8">
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                      <div className="space-y-1">
+                                          <Label htmlFor={`x-${rect.id}`} className="text-xs">X</Label>
+                                          <Input id={`x-${rect.id}`} type="number" value={rect.x} onChange={(e) => handleRectUpdate(rect.id, 'x', parseInt(e.target.value) || 0)} />
+                                      </div>
+                                      <div className="space-y-1">
+                                          <Label htmlFor={`y-${rect.id}`} className="text-xs">Y</Label>
+                                          <Input id={`y-${rect.id}`} type="number" value={rect.y} onChange={(e) => handleRectUpdate(rect.id, 'y', parseInt(e.target.value) || 0)} />
+                                      </div>
+                                      <div className="space-y-1">
+                                          <Label htmlFor={`w-${rect.id}`} className="text-xs">Ancho (W)</Label>
+                                          <Input id={`w-${rect.id}`} type="number" value={rect.width} onChange={(e) => handleRectUpdate(rect.id, 'width', parseInt(e.target.value) || 0)} />
+                                      </div>
+                                      <div className="space-y-1">
+                                          <Label htmlFor={`h-${rect.id}`} className="text-xs">Alto (H)</Label>
+                                          <Input id={`h-${rect.id}`} type="number" value={rect.height} onChange={(e) => handleRectUpdate(rect.id, 'height', parseInt(e.target.value) || 0)} />
+                                      </div>
+                                  </div>
+                              </div>
+                          ))}
+                      </CardContent>
+                  </Card>
+              )}
+          </div>
         </div>
         
-        <div className="grid grid-cols-1 gap-8">
-          {rectangles.length > 0 && (
-                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
-                    <AccordionItem value="item-1" className="border-b-0">
-                        <Card>
-                           <CardHeader>
-                                <div className="flex w-full flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                     <AccordionTrigger className="w-full justify-between">
-                                        <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
-                                     </AccordionTrigger>
-                                     <div className="flex gap-2 w-full sm:w-auto">
-                                        <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0} className="flex-1 sm:flex-none">
-                                            Extraer Datos
-                                        </Button>
-                                     </div>
-                                </div>
-                            </CardHeader>
-                            {groupedResults.length > 0 && (
-                                <AccordionContent>
-                                   <CardContent>
-                                        <div className="overflow-x-auto">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
+        {rectangles.length > 0 && (
+            <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+                <AccordionItem value="item-1" className="border-b-0">
+                    <Card>
+                       <CardHeader>
+                            <div className="flex w-full flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                 <AccordionTrigger className="w-full justify-between">
+                                    <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
+                                 </AccordionTrigger>
+                                 <div className="flex gap-2 w-full sm:w-auto">
+                                    <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0} className="flex-1 sm:flex-none">
+                                        Extraer Datos
+                                    </Button>
+                                 </div>
+                            </div>
+                        </CardHeader>
+                        {groupedResults.length > 0 && (
+                            <AccordionContent>
+                               <CardContent>
+                                    <div className="overflow-x-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    {tableHeaders.map(header => (
+                                                        <TableHead key={header} className="font-semibold">{header}</TableHead>
+                                                    ))}
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {groupedResults.map((row, index) => (
+                                                    <TableRow key={index}>
                                                         {tableHeaders.map(header => (
-                                                            <TableHead key={header} className="font-semibold">{header}</TableHead>
+                                                            <TableCell key={header}>
+                                                                {header === "Página" ? row.page : (row[header] as string) || ''}
+                                                            </TableCell>
                                                         ))}
                                                     </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {groupedResults.map((row, index) => (
-                                                        <TableRow key={index}>
-                                                            {tableHeaders.map(header => (
-                                                                <TableCell key={header}>
-                                                                    {header === "Página" ? row.page : (row[header] as string) || ''}
-                                                                </TableCell>
-                                                            ))}
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </CardContent>
-                                </AccordionContent>
-                            )}
-                        </Card>
-                    </AccordionItem>
-                </Accordion>
-          )}
-        </div>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                            </AccordionContent>
+                        )}
+                    </Card>
+                </AccordionItem>
+            </Accordion>
+      )}
 
           {pdfDoc && (
             <Card>
@@ -560,19 +587,18 @@ export default function TryPage() {
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp} // Stop drawing if mouse leaves the area
+                    onMouseLeave={handleMouseUp}
                 >
                   <div
                     ref={drawingAreaRef}
                     className="absolute top-0 left-0"
-                    style={{ touchAction: 'none' }} // Improves compatibility
+                    style={{ touchAction: 'none' }}
                   >
                     <canvas ref={canvasRef}></canvas>
-                    {/* Render user-drawn rectangles for the current page */}
-                    {pageNum === 1 && rectangles.map((rect, index) => (
+                    {pageNum === 1 && rectangles.map((rect) => (
                         <div
-                          key={index}
-                          className="absolute border-2 border-destructive/70 drawn-rectangle"
+                          key={rect.id}
+                          className="absolute border-2 border-destructive/70 drawn-rectangle pointer-events-none"
                           style={{
                               left: rect.x,
                               top: rect.y,
@@ -588,7 +614,6 @@ export default function TryPage() {
                           </span>
                         </div>
                     ))}
-                    {/* Render rectangle being currently drawn */}
                     {isDrawing && currentRect && (
                        <div
                           className="absolute border-2 border-blue-500/70 pointer-events-none"
