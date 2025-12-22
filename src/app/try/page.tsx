@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
-import { ChevronLeft, ChevronRight, UploadCloud, Database } from "lucide-react";
+import { ChevronLeft, ChevronRight, UploadCloud, Database, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
@@ -78,20 +78,23 @@ export default function TryPage() {
   const [error, setError] = useState<string | null>(null);
   const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
 
-  // Drawing state is now initialized with predefined rectangles
+  // Drawing state
   const [rectangles, setRectangles] = useState<Rectangle[]>([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [startPos, setStartPos] = useState<{ x: number, y: number } | null>(null);
+  const [currentRect, setCurrentRect] = useState<Rectangle | null>(null);
 
   // Extraction state
   const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Load predefined rectangles when component mounts
-    setRectangles(PREDEFINED_RECTANGLES_DEFAULT);
+    // We don't load predefined rectangles by default anymore on this page
+    setRectangles([]);
   }, []);
 
   const handleExtractData = async (doc: any) => {
-    if (!doc) return;
+    if (!doc || rectangles.length === 0) return;
     setIsLoading(true);
     setExtractedData([]);
     setError(null);
@@ -115,7 +118,8 @@ export default function TryPage() {
                 }
             }
             
-            const activeRectangles = useAlternativeRects ? ALTERNATIVE_RECTANGLES : PREDEFINED_RECTANGLES_DEFAULT;
+            // On this page, we use the dynamically drawn rectangles
+            const activeRectangles = rectangles;
             // --- End of Per-Page Logic ---
 
             for (const rect of activeRectangles) {
@@ -180,7 +184,7 @@ export default function TryPage() {
             }
         }
 
-        if (allData.length === 0) {
+        if (allData.length === 0 && rectangles.length > 0) {
              setError("No se pudo extraer texto de ninguna página utilizando las áreas definidas.");
         } else {
             setError(null);
@@ -207,7 +211,8 @@ export default function TryPage() {
         setNumPages(doc.numPages);
         setPageNum(1);
         setExtractedData([]); // Clear extracted data for new PDF
-        handleExtractData(doc); // Auto-extract data
+        setRectangles([]); // Clear drawn rectangles for new PDF
+        // handleExtractData is now called manually
       } catch (err) {
         console.error("Error loading PDF:", err);
         setError("No se pudo cargar el archivo PDF.");
@@ -343,6 +348,8 @@ export default function TryPage() {
       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
       const filtered = grouped.filter(row => {
           const fechaEntrega = row['FECHA ENTREGA'] as string;
+          // Allow rows if they don't have a date field
+          if (!fechaEntrega) return true;
           return fechaEntrega && dateRegex.test(fechaEntrega);
       });
 
@@ -350,7 +357,8 @@ export default function TryPage() {
   };
   
   const groupedResults = getGroupedData();
-  const tableHeaders = ["Página", ...PREDEFINED_RECTANGLES_DEFAULT.map(r => r.label)];
+  const tableHeaders = ["Página", ...Array.from(new Set(rectangles.map(r => r.label)))];
+
 
   const saveToDatabase = async () => {
     if (groupedResults.length === 0) return;
@@ -399,16 +407,58 @@ export default function TryPage() {
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!drawingAreaRef.current) return;
+    setIsDrawing(true);
+    const rect = drawingAreaRef.current.getBoundingClientRect();
+    const x = Math.round(e.clientX - rect.left);
+    const y = Math.round(e.clientY - rect.top);
+    setStartPos({ x, y });
+    setCurrentRect({ label: '', x, y, width: 0, height: 0 });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDrawing || !startPos || !drawingAreaRef.current) return;
+    const rect = drawingAreaRef.current.getBoundingClientRect();
+    const currentX = Math.round(e.clientX - rect.left);
+    const currentY = Math.round(e.clientY - rect.top);
+    
+    const width = currentX - startPos.x;
+    const height = currentY - startPos.y;
+
+    setCurrentRect({
+        label: '',
+        x: startPos.x,
+        y: startPos.y,
+        width: width,
+        height: height
+    });
+  };
+
+  const handleMouseUp = () => {
+    if (!isDrawing || !currentRect) return;
+    setIsDrawing(false);
+    
+    const label = prompt("Ingresa un nombre para esta área:", `Area_${rectangles.length + 1}`);
+    if (label && currentRect.width > 0 && currentRect.height > 0) {
+      setRectangles(prev => [...prev, { ...currentRect, label }]);
+    }
+    
+    setStartPos(null);
+    setCurrentRect(null);
+  };
+
+
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div id="qr-reader" style={{ display: 'none' }}></div>
       <div className="container mx-auto max-w-7xl space-y-8">
         <header className="text-center">
             <h1 className="text-4xl font-bold tracking-tight text-primary">
-                Extractor de Etiquetas de Envío
+                Extractor de Etiquetas de Envío (Modo Prueba)
             </h1>
             <p className="mt-2 text-lg text-muted-foreground">
-                Sube un archivo PDF para extraer y visualizar la información de las etiquetas automáticamente.
+                Dibuja rectángulos en el PDF para definir áreas de extracción.
             </p>
         </header>
         <Card>
@@ -443,8 +493,8 @@ export default function TryPage() {
         </Card>
         
         <div className="grid grid-cols-1 gap-8">
-          {groupedResults.length > 0 && (
-                <Accordion type="single" collapsible className="w-full">
+          {rectangles.length > 0 && (
+                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
                     <AccordionItem value="item-1" className="border-b-0">
                         <Card>
                            <CardHeader>
@@ -452,10 +502,15 @@ export default function TryPage() {
                                      <AccordionTrigger className="w-full justify-between">
                                         <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
                                      </AccordionTrigger>
-                                    <Button onClick={saveToDatabase} disabled={isLoading} className="sm:w-auto w-full">
-                                        <Database className="mr-2 h-4 w-4" />
-                                        Guardar en Base de Datos
-                                    </Button>
+                                     <div>
+                                        <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0} className="sm:w-auto w-full mr-2">
+                                            Extraer Datos
+                                        </Button>
+                                        <Button onClick={saveToDatabase} disabled={isLoading || groupedResults.length === 0} className="sm:w-auto w-full">
+                                            <Database className="mr-2 h-4 w-4" />
+                                            Guardar
+                                        </Button>
+                                     </div>
                                 </div>
                             </CardHeader>
                             <AccordionContent>
@@ -495,7 +550,11 @@ export default function TryPage() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-xl">Vista Previa del PDF</CardTitle>
-                  <div className="flex items-center gap-2">
+                   <div className="flex items-center gap-2">
+                      <Button onClick={() => setRectangles([])} disabled={rectangles.length === 0} variant="destructive" size="sm">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Limpiar Dibujos
+                      </Button>
                       <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
                           <ChevronLeft className="h-4 w-4" />
                       </Button>
@@ -509,12 +568,50 @@ export default function TryPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-[50vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50">
+                <div 
+                    className="h-[50vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50 cursor-crosshair"
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                >
                   <div
                     ref={drawingAreaRef}
                     className="absolute top-0 left-0"
                   >
                     <canvas ref={canvasRef}></canvas>
+                    {/* Render user-drawn rectangles */}
+                    {rectangles.map((rect, index) => (
+                        <div
+                          key={index}
+                          className="absolute border-2 border-destructive/70"
+                          style={{
+                              left: rect.x,
+                              top: rect.y,
+                              width: rect.width,
+                              height: rect.height,
+                          }}
+                        >
+                          <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
+                            {rect.label}
+                          </span>
+                          <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
+                            x:{rect.x}, y:{rect.y}, w:{rect.width}, h:{rect.height}
+                          </span>
+                        </div>
+                    ))}
+                    {/* Render rectangle being currently drawn */}
+                    {currentRect && (
+                       <div
+                          className="absolute border-2 border-blue-500/70"
+                          style={{
+                            left: currentRect.x,
+                            top: currentRect.y,
+                            width: currentRect.width,
+                            height: currentRect.height,
+                          }}
+                        />
+                    )}
                   </div>
                   {pageRendering && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center font-medium">Cargando...</div>}
                 </div>
@@ -526,3 +623,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
