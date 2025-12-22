@@ -334,10 +334,13 @@ export default function TryPage() {
         return;
     }
     
-    const label = prompt("Ingresa un nombre para esta área:", `Area_${rectangles.length + 1}`);
-    if (label) { 
-      setRectangles(prev => [...prev, { ...finalRect, label, id: Date.now() }]);
-    }
+    setManualRect({
+        label: manualRect.label, // keep existing label
+        x: String(finalRect.x),
+        y: String(finalRect.y),
+        width: String(finalRect.width),
+        height: String(finalRect.height),
+    });
     
     setStartPos(null);
     setCurrentRect(null);
@@ -370,8 +373,14 @@ export default function TryPage() {
     setManualRect(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleRectUpdate = (id: number, field: keyof Rectangle, value: string | number) => {
-    setRectangles(prev => prev.map(rect => rect.id === id ? { ...rect, [field]: value } : rect));
+  const handleRectUpdate = (id: number, field: keyof Omit<Rectangle, 'id'>, value: string | number) => {
+    setRectangles(prev => 
+        prev.map(rect => 
+            rect.id === id 
+                ? { ...rect, [field]: typeof value === 'string' && field !== 'label' ? parseInt(value) || 0 : value } 
+                : rect
+        )
+    );
   };
   
   const handleRectDelete = (id: number) => {
@@ -484,19 +493,19 @@ export default function TryPage() {
                                   <div className="grid grid-cols-2 gap-3">
                                       <div className="space-y-1">
                                           <Label htmlFor={`x-${rect.id}`} className="text-xs">X</Label>
-                                          <Input id={`x-${rect.id}`} type="number" value={rect.x} onChange={(e) => handleRectUpdate(rect.id, 'x', parseInt(e.target.value) || 0)} />
+                                          <Input id={`x-${rect.id}`} type="number" value={rect.x} onChange={(e) => handleRectUpdate(rect.id, 'x', e.target.value)} />
                                       </div>
                                       <div className="space-y-1">
                                           <Label htmlFor={`y-${rect.id}`} className="text-xs">Y</Label>
-                                          <Input id={`y-${rect.id}`} type="number" value={rect.y} onChange={(e) => handleRectUpdate(rect.id, 'y', parseInt(e.target.value) || 0)} />
+                                          <Input id={`y-${rect.id}`} type="number" value={rect.y} onChange={(e) => handleRectUpdate(rect.id, 'y', e.target.value)} />
                                       </div>
                                       <div className="space-y-1">
                                           <Label htmlFor={`w-${rect.id}`} className="text-xs">Ancho (W)</Label>
-                                          <Input id={`w-${rect.id}`} type="number" value={rect.width} onChange={(e) => handleRectUpdate(rect.id, 'width', parseInt(e.target.value) || 0)} />
+                                          <Input id={`w-${rect.id}`} type="number" value={rect.width} onChange={(e) => handleRectUpdate(rect.id, 'width', e.target.value)} />
                                       </div>
                                       <div className="space-y-1">
                                           <Label htmlFor={`h-${rect.id}`} className="text-xs">Alto (H)</Label>
-                                          <Input id={`h-${rect.id}`} type="number" value={rect.height} onChange={(e) => handleRectUpdate(rect.id, 'height', parseInt(e.target.value) || 0)} />
+                                          <Input id={`h-${rect.id}`} type="number" value={rect.height} onChange={(e) => handleRectUpdate(rect.id, 'height', e.target.value)} />
                                       </div>
                                   </div>
                               </div>
@@ -507,7 +516,7 @@ export default function TryPage() {
           </div>
         </div>
         
-        {rectangles.length > 0 && (
+        {pdfDoc && rectangles.length > 0 && (
             <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
                 <AccordionItem value="item-1" className="border-b-0">
                     <Card>
