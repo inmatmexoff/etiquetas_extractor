@@ -515,25 +515,6 @@ export default function TryPage() {
                     className="absolute top-0 left-0"
                   >
                     <canvas ref={canvasRef}></canvas>
-                    {pageNum === 1 && rectangles.map((rect, index) => (
-                        <div
-                          key={index}
-                          className="absolute border-2 border-destructive/70"
-                          style={{
-                              left: rect.x,
-                              top: rect.y,
-                              width: rect.width,
-                              height: rect.height,
-                          }}
-                        >
-                          <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
-                            {rect.label}
-                          </span>
-                          <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
-                            x:{rect.x}, y:{rect.y}, w:{rect.width}, h:{rect.height}
-                          </span>
-                        </div>
-                    ))}
                   </div>
                   {pageRendering && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center font-medium">Cargando...</div>}
                 </div>
