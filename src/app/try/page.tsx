@@ -94,7 +94,16 @@ export default function TryPage() {
   }, []);
 
   const handleExtractData = async (doc: any) => {
-    if (!doc || rectangles.length === 0) return;
+    if (!doc || rectangles.length === 0) {
+        if (rectangles.length === 0) {
+            toast({
+                variant: "destructive",
+                title: "No hay áreas definidas",
+                description: "Por favor, dibuja al menos un rectángulo antes de extraer datos.",
+            });
+        }
+        return;
+    }
     setIsLoading(true);
     setExtractedData([]);
     setError(null);
@@ -107,20 +116,8 @@ export default function TryPage() {
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
-            // --- Per-Page Rectangle Selection Logic ---
-            let useAlternativeRects = false;
-            const skuArea = PREDEFINED_RECTANGLES_DEFAULT.find(r => r.label === 'SKU');
-            if (skuArea) {
-                const itemsInSkuArea = textContent.items.filter((item: any) => intersects(item, skuArea, viewport));
-                const skuText = itemsInSkuArea.map((item: any) => item.str).join(' ');
-                if (skuText.includes("Prepará el paquete")) {
-                    useAlternativeRects = true;
-                }
-            }
-            
             // On this page, we use the dynamically drawn rectangles
             const activeRectangles = rectangles;
-            // --- End of Per-Page Logic ---
 
             for (const rect of activeRectangles) {
                 if (rect.width === 0 && rect.height === 0) continue;
@@ -138,54 +135,15 @@ export default function TryPage() {
 
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
-                if (rect.label === 'CANTIDAD') {
-                    extractedText = extractedText.replace(/Cantidad|Productos/gi, '').trim();
-                } else if (rect.label === 'FECHA ENTREGA') {
-                    const monthMap: { [key: string]: string } = {
-                        'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
-                        'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
-                    };
-                    const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
-                    
-                    let cleanText = extractedText.replace(/ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
-                    
-                    const datePartsNumeric = cleanText.split('/');
-                    if (datePartsNumeric.length === 3) {
-                        const day = datePartsNumeric[0].padStart(2, '0');
-                        const month = datePartsNumeric[1].padStart(2, '0');
-                        const year = datePartsNumeric[2];
-                        extractedText = `${year}-${month}-${day}`;
-                    } else if (datePartsNumeric.length >= 2) { // Handle "7/feb"
-                        const day = datePartsNumeric[0].padStart(2, '0');
-                        const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
-                        const month = monthMap[monthStr];
-                        if (month) {
-                            extractedText = `2025-${month}-${day}`;
-                        }
-                    }
-                } else if (rect.label === 'CODIGO DE BARRA') {
-                    const numbers = extractedText.match(/\d+/g);
-                    extractedText = numbers ? numbers.join('') : '';
-                } else if (rect.label === 'NUM DE VENTA') {
-                    const numbers = extractedText.match(/\d+/g);
-                    extractedText = numbers ? numbers.join('') : '';
-                } else if (rect.label === 'SKU') {
-                    extractedText = extractedText.replace(/SKU:/gi, '').trim();
-                }
-
-
+                // Keep the original label from the drawn rectangle
                 if (extractedText.trim() !== '') {
                     allData.push({ label: rect.label, value: extractedText.trim(), page: currentPageNum });
                 }
             }
-
-            if (useAlternativeRects) {
-                 allData.push({ label: 'PRODUCTO', value: 'VARIOS', page: currentPageNum });
-            }
         }
 
         if (allData.length === 0 && rectangles.length > 0) {
-             setError("No se pudo extraer texto de ninguna página utilizando las áreas definidas.");
+             setError("No se pudo extraer texto de ninguna página utilizando las áreas que dibujaste.");
         } else {
             setError(null);
         }
@@ -212,7 +170,7 @@ export default function TryPage() {
         setPageNum(1);
         setExtractedData([]); // Clear extracted data for new PDF
         setRectangles([]); // Clear drawn rectangles for new PDF
-        // handleExtractData is now called manually
+        // handleExtractData is now called manually via a button
       } catch (err) {
         console.error("Error loading PDF:", err);
         setError("No se pudo cargar el archivo PDF.");
@@ -333,30 +291,21 @@ export default function TryPage() {
     };
 
   const getGroupedData = (): GroupedExtractedData[] => {
-      // Grouping by page
       const pageGroup: { [key:number]: GroupedExtractedData } = {};
       extractedData.forEach(item => {
           if (!pageGroup[item.page]) {
               pageGroup[item.page] = { page: item.page };
           }
-          pageGroup[item.page][item.label] = item.value;
+          // Avoid overwriting labels if they appear multiple times on the same page
+          if (!pageGroup[item.page][item.label]) {
+             pageGroup[item.page][item.label] = item.value;
+          }
       });
-
-      const grouped = Object.values(pageGroup);
-
-      // Filter out rows that don't have a valid date in 'FECHA ENTREGA'
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      const filtered = grouped.filter(row => {
-          const fechaEntrega = row['FECHA ENTREGA'] as string;
-          // Allow rows if they don't have a date field
-          if (!fechaEntrega) return true;
-          return fechaEntrega && dateRegex.test(fechaEntrega);
-      });
-
-      return filtered;
+      return Object.values(pageGroup);
   };
   
   const groupedResults = getGroupedData();
+  // Headers are now dynamic based on drawn rectangles
   const tableHeaders = ["Página", ...Array.from(new Set(rectangles.map(r => r.label)))];
 
 
@@ -372,7 +321,7 @@ export default function TryPage() {
       const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
 
       const payload = groupedResults.map((row) => ({
-        deli_date: row["FECHA ENTREGA"],
+        deli_date: row["FECHA ENTREGA"] || null,
         quantity: Number(row["CANTIDAD"]) || null,
         client: row["CLIENTE INFO"] || null,
         code: row["CODIGO DE BARRA"] || null,
@@ -408,7 +357,8 @@ export default function TryPage() {
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!drawingAreaRef.current) return;
+    // Only allow drawing on the first page
+    if (!drawingAreaRef.current || pageNum !== 1) return;
     setIsDrawing(true);
     const rect = drawingAreaRef.current.getBoundingClientRect();
     const x = Math.round(e.clientX - rect.left);
@@ -418,7 +368,7 @@ export default function TryPage() {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDrawing || !startPos || !drawingAreaRef.current) return;
+    if (!isDrawing || !startPos || !drawingAreaRef.current || pageNum !== 1) return;
     const rect = drawingAreaRef.current.getBoundingClientRect();
     const currentX = Math.round(e.clientX - rect.left);
     const currentY = Math.round(e.clientY - rect.top);
@@ -436,7 +386,7 @@ export default function TryPage() {
   };
 
   const handleMouseUp = () => {
-    if (!isDrawing || !currentRect) return;
+    if (!isDrawing || !currentRect || pageNum !== 1) return;
     setIsDrawing(false);
     
     // Normalize rectangle in case of drawing backwards
@@ -452,7 +402,7 @@ export default function TryPage() {
 
 
     const label = prompt("Ingresa un nombre para esta área:", `Area_${rectangles.length + 1}`);
-    if (label && finalRect.width > 0 && finalRect.height > 0) {
+    if (label && finalRect.width > 5 && finalRect.height > 5) { // Ensure rect is not too small
       setRectangles(prev => [...prev, { ...finalRect, label }]);
     }
     
@@ -470,7 +420,7 @@ export default function TryPage() {
                 Extractor de Etiquetas de Envío (Modo Prueba)
             </h1>
             <p className="mt-2 text-lg text-muted-foreground">
-                Dibuja rectángulos en el PDF para definir áreas de extracción.
+                {pdfDoc && pageNum > 1 ? "El dibujo solo está habilitado en la primera página." : "Dibuja rectángulos en el PDF para definir áreas de extracción."}
             </p>
         </header>
         <Card>
@@ -514,43 +464,47 @@ export default function TryPage() {
                                      <AccordionTrigger className="w-full justify-between">
                                         <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
                                      </AccordionTrigger>
-                                     <div>
-                                        <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0} className="sm:w-auto w-full mr-2">
+                                     <div className="flex gap-2 w-full sm:w-auto">
+                                        <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0} className="flex-1 sm:flex-none">
                                             Extraer Datos
                                         </Button>
-                                        <Button onClick={saveToDatabase} disabled={isLoading || groupedResults.length === 0} className="sm:w-auto w-full">
-                                            <Database className="mr-2 h-4 w-4" />
-                                            Guardar
-                                        </Button>
+                                        {groupedResults.length > 0 && (
+                                            <Button onClick={saveToDatabase} disabled={isLoading} className="flex-1 sm:flex-none">
+                                                <Database className="mr-2 h-4 w-4" />
+                                                Guardar
+                                            </Button>
+                                        )}
                                      </div>
                                 </div>
                             </CardHeader>
-                            <AccordionContent>
-                               <CardContent>
-                                    <div className="overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    {tableHeaders.map(header => (
-                                                        <TableHead key={header} className="font-semibold">{header}</TableHead>
-                                                    ))}
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {groupedResults.map((row, index) => (
-                                                    <TableRow key={index}>
+                            {groupedResults.length > 0 && (
+                                <AccordionContent>
+                                   <CardContent>
+                                        <div className="overflow-x-auto">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
                                                         {tableHeaders.map(header => (
-                                                            <TableCell key={header}>
-                                                                {header === "Página" ? row.page : (row[header] as string) || ''}
-                                                            </TableCell>
+                                                            <TableHead key={header} className="font-semibold">{header}</TableHead>
                                                         ))}
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </CardContent>
-                            </AccordionContent>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {groupedResults.map((row, index) => (
+                                                        <TableRow key={index}>
+                                                            {tableHeaders.map(header => (
+                                                                <TableCell key={header}>
+                                                                    {header === "Página" ? row.page : (row[header] as string) || ''}
+                                                                </TableCell>
+                                                            ))}
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </AccordionContent>
+                            )}
                         </Card>
                     </AccordionItem>
                 </Accordion>
@@ -563,7 +517,7 @@ export default function TryPage() {
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-xl">Vista Previa del PDF</CardTitle>
                    <div className="flex items-center gap-2">
-                      <Button onClick={() => setRectangles([])} disabled={rectangles.length === 0} variant="destructive" size="sm">
+                      <Button onClick={() => { setRectangles([]); setExtractedData([]); }} disabled={rectangles.length === 0} variant="destructive" size="sm">
                           <Trash2 className="mr-2 h-4 w-4" />
                           Limpiar Dibujos
                       </Button>
@@ -581,22 +535,26 @@ export default function TryPage() {
               </CardHeader>
               <CardContent>
                 <div 
-                    className="h-[50vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50 cursor-crosshair"
+                    className={cn(
+                        "h-[50vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50",
+                         pageNum === 1 ? "cursor-crosshair" : "cursor-default"
+                    )}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
+                    onMouseLeave={handleMouseUp} // Stop drawing if mouse leaves the area
                 >
                   <div
                     ref={drawingAreaRef}
                     className="absolute top-0 left-0"
+                    style={{ touchAction: 'none' }} // Improves compatibility
                   >
                     <canvas ref={canvasRef}></canvas>
-                    {/* Render user-drawn rectangles */}
-                    {rectangles.map((rect, index) => (
+                    {/* Render user-drawn rectangles for the current page */}
+                    {pageNum === 1 && rectangles.map((rect, index) => (
                         <div
                           key={index}
-                          className="absolute border-2 border-destructive/70"
+                          className="absolute border-2 border-destructive/70 pointer-events-none"
                           style={{
                               left: rect.x,
                               top: rect.y,
@@ -607,15 +565,15 @@ export default function TryPage() {
                           <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
                             {rect.label}
                           </span>
-                          <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
+                           <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
                             x:{rect.x}, y:{rect.y}, w:{rect.width}, h:{rect.height}
                           </span>
                         </div>
                     ))}
                     {/* Render rectangle being currently drawn */}
-                    {currentRect && (
+                    {isDrawing && currentRect && (
                        <div
-                          className="absolute border-2 border-blue-500/70"
+                          className="absolute border-2 border-blue-500/70 pointer-events-none"
                           style={{
                               left: currentRect.width > 0 ? currentRect.x : currentRect.x + currentRect.width,
                               top: currentRect.height > 0 ? currentRect.y : currentRect.y + currentRect.height,
@@ -634,8 +592,5 @@ export default function TryPage() {
       </div>
     </main>
   );
-}
-
-    
 
     
