@@ -497,11 +497,11 @@ export default function TryPage() {
         ctx.fillStyle = textColor;
         ctx.textAlign = "center";
         
-        ctx.fillText(`${listadoCounter++}`, 368, 260);
-        ctx.fillText(selectedCompany, 368, 290);
+        ctx.fillText(`${listadoCounter++}`, 363, 260);
+        ctx.fillText(selectedCompany, 363, 290);
         
-        ctx.fillText(`${listadoCounter++}`, 761, 260);
-        ctx.fillText(selectedCompany, 761, 290);
+        ctx.fillText(`${listadoCounter++}`, 756, 260);
+        ctx.fillText(selectedCompany, 756, 290);
         
         const imgData = canvas.toDataURL("image/png");
         
