@@ -104,7 +104,6 @@ export default function Home() {
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
-            // --- Per-Page Rectangle Selection Logic ---
             let useAlternativeRects = false;
             const skuArea = PREDEFINED_RECTANGLES_DEFAULT.find(r => r.label === 'SKU');
             if (skuArea) {
@@ -116,7 +115,6 @@ export default function Home() {
             }
             
             const activeRectangles = useAlternativeRects ? ALTERNATIVE_RECTANGLES : PREDEFINED_RECTANGLES_DEFAULT;
-            // --- End of Per-Page Logic ---
 
             for (const rect of activeRectangles) {
                 if (rect.width === 0 && rect.height === 0) continue;
@@ -135,7 +133,7 @@ export default function Home() {
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
                 if (rect.label === 'CANTIDAD') {
-                    extractedText = extractedText.replace(/Cantidad|Productos/gi, '').trim();
+                    extractedText = extractedText.replace(/Cantidad|Productos|Unidad/gi, '').trim();
                 } else if (rect.label === 'FECHA ENTREGA') {
                     const monthMap: { [key: string]: string } = {
                         'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
@@ -143,7 +141,7 @@ export default function Home() {
                     };
                     const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
                     
-                    let cleanText = extractedText.replace(/ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
+                    let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
                     
                     const datePartsNumeric = cleanText.split('/');
                     if (datePartsNumeric.length === 3) {
@@ -165,8 +163,12 @@ export default function Home() {
                 } else if (rect.label === 'NUM DE VENTA') {
                     const numbers = extractedText.match(/\d+/g);
                     extractedText = numbers ? numbers.join('') : '';
-                } else if (rect.label === 'SKU') {
-                    extractedText = extractedText.replace(/SKU:/gi, '').trim();
+                } else if (rect.label === 'PRODUCTO') {
+                    const skuMatch = extractedText.match(/SKU: (\S+)/);
+                    if (skuMatch && skuMatch[1]) {
+                        allData.push({ label: 'SKU', value: skuMatch[1], page: currentPageNum });
+                        extractedText = extractedText.replace(skuMatch[0], '').trim();
+                    }
                 }
 
 
@@ -295,26 +297,38 @@ export default function Home() {
     setPageNum(pageNum + 1);
   };
 
-  const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
-    const itemLeft = pdfTextItem.transform[4];
-    const itemBottom = pdfTextItem.transform[5];
-    const itemRight = itemLeft + pdfTextItem.width;
-    const itemTop = itemBottom + pdfTextItem.height;
+    const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
+        // Convert drawnRect (canvas coords) to PDF coords
+        const rectLeft = drawnRect.x;
+        const rectTop = drawnRect.y;
+        const rectRight = drawnRect.x + drawnRect.width;
+        const rectBottom = drawnRect.y + drawnRect.height;
+        
+        const vp = page.getViewport({ scale: PDF_RENDER_SCALE });
 
-    const rectLeft = drawnRect.x / PDF_RENDER_SCALE;
-    const rectRight = (drawnRect.x + drawnRect.width) / PDF_RENDER_SCALE;
-    // PDF Y-coordinate is from the bottom, canvas is from the top.
-    const rectTop = viewport.height / PDF_RENDER_SCALE - drawnRect.y / PDF_RENDER_SCALE;
-    const rectBottom = rectTop - drawnRect.height / PDF_RENDER_SCALE;
-    
-    // Check for intersection
-    return (
-        itemLeft < rectRight &&
-        itemRight > rectLeft &&
-        itemBottom < rectTop &&
-        itemTop > rectBottom
-    );
-  };
+        // pdfTextItem coords are in PDF space (origin at bottom-left)
+        // We need to transform them to canvas space (origin at top-left)
+        const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
+        const itemTop = itemBottom + pdfTextItem.height;
+        const itemRight = itemLeft + pdfTextItem.width;
+
+        // Transform rect to PDF coordinate space
+        const pdfRect = vp.convertToPdfPoint(rectLeft, rectTop);
+        const pdfRect2 = vp.convertToPdfPoint(rectRight, rectBottom);
+
+        const pdfRectLeft = Math.min(pdfRect[0], pdfRect2[0]);
+        const pdfRectRight = Math.max(pdfRect[0], pdfRect2[0]);
+        const pdfRectBottom = Math.min(pdfRect[1], pdfRect2[1]);
+        const pdfRectTop = Math.max(pdfRect[1], pdfRect2[1]);
+
+        // Standard 2D box intersection test
+        return (
+            itemLeft < pdfRectRight &&
+            itemRight > pdfRectLeft &&
+            itemBottom < pdfRectTop &&
+            itemTop > pdfRectBottom
+        );
+    };
 
   const getGroupedData = (): GroupedExtractedData[] => {
       // Grouping by page
@@ -534,7 +548,3 @@ export default function Home() {
     </main>
   );
 }
-
-    
-
-    

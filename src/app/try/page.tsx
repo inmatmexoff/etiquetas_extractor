@@ -53,8 +53,7 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "CLIENTE INFO", x: 48, y: 933, width: 291, height: 119 },
     { label: "CODIGO DE BARRA", x: 144, y: 445, width: 154, height: 30 },
     { label: "NUM DE VENTA", x: 53, y: 51, width: 168, height: 25 },
-    { label: "SKU", x: 160, y: 144, width: 256, height: 17 },
-    { label: "PRODUCTO", x: 156, y: 88, width: 269, height: 34 },
+    { label: "PRODUCTO", x: 156, y: 88, width: 269, height: 60 },
 ];
 
 
@@ -253,26 +252,38 @@ export default function TryPage() {
     setPageNum(pageNum + 1);
   };
 
-  const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
-    const itemLeft = pdfTextItem.transform[4];
-    const itemBottom = pdfTextItem.transform[5];
-    const itemRight = itemLeft + pdfTextItem.width;
-    const itemTop = itemBottom + pdfTextItem.height;
+    const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
+        // Convert drawnRect (canvas coords) to PDF coords
+        const rectLeft = drawnRect.x;
+        const rectTop = drawnRect.y;
+        const rectRight = drawnRect.x + drawnRect.width;
+        const rectBottom = drawnRect.y + drawnRect.height;
+        
+        const vp = page.getViewport({ scale: PDF_RENDER_SCALE });
 
-    const rectLeft = drawnRect.x / PDF_RENDER_SCALE;
-    const rectRight = (drawnRect.x + drawnRect.width) / PDF_RENDER_SCALE;
-    // PDF Y-coordinate is from the bottom, canvas is from the top.
-    const rectTop = viewport.height / PDF_RENDER_SCALE - drawnRect.y / PDF_RENDER_SCALE;
-    const rectBottom = rectTop - drawnRect.height / PDF_RENDER_SCALE;
-    
-    // Check for intersection
-    return (
-        itemLeft < rectRight &&
-        itemRight > rectLeft &&
-        itemBottom < rectTop &&
-        itemTop > rectBottom
-    );
-  };
+        // pdfTextItem coords are in PDF space (origin at bottom-left)
+        // We need to transform them to canvas space (origin at top-left)
+        const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
+        const itemTop = itemBottom + pdfTextItem.height;
+        const itemRight = itemLeft + pdfTextItem.width;
+
+        // Transform rect to PDF coordinate space
+        const pdfRect = vp.convertToPdfPoint(rectLeft, rectTop);
+        const pdfRect2 = vp.convertToPdfPoint(rectRight, rectBottom);
+
+        const pdfRectLeft = Math.min(pdfRect[0], pdfRect2[0]);
+        const pdfRectRight = Math.max(pdfRect[0], pdfRect2[0]);
+        const pdfRectBottom = Math.min(pdfRect[1], pdfRect2[1]);
+        const pdfRectTop = Math.max(pdfRect[1], pdfRect2[1]);
+
+        // Standard 2D box intersection test
+        return (
+            itemLeft < pdfRectRight &&
+            itemRight > pdfRectLeft &&
+            itemBottom < pdfRectTop &&
+            itemTop > pdfRectBottom
+        );
+    };
 
   const getGroupedData = (): GroupedExtractedData[] => {
       const pageGroup: { [key:number]: GroupedExtractedData } = {};
@@ -651,7 +662,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
-
-    
