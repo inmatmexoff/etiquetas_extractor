@@ -45,10 +45,10 @@ type GroupedExtractedData = {
 
 const PREDEFINED_RECTANGLES_DEFAULT: Rectangle[] = [
     { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
-    { label: "CANTIDAD", x: 51, y: 44, width: 83, height: 81 },
+    { label: "CANTIDAD", x: 55, y: 97, width: 71, height: 69 },
     { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
     { label: "CODIGO DE BARRA", x: 52, y: 445, width: 355, height: 15 },
-    { label: "NUM DE VENTA", x: 47, y: 165, width: 165, height: 20 },
+    { label: "NUM DE VENTA", x: 54, y: 57, width: 159, height: 27 },
     { label: "SKU", x: 47, y: 135, width: 384, height: 20 },
     { label: "PRODUCTO", x: 139, y: 52, width: 277, height: 47 },
 ];
@@ -302,29 +302,13 @@ export default function Home() {
 
       const textWidth = pdfTextItem.width * PDF_RENDER_SCALE;
       const textHeight = pdfTextItem.height * PDF_RENDER_SCALE;
-
-      const r1 = {
-        x: x,
-        y: y,
-        width: textWidth,
-        height: textHeight, 
-      };
-
-      const r2 = {
-        x: drawnRect.x,
-        y: drawnRect.y,
-        width: drawnRect.width,
-        height: drawnRect.height
-      };
-
-      // Check for intersection with tolerance
-      const pad = 5;
-      return (
-        r1.x < r2.x + r2.width + pad &&
-        r1.x + r1.width > r2.x - pad &&
-        r1.y < r2.y + r2.height + pad &&
-        r1.y + r1.height > r2.y - pad
-      );
+      
+      const itemRight = x + textWidth;
+      const itemBottom = y + textHeight;
+      const rectRight = drawnRect.x + drawnRect.width;
+      const rectBottom = drawnRect.y + drawnRect.height;
+      
+      return x < rectRight && itemRight > drawnRect.x && y < rectBottom && itemBottom > drawnRect.y;
     };
 
   const getGroupedData = (): GroupedExtractedData[] => {
@@ -545,3 +529,5 @@ export default function Home() {
     </main>
   );
 }
+
+    
