@@ -133,6 +133,14 @@ export default function TryPage() {
 
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
+                if (rect.label === 'PRODUCTO') {
+                    const skuMatch = extractedText.match(/SKU: (\S+)/);
+                    if (skuMatch && skuMatch[1]) {
+                        allData.push({ label: 'SKU', value: skuMatch[1], page: currentPageNum });
+                        extractedText = extractedText.replace(skuMatch[0], '').trim();
+                    }
+                }
+
                 if (extractedText.trim() !== '') {
                     allData.push({ label: rect.label, value: extractedText.trim(), page: currentPageNum });
                 }
@@ -254,27 +262,21 @@ export default function TryPage() {
 
     const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
         // Convert drawnRect (canvas coords) to PDF coords
-        const rectLeft = drawnRect.x;
-        const rectTop = drawnRect.y;
-        const rectRight = drawnRect.x + drawnRect.width;
-        const rectBottom = drawnRect.y + drawnRect.height;
-        
+        const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
+        const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
+
+        const pdfRectLeft = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+        const pdfRectRight = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+        const pdfRectBottom = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+        const pdfRectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+
         // pdfTextItem coords are in PDF space (origin at bottom-left)
-        // We need to transform them to canvas space (origin at top-left)
+        const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
         const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
-        const itemTop = itemBottom + pdfTextItem.height;
-        const itemRight = itemLeft + pdfTextItem.width;
+        const itemRight = itemLeft + itemWidth;
+        const itemTop = itemBottom + itemHeight;
 
-        // Transform rect to PDF coordinate space
-        const pdfRect = viewport.convertToPdfPoint(rectLeft, rectTop);
-        const pdfRect2 = viewport.convertToPdfPoint(rectRight, rectBottom);
-
-        const pdfRectLeft = Math.min(pdfRect[0], pdfRect2[0]);
-        const pdfRectRight = Math.max(pdfRect[0], pdfRect2[0]);
-        const pdfRectBottom = Math.min(pdfRect[1], pdfRect2[1]);
-        const pdfRectTop = Math.max(pdfRect[1], pdfRect2[1]);
-
-        // Standard 2D box intersection test
+        // Standard 2D box intersection test in PDF coordinate space
         return (
             itemLeft < pdfRectRight &&
             itemRight > pdfRectLeft &&
@@ -297,7 +299,8 @@ export default function TryPage() {
   };
   
   const groupedResults = getGroupedData();
-  const tableHeaders = ["Página", ...Array.from(new Set(rectangles.map(r => r.label)))];
+  const tableHeaders = ["Página", ...Array.from(new Set(rectangles.map(r => r.label))).concat(extractedData.some(d => d.label === 'SKU') ? ['SKU'] : [])];
+
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!drawingAreaRef.current || pageNum !== 1 || isDrawing) return;
@@ -554,7 +557,7 @@ export default function TryPage() {
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
-                                                    {tableHeaders.map(header => (
+                                                    {tableHeaders.filter(h => h).map(header => (
                                                         <TableHead key={header} className="font-semibold">{header}</TableHead>
                                                     ))}
                                                 </TableRow>
@@ -562,7 +565,7 @@ export default function TryPage() {
                                             <TableBody>
                                                 {groupedResults.map((row, index) => (
                                                     <TableRow key={index}>
-                                                        {tableHeaders.map(header => (
+                                                        {tableHeaders.filter(h => h).map(header => (
                                                             <TableCell key={header}>
                                                                 {header === "Página" ? row.page : (row[header] as string) || ''}
                                                             </TableCell>
@@ -660,3 +663,4 @@ export default function TryPage() {
     </main>
   );
 }
+

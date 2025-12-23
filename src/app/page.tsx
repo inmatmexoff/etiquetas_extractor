@@ -299,35 +299,30 @@ export default function Home() {
     setPageNum(pageNum + 1);
   };
 
-    const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
-        // pdfTextItem has transform: [scaleX, skewY, skewX, scaleY, x, y]
-        // drawnRect has x, y, width, height in canvas space
+  const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
+      // Convert drawnRect (canvas coords) to PDF coords
+      const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
+      const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
 
-        const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
-        const [itemX, itemY] = [pdfTextItem.transform[4], pdfTextItem.transform[5]];
+      const pdfRectLeft = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+      const pdfRectRight = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+      const pdfRectBottom = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+      const pdfRectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
 
-        // Convert drawnRect from canvas space (top-left origin) to PDF space (bottom-left origin)
-        const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
-        const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
+      // pdfTextItem coords are in PDF space (origin at bottom-left)
+      const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
+      const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
+      const itemRight = itemLeft + itemWidth;
+      const itemTop = itemBottom + itemHeight;
 
-        const rectX1 = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
-        const rectX2 = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
-        const rectY1 = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
-        const rectY2 = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
-        
-        // Standard 2D box intersection test
-        const itemX1 = itemX;
-        const itemX2 = itemX + itemWidth;
-        const itemY1 = itemY;
-        const itemY2 = itemY + itemHeight;
-
-        return (
-            itemX1 < rectX2 &&
-            itemX2 > rectX1 &&
-            itemY1 < rectY2 &&
-            itemY2 > rectY1
-        );
-    };
+      // Standard 2D box intersection test in PDF coordinate space
+      return (
+          itemLeft < pdfRectRight &&
+          itemRight > pdfRectLeft &&
+          itemBottom < pdfRectTop &&
+          itemTop > pdfRectBottom
+      );
+  };
 
   const getGroupedData = (): GroupedExtractedData[] => {
       // Grouping by page
