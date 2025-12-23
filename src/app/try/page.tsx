@@ -177,7 +177,7 @@ export default function TryPage() {
 
 
                 if (cleanLabel.includes('CANTIDAD')) {
-                    extractedText = extractedText.replace(/Cantidad|Productos|Unidad|Unidades/gi, '').trim();
+                    extractedText = extractedText.replace(/Cantidad|Productos|Unidad(es)?/gi, '').trim();
                 } else if (cleanLabel.includes('FECHA ENTREGA')) {
                     const monthMap: { [key: string]: string } = {
                         'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
@@ -841,5 +841,7 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     

@@ -133,7 +133,7 @@ export default function Home() {
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
                 if (rect.label === 'CANTIDAD') {
-                    extractedText = extractedText.replace(/Cantidad|Productos|Unidad|Unidades/gi, '').trim();
+                    extractedText = extractedText.replace(/Cantidad|Productos|Unidad(es)?/gi, '').trim();
                 } else if (rect.label === 'FECHA ENTREGA') {
                     const monthMap: { [key: string]: string } = {
                         'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
@@ -542,5 +542,7 @@ export default function Home() {
     </main>
   );
 }
+
+    
 
     
