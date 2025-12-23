@@ -259,8 +259,6 @@ export default function TryPage() {
         const rectRight = drawnRect.x + drawnRect.width;
         const rectBottom = drawnRect.y + drawnRect.height;
         
-        const vp = page.getViewport({ scale: PDF_RENDER_SCALE });
-
         // pdfTextItem coords are in PDF space (origin at bottom-left)
         // We need to transform them to canvas space (origin at top-left)
         const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
@@ -268,8 +266,8 @@ export default function TryPage() {
         const itemRight = itemLeft + pdfTextItem.width;
 
         // Transform rect to PDF coordinate space
-        const pdfRect = vp.convertToPdfPoint(rectLeft, rectTop);
-        const pdfRect2 = vp.convertToPdfPoint(rectRight, rectBottom);
+        const pdfRect = viewport.convertToPdfPoint(rectLeft, rectTop);
+        const pdfRect2 = viewport.convertToPdfPoint(rectRight, rectBottom);
 
         const pdfRectLeft = Math.min(pdfRect[0], pdfRect2[0]);
         const pdfRectRight = Math.max(pdfRect[0], pdfRect2[0]);
