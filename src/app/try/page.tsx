@@ -216,27 +216,28 @@ export default function TryPage() {
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
                     let fullText = extractedText;
-                    // Extract CP
-                    const cpMatch = fullText.match(/CP:\s*(\S+)/);
-                    if (cpMatch && cpMatch[1]) {
-                        pageLabelData[labelGroup]['CP'] = cpMatch[1];
-                        fullText = fullText.replace(cpMatch[0], '').trim();
+                    
+                    // First, isolate address part by removing colonia, refs, etc.
+                    let addressText = fullText;
+                    const cpIndex = addressText.indexOf("CP:");
+                    if (cpIndex !== -1) {
+                        addressText = addressText.substring(0, cpIndex).trim();
                     }
 
                     // Extract Cliente
-                    const clientMatch = fullText.match(/^(.*?)\s*\(/);
+                    const clientMatch = addressText.match(/^(.*?)\s*\(/);
                     if (clientMatch && clientMatch[1]) {
                         pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
-                         fullText = fullText.replace(clientMatch[0], '');
+                         addressText = addressText.replace(clientMatch[0], '');
                     }
 
-                    // Extract Estado and Ciudad
+                    // Extract Estado and Ciudad from the isolated address text
                     let foundState = '';
                     let stateIndex = -1;
                     for (const state of MEXICAN_STATES) {
                         const stateRegex = new RegExp(`\\b${state}\\b`, 'i');
-                        const match = fullText.match(stateRegex);
-                        if (match && match.index && match.index > stateIndex) {
+                        const match = addressText.match(stateRegex);
+                        if (match && match.index !== undefined && match.index > stateIndex) {
                             foundState = match[0];
                             stateIndex = match.index;
                         }
@@ -245,14 +246,22 @@ export default function TryPage() {
                     if (foundState) {
                         pageLabelData[labelGroup]['ESTADO'] = foundState;
                         const cityRegexWithState = new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
-                        const cityMatch = fullText.match(cityRegexWithState);
+                        const cityMatch = addressText.match(cityRegexWithState);
                         if (cityMatch && cityMatch[1]) {
                             pageLabelData[labelGroup]['CIUDAD'] = cityMatch[1].trim();
-                            fullText = fullText.replace(cityMatch[0], '').trim();
+                            addressText = addressText.replace(cityMatch[0], '').trim();
                         } else {
-                            fullText = fullText.replace(new RegExp(`\\b${foundState}\\b`, 'i'), '').replace(/, ,/g,',').trim();
+                            addressText = addressText.replace(new RegExp(`\\b${foundState}\\b`, 'i'), '').replace(/, ,/g,',').trim();
                         }
                     }
+
+                    // Extract CP from the original full text
+                    const cpMatch = fullText.match(/CP:\s*(\S+)/);
+                    if (cpMatch && cpMatch[1]) {
+                        pageLabelData[labelGroup]['CP'] = cpMatch[1];
+                        fullText = fullText.replace(cpMatch[0], '').trim();
+                    }
+                    
                     extractedText = fullText;
                 }
 
@@ -812,4 +821,3 @@ export default function TryPage() {
   );
 }
 
-    
