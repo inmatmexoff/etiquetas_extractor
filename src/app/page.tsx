@@ -44,13 +44,12 @@ type GroupedExtractedData = {
 
 
 const PREDEFINED_RECTANGLES_DEFAULT: Rectangle[] = [
-    { label: "FECHA ENTREGA", x: 291, y: 309, width: 140, height: 37 },
-    { label: "CANTIDAD", x: 55, y: 97, width: 71, height: 69 },
-    { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
-    { label: "CODIGO DE BARRA", x: 52, y: 445, width: 355, height: 15 },
-    { label: "NUM DE VENTA", x: 54, y: 57, width: 159, height: 27 },
-    { label: "SKU", x: 0, y: 0, width: 0, height: 0 },
-    { label: "PRODUCTO", x: 139, y: 52, width: 277, height: 47 },
+    { label: "FECHA ENTREGA", x: 293, y: 311, width: 137, height: 33 },
+    { label: "CANTIDAD", x: 69, y: 96, width: 50, height: 69 },
+    { label: "CLIENTE INFO", x: 48, y: 933, width: 291, height: 119 },
+    { label: "CODIGO DE BARRA", x: 144, y: 445, width: 154, height: 30 },
+    { label: "NUM DE VENTA", x: 53, y: 51, width: 168, height: 25 },
+    { label: "PRODUCTO", x: 156, y: 88, width: 269, height: 60 },
 ];
 
 const ALTERNATIVE_RECTANGLES: Rectangle[] = [
@@ -59,7 +58,6 @@ const ALTERNATIVE_RECTANGLES: Rectangle[] = [
     { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
     { label: "CODIGO DE BARRA", x: 52, y: 445, width: 355, height: 15 },
     { label: "NUM DE VENTA", x: 54, y: 57, width: 159, height: 27 },
-    { label: "SKU", x: 0, y: 0, width: 0, height: 0 },
     { label: "PRODUCTO", x: 0, y: 0, width: 0, height: 0 },
 ];
 
@@ -105,21 +103,21 @@ export default function Home() {
             const textContent = await page.getTextContent();
             
             let useAlternativeRects = false;
-            const skuArea = PREDEFINED_RECTANGLES_DEFAULT.find(r => r.label === 'SKU');
-            if (skuArea) {
-                const itemsInSkuArea = textContent.items.filter((item: any) => intersects(item, skuArea, viewport));
-                const skuText = itemsInSkuArea.map((item: any) => item.str).join(' ');
-                if (skuText.includes("Prepará el paquete")) {
-                    useAlternativeRects = true;
+            // A simple heuristic to decide which set of rectangles to use.
+            // Check for a specific text in a specific area.
+            const productAreaForCheck = PREDEFINED_RECTANGLES_DEFAULT.find(r => r.label === 'PRODUCTO');
+            if (productAreaForCheck) {
+                const itemsInProductArea = textContent.items.filter((item: any) => intersects(item, productAreaForCheck, viewport));
+                const productText = itemsInProductArea.map((item: any) => item.str).join(' ');
+                if (productText.includes("Prepará el paquete")) {
+                     useAlternativeRects = true;
                 }
             }
             
             const activeRectangles = useAlternativeRects ? ALTERNATIVE_RECTANGLES : PREDEFINED_RECTANGLES_DEFAULT;
 
             for (const rect of activeRectangles) {
-                if (rect.width === 0 && rect.height === 0 && rect.label !== 'SKU') continue;
-
-                if (rect.label === 'SKU') continue; // We'll handle SKU separately
+                if (rect.width === 0 && rect.height === 0) continue;
 
                 const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
 
@@ -156,7 +154,9 @@ export default function Home() {
                         const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
                         const month = monthMap[monthStr];
                         if (month) {
-                            extractedText = `2025-${month}-${day}`;
+                           // Assuming current or next year. For now, hardcoding 2025.
+                           // A more robust solution might be needed.
+                           extractedText = `2025-${month}-${day}`;
                         }
                     }
                 } else if (rect.label === 'CODIGO DE BARRA') {
@@ -166,7 +166,7 @@ export default function Home() {
                     const numbers = extractedText.match(/\d+/g);
                     extractedText = numbers ? numbers.join('') : '';
                 } else if (rect.label === 'PRODUCTO') {
-                    const skuMatch = extractedText.match(/SKU: (\S+)/);
+                    const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
                     if (skuMatch && skuMatch[1]) {
                         allData.push({ label: 'SKU', value: skuMatch[1], page: currentPageNum });
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
@@ -178,10 +178,10 @@ export default function Home() {
                     allData.push({ label: rect.label, value: extractedText.trim(), page: currentPageNum });
                 }
             }
-
-            if (useAlternativeRects) {
+             if (useAlternativeRects) {
                  allData.push({ label: 'PRODUCTO', value: 'VARIOS', page: currentPageNum });
-            }
+                 // SKU might not be available in this format, or needs a different extraction method
+             }
         }
 
         if (allData.length === 0) {
@@ -300,28 +300,26 @@ export default function Home() {
   };
 
   const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
-      // Convert drawnRect (canvas coords) to PDF coords
-      const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
-      const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
+    const { transform, width, height } = pdfTextItem;
+    
+    // PDF space coords for the text item
+    const itemLeft = transform[4];
+    const itemBottom = transform[5];
+    const itemRight = itemLeft + width;
+    const itemTop = itemBottom + height;
 
-      const pdfRectLeft = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
-      const pdfRectRight = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
-      const pdfRectBottom = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
-      const pdfRectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+    // Convert drawnRect (canvas coords) to PDF coords
+    // The viewport transform takes into account scale and rotation, and inverts the Y-axis
+    const [rectLeft, rectTop] = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
+    const [rectRight, rectBottom] = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
 
-      // pdfTextItem coords are in PDF space (origin at bottom-left)
-      const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
-      const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
-      const itemRight = itemLeft + itemWidth;
-      const itemTop = itemBottom + itemHeight;
-
-      // Standard 2D box intersection test in PDF coordinate space
-      return (
-          itemLeft < pdfRectRight &&
-          itemRight > pdfRectLeft &&
-          itemBottom < pdfRectTop &&
-          itemTop > pdfRectBottom
-      );
+    // Standard 2D box intersection test
+    return (
+        itemLeft < Math.max(rectLeft, rectRight) &&
+        itemRight > Math.min(rectLeft, rectRight) &&
+        itemBottom < Math.max(rectTop, rectBottom) &&
+        itemTop > Math.min(rectTop, rectBottom)
+    );
   };
 
   const getGroupedData = (): GroupedExtractedData[] => {
@@ -337,6 +335,7 @@ export default function Home() {
       const grouped = Object.values(pageGroup);
 
       // Filter out rows that don't have a valid date in 'FECHA ENTREGA'
+      // This is a simple validation, might need to be more robust
       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
       const filtered = grouped.filter(row => {
           const fechaEntrega = row['FECHA ENTREGA'] as string;
@@ -347,7 +346,8 @@ export default function Home() {
   };
   
   const groupedResults = getGroupedData();
-  const tableHeaders = ["Página", ...PREDEFINED_RECTANGLES_DEFAULT.map(r => r.label)];
+  const tableHeaders = ["Página", ...Array.from(new Set(PREDEFINED_RECTANGLES_DEFAULT.map(r => r.label).concat(extractedData.some(d => d.label === 'SKU') ? ['SKU'] : [])))];
+
 
   const saveToDatabase = async () => {
     if (groupedResults.length === 0) return;
@@ -461,7 +461,7 @@ export default function Home() {
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
-                                                    {tableHeaders.map(header => (
+                                                    {tableHeaders.filter(h => h).map(header => (
                                                         <TableHead key={header} className="font-semibold">{header}</TableHead>
                                                     ))}
                                                 </TableRow>
@@ -469,7 +469,7 @@ export default function Home() {
                                             <TableBody>
                                                 {groupedResults.map((row, index) => (
                                                     <TableRow key={index}>
-                                                        {tableHeaders.map(header => (
+                                                        {tableHeaders.filter(h => h).map(header => (
                                                             <TableCell key={header}>
                                                                 {header === "Página" ? row.page : (row[header] as string) || ''}
                                                             </TableCell>
@@ -542,5 +542,3 @@ export default function Home() {
     </main>
   );
 }
-
-    
