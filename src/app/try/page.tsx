@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 
@@ -65,6 +66,8 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "PRODUCTO 2", x: 549, y: 88, width: 269, height: 60 },
 ];
 
+const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA"];
+
 
 export default function TryPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -77,6 +80,8 @@ export default function TryPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
+
 
   // Drawing state
   const [rectangles, setRectangles] = useState<Rectangle[]>([]);
@@ -110,6 +115,14 @@ export default function TryPage() {
                 description: "Por favor, dibuja o añade al menos un rectángulo antes de extraer datos.",
             });
         }
+        return;
+    }
+    if (!selectedCompany) {
+        toast({
+            variant: "destructive",
+            title: "No se ha seleccionado una empresa",
+            description: "Por favor, selecciona una empresa antes de extraer los datos.",
+        });
         return;
     }
     setIsLoading(true);
@@ -191,7 +204,7 @@ export default function TryPage() {
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
-                    const cpMatch = extractedText.match(/CP:\s*(\S+)/);
+                     const cpMatch = extractedText.match(/CP:\s*(\S+)/);
                     if (cpMatch && cpMatch[1]) {
                         pageLabelData[labelGroup]['CP'] = cpMatch[1];
                         extractedText = extractedText.replace(cpMatch[0], '').trim();
@@ -209,6 +222,7 @@ export default function TryPage() {
                  if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['FECHA ENTREGA']) {
                      allGroupedData.push({
                          'Página': currentPageNum,
+                         'EMPRESA': selectedCompany,
                          ...pageLabelData[group]
                      });
                  }
@@ -360,7 +374,7 @@ export default function TryPage() {
   
   const groupedResults = getGroupedData();
   const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
-  const allHeaders = ["Página", ...baseHeaders];
+  const allHeaders = ["Página", "EMPRESA", ...baseHeaders];
   // Dynamically add SKU if it exists in any result
   if (groupedResults.some(row => row['SKU'])) {
       if (!allHeaders.includes('SKU')) {
@@ -526,6 +540,25 @@ export default function TryPage() {
                      {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Extrayendo o guardando datos...</p>}
                   </CardContent>
                 </Card>
+                
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Seleccionar Empresa</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Selecciona una empresa" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {COMPANIES.map(company => (
+                                    <SelectItem key={company} value={company}>{company}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </CardContent>
+                </Card>
+
 
                 <Card>
                     <CardHeader>
@@ -616,7 +649,7 @@ export default function TryPage() {
                                     <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
                                  </AccordionTrigger>
                                  <div className="flex gap-2 w-full sm:w-auto">
-                                    <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0} className="flex-1 sm:flex-none">
+                                    <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0 || !selectedCompany} className="flex-1 sm:flex-none">
                                         Extraer Datos
                                     </Button>
                                  </div>
@@ -736,3 +769,4 @@ export default function TryPage() {
   );
 }
 
+    
