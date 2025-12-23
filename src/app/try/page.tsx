@@ -221,7 +221,7 @@ export default function TryPage() {
             
             // After processing all rects for the page, create the rows
             for (const group of [1, 2]) {
-                 if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['FECHA ENTREGA']) {
+                 if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['FECHA ENTREGA'] && pageLabelData[group]['CP']) {
                      allGroupedData.push({
                          'LISTADO': listadoCounter++,
                          'Página': currentPageNum,
@@ -233,7 +233,7 @@ export default function TryPage() {
         }
 
         if (allGroupedData.length === 0 && rectangles.length > 0) {
-             setError("No se pudo extraer texto de ninguna página utilizando las áreas que definiste.");
+             setError("No se pudo extraer texto de ninguna página utilizando las áreas que definiste o no se encontró el CP.");
         } else {
             setError(null);
         }
@@ -356,7 +356,7 @@ export default function TryPage() {
       const pdfRectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
 
       // pdfTextItem coords are in PDF space (origin at bottom-left)
-      const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
+      const [itemWidth, itemHeight] = [pdfTextItem.width, itemTextItem.height];
       const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
       const itemRight = itemLeft + itemWidth;
       const itemTop = itemBottom + itemHeight;
