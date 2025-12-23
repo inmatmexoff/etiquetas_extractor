@@ -73,7 +73,7 @@ const MEXICAN_STATES = [
     "Baja California Sur", "San Luis Potosí", "Estado de México", "Ciudad de México",
     "Distrito Federal", "Aguascalientes", "Baja California", "Campeche", "Chiapas",
     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero",
-    "Hidalgo", "Jalisco", "México", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
+    "Hidalgo", "Jalisco", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
     "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "Sinaloa",
     "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas"
 ];
@@ -246,7 +246,10 @@ export default function TryPage() {
 
                     let foundState = '';
                     let stateIndex = -1;
-                    for (const state of MEXICAN_STATES) {
+                    // Sort states by length descending to match longer names first
+                    const sortedStates = [...MEXICAN_STATES].sort((a, b) => b.length - a.length);
+
+                    for (const state of sortedStates) {
                         const stateRegex = new RegExp(`\\b${state}\\b`, 'i');
                         const match = addressText.match(stateRegex);
                         if (match && match.index !== undefined && match.index > stateIndex) {
