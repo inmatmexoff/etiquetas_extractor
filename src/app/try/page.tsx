@@ -220,28 +220,23 @@ export default function TryPage() {
                     const cpMatch = fullText.match(/CP:\s*(\S+)/);
                     if (cpMatch && cpMatch[1]) {
                         pageLabelData[labelGroup]['CP'] = cpMatch[1].replace(/,/g, '');
-                        // Don't remove CP from fullText yet, it can be a good anchor
                     }
 
-                    // Isolate address part by removing colonia, refs, etc for a cleaner search
-                    let addressText = fullText;
-                    const coloniaIndex = addressText.toLowerCase().indexOf("colonia:");
-                    if (coloniaIndex !== -1) {
-                       addressText = addressText.substring(0, coloniaIndex).trim();
-                    }
-                    const refIndex = addressText.toLowerCase().indexOf("referencia:");
-                     if (refIndex !== -1) {
-                       addressText = addressText.substring(0, refIndex).trim();
-                    }
-
-                    const clientMatch = addressText.match(/^(.*?)\s*\(/);
+                    const clientMatch = fullText.match(/^(.*?)\s*\(/);
                     if (clientMatch && clientMatch[1]) {
                         pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
                     }
 
+                    const domicilioIndex = fullText.toLowerCase().indexOf("domicilio:");
+                    let addressText = domicilioIndex !== -1 ? fullText.substring(domicilioIndex + 10) : fullText;
+
+                    const cpIndex = addressText.indexOf("CP:");
+                    if (cpIndex !== -1) {
+                        addressText = addressText.substring(0, cpIndex).trim();
+                    }
+
                     let foundState = '';
                     let stateIndex = -1;
-                    // Sort states by length descending to match longer names first
                     const sortedStates = [...MEXICAN_STATES].sort((a, b) => b.length - a.length);
 
                     for (const state of sortedStates) {
@@ -262,7 +257,6 @@ export default function TryPage() {
                         if (cityMatch && cityMatch[1]) {
                             extractedCity = cityMatch[1].trim();
                         } else {
-                            // Fallback for "Guanajuato Guanajuato"
                              const doubleNameRegex = new RegExp(`\\b${foundState}\\b`, 'ig');
                              const matches = addressText.match(doubleNameRegex);
                              if (matches && matches.length > 1) {
@@ -270,13 +264,11 @@ export default function TryPage() {
                              }
                         }
 
-                        // User's suggested validation
                         if (extractedCity.length > 30 || extractedCity.toLowerCase().includes('domicilio')) {
                             pageLabelData[labelGroup]['CIUDAD'] = foundState;
                         } else if (extractedCity) {
                             pageLabelData[labelGroup]['CIUDAD'] = extractedCity;
                         } else {
-                            // If still no city, assume it's the same as the state
                             pageLabelData[labelGroup]['CIUDAD'] = foundState;
                         }
                     }
@@ -292,6 +284,16 @@ export default function TryPage() {
             // After processing all rects for the page, create the rows
             for (const group of [1, 2]) {
                  if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['CP']) {
+                     // *** USER'S SUGGESTED FALLBACK RULE ***
+                     if (!pageLabelData[group]['ESTADO']) {
+                         pageLabelData[group]['ESTADO'] = "San Luis Potosí";
+                         // Also set the city, as it's likely the same in this specific error case
+                         if (!pageLabelData[group]['CIUDAD']) {
+                            pageLabelData[group]['CIUDAD'] = "San Luis Potosí";
+                         }
+                     }
+                     // *** END OF FALLBACK RULE ***
+
                      allGroupedData.push({
                          'LISTADO': listadoCounter++,
                          'Página': currentPageNum,
@@ -839,3 +841,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
