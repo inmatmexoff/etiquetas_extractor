@@ -231,7 +231,7 @@ export default function TryPage() {
 
     setPageRendering(true);
     try {
-      const page = await doc.getPage(num);
+      const page = await pdfDoc.getPage(num);
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
@@ -698,3 +698,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
