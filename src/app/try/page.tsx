@@ -254,38 +254,23 @@ export default function TryPage() {
   };
 
   const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
-    const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
+    const itemLeft = pdfTextItem.transform[4];
+    const itemBottom = pdfTextItem.transform[5];
+    const itemRight = itemLeft + pdfTextItem.width;
+    const itemTop = itemBottom + pdfTextItem.height;
 
-    // text item bounding box
-    const textLeft = tx[4];
-    const textBottom = tx[5];
-    const textRight = textLeft + pdfTextItem.width;
-    const textTop = textBottom - pdfTextItem.height;
-
-    // drawn rectangle bounding box (adjusting for PDF coordinate system)
-    const canvas = canvasRef.current;
-    if (!canvas) return false;
+    const rectLeft = drawnRect.x / PDF_RENDER_SCALE;
+    const rectRight = (drawnRect.x + drawnRect.width) / PDF_RENDER_SCALE;
+    // PDF Y-coordinate is from the bottom, canvas is from the top.
+    const rectTop = viewport.height / PDF_RENDER_SCALE - drawnRect.y / PDF_RENDER_SCALE;
+    const rectBottom = rectTop - drawnRect.height / PDF_RENDER_SCALE;
     
-    // The rect coordinates are already in canvas space, so we just use them
-    // but we need to flip the Y axis for comparison with PDF's coordinate system
-    const rectLeft = drawnRect.x;
-    const rectRight = drawnRect.x + drawnRect.width;
-    const rectTop = viewport.height - (drawnRect.y + drawnRect.height);
-    const rectBottom = viewport.height - drawnRect.y;
-
-    const scaledRect = {
-      left: rectLeft / PDF_RENDER_SCALE,
-      right: rectRight / PDF_RENDER_SCALE,
-      top: rectTop / PDF_RENDER_SCALE,
-      bottom: rectBottom / PDF_RENDER_SCALE,
-    }
-
     // Check for intersection
     return (
-        textLeft < scaledRect.right &&
-        textRight > scaledRect.left &&
-        textTop < scaledRect.bottom &&
-        textBottom > scaledRect.top
+        itemLeft < rectRight &&
+        itemRight > rectLeft &&
+        itemBottom < rectTop &&
+        itemTop > rectBottom
     );
   };
 
@@ -666,5 +651,7 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
