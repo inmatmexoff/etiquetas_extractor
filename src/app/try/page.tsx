@@ -7,13 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
-import { ChevronLeft, ChevronRight, UploadCloud, Database, Trash2, PlusCircle, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, UploadCloud, Database, Trash2, PlusCircle, Save, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 
 // HACK: Make pdfjs work on nextjs
@@ -226,9 +228,13 @@ export default function TryPage() {
                     if (clientMatch && clientMatch[1]) {
                         pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
                     }
+                    
+                    let addressText = fullText;
+                    const domicilioIndex = addressText.toLowerCase().indexOf("domicilio:");
+                    if (domicilioIndex !== -1) {
+                         addressText = addressText.substring(domicilioIndex + 10);
+                    }
 
-                    const domicilioIndex = fullText.toLowerCase().indexOf("domicilio:");
-                    let addressText = domicilioIndex !== -1 ? fullText.substring(domicilioIndex + 10) : fullText;
 
                     const cpIndex = addressText.indexOf("CP:");
                     if (cpIndex !== -1) {
@@ -448,6 +454,7 @@ export default function TryPage() {
 
   
   const groupedResults = getGroupedData();
+  
   const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
   let allHeaders = ["LISTADO", "Página", "EMPRESA", ...baseHeaders];
   // Dynamically add new columns if they exist in any result
@@ -459,6 +466,52 @@ export default function TryPage() {
           }
       }
   });
+
+  const handleDownloadPdf = () => {
+    if (groupedResults.length === 0) {
+        toast({
+            variant: "destructive",
+            title: "No hay datos para descargar",
+            description: "Extrae los datos de un PDF primero.",
+        });
+        return;
+    }
+    const doc = new jsPDF();
+
+    doc.text(`Resultados de Extracción - ${selectedCompany}`, 14, 15);
+
+    const tableColumn = allHeaders.map(h => h.replace(/ /g, '_')); // Replace spaces for key access
+    const tableRows: (string | number)[][] = [];
+
+    groupedResults.forEach(item => {
+        const rowData = allHeaders.map(header => {
+            const key = header.replace(/ /g, '_');
+            return item[key] !== undefined && item[key] !== null ? String(item[key]) : '';
+        });
+        tableRows.push(rowData);
+    });
+
+    autoTable(doc, {
+        head: [allHeaders],
+        body: tableRows,
+        startY: 20,
+        styles: {
+            fontSize: 8,
+        },
+        headStyles: {
+            fillColor: [22, 160, 133], // A nice shade of green for the header
+            textColor: 255,
+            fontStyle: 'bold',
+        }
+    });
+
+    doc.save("etiquetas.pdf");
+
+    toast({
+        title: "Descarga iniciada",
+        description: "Tu archivo PDF 'etiquetas.pdf' se está descargando.",
+    });
+  };
 
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -725,6 +778,10 @@ export default function TryPage() {
                                     <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0 || !selectedCompany} className="flex-1 sm:flex-none">
                                         Extraer Datos
                                     </Button>
+                                    <Button onClick={handleDownloadPdf} disabled={groupedResults.length === 0} className="flex-1 sm:flex-none">
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Descargar PDF
+                                    </Button>
                                  </div>
                             </div>
                         </CardHeader>
@@ -841,7 +898,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
-
-    
