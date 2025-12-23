@@ -495,12 +495,13 @@ export default function TryPage() {
 
         ctx.font = "bold 30px Arial";
         ctx.fillStyle = textColor;
+        ctx.textAlign = "center";
         
-        ctx.fillText(`${listadoCounter++}`, 338, 208);
-        ctx.fillText(selectedCompany, 338, 238);
+        ctx.fillText(`${listadoCounter++}`, 338, 220);
+        ctx.fillText(selectedCompany, 338, 250);
         
-        ctx.fillText(`${listadoCounter++}`, 731, 208);
-        ctx.fillText(selectedCompany, 731, 238);
+        ctx.fillText(`${listadoCounter++}`, 731, 220);
+        ctx.fillText(selectedCompany, 731, 250);
         
         const imgData = canvas.toDataURL("image/png");
         
@@ -920,3 +921,4 @@ export default function TryPage() {
     </main>
   );
 }
+
