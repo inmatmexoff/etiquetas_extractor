@@ -493,7 +493,8 @@ export default function TryPage() {
 
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        const fontSize = selectedCompany === 'PALO DE ROSA' ? 20 : 30;
+        const smallFontCompanies = ['PALO DE ROSA', 'DOMESKA', 'HOGARDEN'];
+        const fontSize = smallFontCompanies.includes(selectedCompany) ? 20 : 30;
         ctx.font = `bold ${fontSize}px Arial`;
         ctx.fillStyle = textColor;
         ctx.textAlign = "center";
