@@ -49,7 +49,7 @@ const PREDEFINED_RECTANGLES_DEFAULT: Rectangle[] = [
     { label: "CLIENTE INFO", x: 45, y: 933, width: 298, height: 123 },
     { label: "CODIGO DE BARRA", x: 52, y: 445, width: 355, height: 15 },
     { label: "NUM DE VENTA", x: 54, y: 57, width: 159, height: 27 },
-    { label: "SKU", x: 47, y: 135, width: 384, height: 20 },
+    { label: "SKU", x: 0, y: 0, width: 0, height: 0 },
     { label: "PRODUCTO", x: 139, y: 52, width: 277, height: 47 },
 ];
 
@@ -117,7 +117,9 @@ export default function Home() {
             const activeRectangles = useAlternativeRects ? ALTERNATIVE_RECTANGLES : PREDEFINED_RECTANGLES_DEFAULT;
 
             for (const rect of activeRectangles) {
-                if (rect.width === 0 && rect.height === 0) continue;
+                if (rect.width === 0 && rect.height === 0 && rect.label !== 'SKU') continue;
+
+                if (rect.label === 'SKU') continue; // We'll handle SKU separately
 
                 const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
 
@@ -298,33 +300,32 @@ export default function Home() {
   };
 
     const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
-        // Convert drawnRect (canvas coords) to PDF coords
-        const rectLeft = drawnRect.x;
-        const rectTop = drawnRect.y;
-        const rectRight = drawnRect.x + drawnRect.width;
-        const rectBottom = drawnRect.y + drawnRect.height;
+        // pdfTextItem has transform: [scaleX, skewY, skewX, scaleY, x, y]
+        // drawnRect has x, y, width, height in canvas space
+
+        const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
+        const [itemX, itemY] = [pdfTextItem.transform[4], pdfTextItem.transform[5]];
+
+        // Convert drawnRect from canvas space (top-left origin) to PDF space (bottom-left origin)
+        const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
+        const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
+
+        const rectX1 = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+        const rectX2 = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+        const rectY1 = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+        const rectY2 = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
         
-        // pdfTextItem coords are in PDF space (origin at bottom-left)
-        // We need to transform them to canvas space (origin at top-left)
-        const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
-        const itemTop = itemBottom + pdfTextItem.height;
-        const itemRight = itemLeft + pdfTextItem.width;
-
-        // Transform rect to PDF coordinate space
-        const pdfRect = viewport.convertToPdfPoint(rectLeft, rectTop);
-        const pdfRect2 = viewport.convertToPdfPoint(rectRight, rectBottom);
-
-        const pdfRectLeft = Math.min(pdfRect[0], pdfRect2[0]);
-        const pdfRectRight = Math.max(pdfRect[0], pdfRect2[0]);
-        const pdfRectBottom = Math.min(pdfRect[1], pdfRect2[1]);
-        const pdfRectTop = Math.max(pdfRect[1], pdfRect2[1]);
-
         // Standard 2D box intersection test
+        const itemX1 = itemX;
+        const itemX2 = itemX + itemWidth;
+        const itemY1 = itemY;
+        const itemY2 = itemY + itemHeight;
+
         return (
-            itemLeft < pdfRectRight &&
-            itemRight > pdfRectLeft &&
-            itemBottom < pdfRectTop &&
-            itemTop > pdfRectBottom
+            itemX1 < rectX2 &&
+            itemX2 > rectX1 &&
+            itemY1 < rectY2 &&
+            itemY2 > rectY1
         );
     };
 
@@ -546,3 +547,5 @@ export default function Home() {
     </main>
   );
 }
+
+    
