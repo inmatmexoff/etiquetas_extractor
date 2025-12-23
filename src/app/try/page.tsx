@@ -215,45 +215,45 @@ export default function TryPage() {
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
-                    const fullText = extractedText;
+                    let fullText = extractedText;
                     // Extract CP
                     const cpMatch = fullText.match(/CP:\s*(\S+)/);
                     if (cpMatch && cpMatch[1]) {
                         pageLabelData[labelGroup]['CP'] = cpMatch[1];
-                        extractedText = extractedText.replace(cpMatch[0], '').trim();
+                        fullText = fullText.replace(cpMatch[0], '').trim();
                     }
 
                     // Extract Cliente
                     const clientMatch = fullText.match(/^(.*?)\s*\(/);
                     if (clientMatch && clientMatch[1]) {
                         pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
-                        extractedText = extractedText.replace(clientMatch[1], '').trim(); // Remove only the name part
+                         fullText = fullText.replace(clientMatch[0], '');
                     }
 
                     // Extract Estado and Ciudad
                     let foundState = '';
+                    let stateIndex = -1;
                     for (const state of MEXICAN_STATES) {
                         const stateRegex = new RegExp(`\\b${state}\\b`, 'i');
-                        if (stateRegex.test(fullText)) {
-                            foundState = state;
-                            pageLabelData[labelGroup]['ESTADO'] = state;
-                            // Do not remove the state from extractedText yet, we need it to find the city
-                            break;
+                        const match = fullText.match(stateRegex);
+                        if (match && match.index && match.index > stateIndex) {
+                            foundState = match[0];
+                            stateIndex = match.index;
                         }
                     }
-
+                    
                     if (foundState) {
-                         // Regex to find city before the state, e.g., "City, State"
-                        const cityRegexWithState = new RegExp(`([^,]+),\\s*${foundState}`, 'i');
-                        const cityMatchWithState = fullText.match(cityRegexWithState);
-
-                        if (cityMatchWithState && cityMatchWithState[1]) {
-                            pageLabelData[labelGroup]['CIUDAD'] = cityMatchWithState[1].trim();
+                        pageLabelData[labelGroup]['ESTADO'] = foundState;
+                        const cityRegexWithState = new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+                        const cityMatch = fullText.match(cityRegexWithState);
+                        if (cityMatch && cityMatch[1]) {
+                            pageLabelData[labelGroup]['CIUDAD'] = cityMatch[1].trim();
+                            fullText = fullText.replace(cityMatch[0], '').trim();
+                        } else {
+                            fullText = fullText.replace(new RegExp(`\\b${foundState}\\b`, 'i'), '').replace(/, ,/g,',').trim();
                         }
-                        
-                        // Now we can clean up the state from the main text
-                        extractedText = extractedText.replace(new RegExp(`\\b${foundState}\\b`, 'i'), '').replace(/, ,/g,',').trim();
                     }
+                    extractedText = fullText;
                 }
 
                 if (extractedText.trim() !== '') {
@@ -263,7 +263,7 @@ export default function TryPage() {
             
             // After processing all rects for the page, create the rows
             for (const group of [1, 2]) {
-                 if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['FECHA ENTREGA'] && pageLabelData[group]['CP']) {
+                 if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['CP']) {
                      allGroupedData.push({
                          'LISTADO': listadoCounter++,
                          'Página': currentPageNum,
