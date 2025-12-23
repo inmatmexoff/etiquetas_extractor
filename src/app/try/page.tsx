@@ -487,10 +487,11 @@ export default function TryPage() {
       // Group results by page number
       const resultsByPage: { [key: number]: GroupedExtractedData[] } = {};
       groupedResults.forEach(result => {
-        if (!resultsByPage[result['Página']]) {
-          resultsByPage[result['Página']] = [];
+        const pageKey = result['Página'];
+        if (!resultsByPage[pageKey]) {
+          resultsByPage[pageKey] = [];
         }
-        resultsByPage[result['Página']].push(result);
+        resultsByPage[pageKey].push(result);
       });
 
       for (let i = 1; i <= pdfDoc.numPages; i++) {
@@ -516,7 +517,12 @@ export default function TryPage() {
                 const listadoCounter = result['LISTADO'];
                 const labelGroup = result.labelGroup;
 
-                const x = labelGroup === 1 ? 360 : 753;
+                let x;
+                if (selectedCompany === 'PALO DE ROSA') {
+                    x = labelGroup === 1 ? 355 : 748;
+                } else {
+                    x = labelGroup === 1 ? 360 : 753;
+                }
                 
                 const smallFontCompanies = ['PALO DE ROSA', 'DOMESKA', 'HOGARDEN'];
                 const companyFontSize = smallFontCompanies.includes(selectedCompany) ? 20 : 30;
