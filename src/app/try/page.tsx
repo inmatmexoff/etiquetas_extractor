@@ -69,12 +69,12 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
 const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA"];
 
 const MEXICAN_STATES = [
-    "Estado de México", "Baja California Sur", "San Luis Potosí", "Ciudad de México",
-    "Distrito Federal", "Aguascalientes", "Baja California", "Campeche", "Chiapas",
+    "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero",
     "Hidalgo", "Jalisco", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
-    "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "Sinaloa",
-    "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas"
+    "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
+    "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas",
+    "Ciudad de México", "Distrito Federal", "Estado de México"
 ];
 
 
@@ -259,9 +259,13 @@ export default function TryPage() {
 
                         if (cityMatch && cityMatch[1]) {
                             pageLabelData[labelGroup]['CIUDAD'] = cityMatch[1].trim();
-                        } else if (addressText.toLowerCase().includes(foundState.toLowerCase())) {
+                        } else {
                             // Fallback for cases like "Guanajuato Guanajuato" without comma
-                            pageLabelData[labelGroup]['CIUDAD'] = foundState;
+                             const doubleNameRegex = new RegExp(`\\b${foundState}\\b`, 'i');
+                             const matches = addressText.match(new RegExp(doubleNameRegex.source, 'gi'));
+                             if (matches && matches.length > 0) {
+                                pageLabelData[labelGroup]['CIUDAD'] = foundState;
+                             }
                         }
                     }
                     
