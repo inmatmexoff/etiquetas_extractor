@@ -191,7 +191,7 @@ export default function TryPage() {
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
-                    const cpMatch = extractedText.match(/\b(\d{4})\b/);
+                    const cpMatch = extractedText.match(/CP:\s*(\S+)/);
                     if (cpMatch && cpMatch[1]) {
                         pageLabelData[labelGroup]['CP'] = cpMatch[1];
                         extractedText = extractedText.replace(cpMatch[0], '').trim();
@@ -735,3 +735,4 @@ export default function TryPage() {
     </main>
   );
 }
+
