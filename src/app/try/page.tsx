@@ -75,7 +75,7 @@ const MEXICAN_STATES = [
     "Hidalgo", "Jalisco", "México", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
     "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
     "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas",
-    "Ciudad de México"
+    "Ciudad de México", "Distrito Federal"
 ];
 
 
@@ -812,5 +812,7 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
