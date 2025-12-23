@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -219,10 +220,10 @@ export default function TryPage() {
                     const cpMatch = fullText.match(/CP:\s*(\S+)/);
                     if (cpMatch && cpMatch[1]) {
                         pageLabelData[labelGroup]['CP'] = cpMatch[1].replace(/,/g, '');
-                        fullText = fullText.replace(cpMatch[0], '').trim();
+                        // Don't remove CP from fullText yet, it can be a good anchor
                     }
 
-                    // Isolate address part by removing colonia, refs, etc.
+                    // Isolate address part by removing colonia, refs, etc for a cleaner search
                     let addressText = fullText;
                     const coloniaIndex = addressText.toLowerCase().indexOf("colonia:");
                     if (coloniaIndex !== -1) {
@@ -254,18 +255,29 @@ export default function TryPage() {
                     
                     if (foundState) {
                         pageLabelData[labelGroup]['ESTADO'] = foundState;
-                        const cityRegexWithState = new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
-                        const cityMatch = addressText.match(cityRegexWithState);
+                        const cityRegex = new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+                        const cityMatch = addressText.match(cityRegex);
 
+                        let extractedCity = '';
                         if (cityMatch && cityMatch[1]) {
-                            pageLabelData[labelGroup]['CIUDAD'] = cityMatch[1].trim();
+                            extractedCity = cityMatch[1].trim();
                         } else {
-                            // Fallback for cases like "Guanajuato Guanajuato" without comma
-                             const doubleNameRegex = new RegExp(`\\b${foundState}\\b`, 'i');
-                             const matches = addressText.match(new RegExp(doubleNameRegex.source, 'gi'));
-                             if (matches && matches.length > 0) {
-                                pageLabelData[labelGroup]['CIUDAD'] = foundState;
+                            // Fallback for "Guanajuato Guanajuato"
+                             const doubleNameRegex = new RegExp(`\\b${foundState}\\b`, 'ig');
+                             const matches = addressText.match(doubleNameRegex);
+                             if (matches && matches.length > 1) {
+                                extractedCity = foundState;
                              }
+                        }
+
+                        // User's suggested validation
+                        if (extractedCity.length > 30 || extractedCity.toLowerCase().includes('domicilio')) {
+                            pageLabelData[labelGroup]['CIUDAD'] = foundState;
+                        } else if (extractedCity) {
+                            pageLabelData[labelGroup]['CIUDAD'] = extractedCity;
+                        } else {
+                            // If still no city, assume it's the same as the state
+                            pageLabelData[labelGroup]['CIUDAD'] = foundState;
                         }
                     }
                     
