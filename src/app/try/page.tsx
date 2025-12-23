@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -260,6 +259,9 @@ export default function TryPage() {
 
                         if (cityMatch && cityMatch[1]) {
                             pageLabelData[labelGroup]['CIUDAD'] = cityMatch[1].trim();
+                        } else if (addressText.toLowerCase().includes(foundState.toLowerCase())) {
+                            // Fallback for cases like "Guanajuato Guanajuato" without comma
+                            pageLabelData[labelGroup]['CIUDAD'] = foundState;
                         }
                     }
                     
@@ -821,4 +823,3 @@ export default function TryPage() {
     </main>
   );
 }
-
