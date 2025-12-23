@@ -47,6 +47,17 @@ type GroupedExtractedData = {
 
 const PDF_RENDER_SCALE = 1.5;
 
+const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
+    { label: "FECHA ENTREGA", x: 440, y: 466, width: 205, height: 50 },
+    { label: "CANTIDAD", x: 80, y: 147, width: 108, height: 104 },
+    { label: "CLIENTE INFO", x: 67, y: 1402, width: 447, height: 184 },
+    { label: "CODIGO DE BARRA", x: 79, y: 669, width: 532, height: 23 },
+    { label: "NUM DE VENTA", x: 82, y: 86, width: 238, height: 41 },
+    { label: "SKU", x: 71, y: 204, width: 576, height: 30 },
+    { label: "PRODUCTO", x: 209, y: 79, width: 415, height: 71 },
+];
+
+
 export default function TryPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
@@ -74,7 +85,12 @@ export default function TryPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // We don't load predefined rectangles by default anymore on this page
+    // Load predefined rectangles for this page on mount
+    const initialRects = TRY_PAGE_RECTANGLES_DEFAULT.map((rect, index) => ({
+      ...rect,
+      id: Date.now() + index,
+    }));
+    setRectangles(initialRects);
   }, []);
 
   const handleExtractData = async (doc: any) => {
@@ -151,7 +167,7 @@ export default function TryPage() {
         setNumPages(doc.numPages);
         setPageNum(1);
         setExtractedData([]); 
-        setRectangles([]); 
+        // We keep the predefined rectangles when a new PDF is loaded
       } catch (err) {
         console.error("Error loading PDF:", err);
         setError("No se pudo cargar el archivo PDF.");
@@ -238,35 +254,34 @@ export default function TryPage() {
   };
 
   const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
-      const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
-      const x = tx[4];
-      const y = tx[5];
+    const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
 
-      const textWidth = pdfTextItem.width * PDF_RENDER_SCALE;
-      const textHeight = pdfTextItem.height * PDF_RENDER_SCALE;
+    // text item bounding box
+    const textLeft = tx[4];
+    const textBottom = tx[5];
+    const textRight = textLeft + pdfTextItem.width;
+    const textTop = textBottom - pdfTextItem.height;
 
-      const r1 = {
-        x: x,
-        y: y,
-        width: textWidth,
-        height: textHeight, 
-      };
+    // drawn rectangle bounding box (adjusting for PDF coordinate system)
+    // No need to scale here as rects are already in canvas space
+    const rectLeft = drawnRect.x;
+    const rectRight = drawnRect.x + drawnRect.width;
+    const rectTop = drawnRect.y;
+    const rectBottom = drawnRect.y + drawnRect.height;
+    
+    // PDF text coordinate system has Y starting from bottom, canvas has Y from top.
+    // We need to transform one to match the other. Let's transform canvas to PDF text space.
+    const transformedRectTop = viewport.height - rectBottom;
+    const transformedRectBottom = viewport.height - rectTop;
 
-      const r2 = {
-        x: drawnRect.x,
-        y: drawnRect.y,
-        width: drawnRect.width,
-        height: drawnRect.height
-      };
-
-      const pad = 5;
-      return (
-        r1.x < r2.x + r2.width + pad &&
-        r1.x + r1.width > r2.x - pad &&
-        r1.y < r2.y + r2.height + pad &&
-        r1.y + r1.height > r2.y - pad
-      );
-    };
+    // Check for intersection
+    return (
+        textLeft < rectRight * PDF_RENDER_SCALE &&
+        textRight > rectLeft * PDF_RENDER_SCALE &&
+        textTop < transformedRectBottom &&
+        textBottom > transformedRectTop
+    );
+  };
 
   const getGroupedData = (): GroupedExtractedData[] => {
       const pageGroup: { [key:number]: GroupedExtractedData } = {};
@@ -516,7 +531,7 @@ export default function TryPage() {
           </div>
         </div>
         
-        {pdfDoc && rectangles.length > 0 && (
+        {pdfDoc && (
             <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
                 <AccordionItem value="item-1" className="border-b-0">
                     <Card>

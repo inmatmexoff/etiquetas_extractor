@@ -296,20 +296,28 @@ export default function Home() {
   };
 
   const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
-      const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
-      const x = tx[4];
-      const y = tx[5];
+    const tx = pdfjsLib.Util.transform(viewport.transform, pdfTextItem.transform);
 
-      const textWidth = pdfTextItem.width * PDF_RENDER_SCALE;
-      const textHeight = pdfTextItem.height * PDF_RENDER_SCALE;
-      
-      const itemRight = x + textWidth;
-      const itemBottom = y + textHeight;
-      const rectRight = drawnRect.x + drawnRect.width;
-      const rectBottom = drawnRect.y + drawnRect.height;
-      
-      return x < rectRight && itemRight > drawnRect.x && y < rectBottom && itemBottom > drawnRect.y;
-    };
+    // text item bounding box
+    const textLeft = tx[4];
+    const textBottom = tx[5];
+    const textRight = textLeft + pdfTextItem.width;
+    const textTop = textBottom - pdfTextItem.height;
+
+    // drawn rectangle bounding box
+    const rectLeft = drawnRect.x / PDF_RENDER_SCALE;
+    const rectRight = (drawnRect.x + drawnRect.width) / PDF_RENDER_SCALE;
+    const rectTop = (viewport.height - drawnRect.y - drawnRect.height) / PDF_RENDER_SCALE;
+    const rectBottom = (viewport.height - drawnRect.y) / PDF_RENDER_SCALE;
+    
+    // Check for intersection
+    return (
+        textLeft < rectRight &&
+        textRight > rectLeft &&
+        textTop < rectBottom &&
+        textBottom > rectTop
+    );
+  };
 
   const getGroupedData = (): GroupedExtractedData[] => {
       // Grouping by page
