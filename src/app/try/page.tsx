@@ -43,7 +43,8 @@ interface ExtractedData {
 
 type GroupedExtractedData = {
     'Página': number;
-    [key: string]: string | number;
+    'LISTADO'?: number;
+    [key: string]: string | number | undefined;
 };
 
 
@@ -131,6 +132,7 @@ export default function TryPage() {
 
     try {
         const allGroupedData: GroupedExtractedData[] = [];
+        let listadoCounter = 1;
 
         for (let currentPageNum = 1; currentPageNum <= doc.numPages; currentPageNum++) {
             const page = await doc.getPage(currentPageNum);
@@ -221,6 +223,7 @@ export default function TryPage() {
             for (const group of [1, 2]) {
                  if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['FECHA ENTREGA']) {
                      allGroupedData.push({
+                         'LISTADO': listadoCounter++,
                          'Página': currentPageNum,
                          'EMPRESA': selectedCompany,
                          ...pageLabelData[group]
@@ -374,7 +377,7 @@ export default function TryPage() {
   
   const groupedResults = getGroupedData();
   const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
-  const allHeaders = ["Página", "EMPRESA", ...baseHeaders];
+  let allHeaders = ["LISTADO", "Página", "EMPRESA", ...baseHeaders];
   // Dynamically add SKU if it exists in any result
   if (groupedResults.some(row => row['SKU'])) {
       if (!allHeaders.includes('SKU')) {
