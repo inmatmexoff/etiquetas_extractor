@@ -92,6 +92,7 @@ export default function TryPage() {
   const [error, setError] = useState<string | null>(null);
   const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [textColor, setTextColor] = useState("#000000");
 
 
   // Drawing state
@@ -227,8 +228,9 @@ export default function TryPage() {
                     if (clientMatch && clientMatch[1]) {
                         pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
                     }
-
+                    
                     let addressText = fullText;
+                    
                     const domicilioIndex = addressText.search(/domicilio:/i);
                     if (domicilioIndex !== -1) {
                         addressText = addressText.substring(domicilioIndex + 10);
@@ -492,13 +494,13 @@ export default function TryPage() {
         await page.render({ canvasContext: ctx, viewport }).promise;
 
         ctx.font = "bold 30px Arial";
-        ctx.fillStyle = "red";
+        ctx.fillStyle = textColor;
         
-        ctx.fillText(`${listadoCounter++}`, 350, 680);
-        ctx.fillText(selectedCompany, 350, 710);
+        ctx.fillText(`${listadoCounter++}`, 338, 208);
+        ctx.fillText(selectedCompany, 338, 238);
         
-        ctx.fillText(`${listadoCounter++}`, 750, 680);
-        ctx.fillText(selectedCompany, 750, 710);
+        ctx.fillText(`${listadoCounter++}`, 731, 208);
+        ctx.fillText(selectedCompany, 731, 238);
         
         const imgData = canvas.toDataURL("image/png");
         
@@ -678,19 +680,32 @@ export default function TryPage() {
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Seleccionar Empresa</CardTitle>
+                        <CardTitle>Configuración de Etiqueta</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Selecciona una empresa" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {COMPANIES.map(company => (
-                                    <SelectItem key={company} value={company}>{company}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <CardContent className="space-y-4">
+                         <div>
+                            <Label htmlFor="company-select">Seleccionar Empresa</Label>
+                            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                                <SelectTrigger id="company-select" className="w-full">
+                                    <SelectValue placeholder="Selecciona una empresa" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {COMPANIES.map(company => (
+                                        <SelectItem key={company} value={company}>{company}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label htmlFor="color-picker">Color del Texto</Label>
+                             <Input
+                                id="color-picker"
+                                type="color"
+                                value={textColor}
+                                onChange={(e) => setTextColor(e.target.value)}
+                                className="w-full h-10 p-1"
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
