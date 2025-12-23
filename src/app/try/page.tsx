@@ -190,7 +190,14 @@ export default function TryPage() {
                         pageLabelData[labelGroup]['SKU'] = skuMatch[1];
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
+                } else if (cleanLabel.includes('CLIENTE INFO')) {
+                    const cpMatch = extractedText.match(/\b(\d{4})\b/);
+                    if (cpMatch && cpMatch[1]) {
+                        pageLabelData[labelGroup]['CP'] = cpMatch[1];
+                        extractedText = extractedText.replace(cpMatch[0], '').trim();
+                    }
                 }
+
 
                 if (extractedText.trim() !== '') {
                    pageLabelData[labelGroup][cleanLabel] = extractedText.trim();
@@ -358,6 +365,11 @@ export default function TryPage() {
   if (groupedResults.some(row => row['SKU'])) {
       if (!allHeaders.includes('SKU')) {
           allHeaders.push('SKU');
+      }
+  }
+   if (groupedResults.some(row => row['CP'])) {
+      if (!allHeaders.includes('CP')) {
+          allHeaders.push('CP');
       }
   }
 
