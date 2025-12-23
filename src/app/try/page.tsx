@@ -37,9 +37,11 @@ interface ExtractedData {
     label: string;
     value: string;
     page: number;
+    labelGroup: number;
 }
 
 type GroupedExtractedData = {
+    'Página': number;
     [key: string]: string | number;
 };
 
@@ -87,7 +89,7 @@ export default function TryPage() {
 
 
   // Extraction state
-  const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
+  const [extractedData, setExtractedData] = useState<GroupedExtractedData[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -115,7 +117,7 @@ export default function TryPage() {
     setError(null);
 
     try {
-        const allData: ExtractedData[] = [];
+        const allGroupedData: GroupedExtractedData[] = [];
 
         for (let currentPageNum = 1; currentPageNum <= doc.numPages; currentPageNum++) {
             const page = await doc.getPage(currentPageNum);
@@ -123,6 +125,11 @@ export default function TryPage() {
             const textContent = await page.getTextContent();
             
             const activeRectangles = rectangles;
+            
+            const pageLabelData: { [key: number]: { [key: string]: string } } = {
+                1: {},
+                2: {}
+            };
 
             for (const rect of activeRectangles) {
                 if (rect.width === 0 && rect.height === 0) continue;
@@ -140,9 +147,14 @@ export default function TryPage() {
 
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
-                if (rect.label.includes('CANTIDAD')) {
+                const isSecondLabel = rect.label.endsWith(' 2');
+                const labelGroup = isSecondLabel ? 2 : 1;
+                const cleanLabel = rect.label.replace(' 2', '').trim();
+
+
+                if (cleanLabel.includes('CANTIDAD')) {
                     extractedText = extractedText.replace(/Cantidad|Productos|Unidad|Unidades/gi, '').trim();
-                } else if (rect.label.includes('FECHA ENTREGA')) {
+                } else if (cleanLabel.includes('FECHA ENTREGA')) {
                     const monthMap: { [key: string]: string } = {
                         'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
                         'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
@@ -165,34 +177,43 @@ export default function TryPage() {
                            extractedText = `2025-${month}-${day}`;
                         }
                     }
-                } else if (rect.label.includes('NUM DE VENTA')) {
+                } else if (cleanLabel.includes('NUM DE VENTA')) {
                     const cleanText = extractedText.replace(/Pack ID:/gi, '').trim();
                     const numbers = cleanText.match(/\d+/g);
                     extractedText = numbers ? numbers.join('') : '';
-                } else if (rect.label.includes('CODIGO DE BARRA')) {
+                } else if (cleanLabel.includes('CODIGO DE BARRA')) {
                     const numbers = extractedText.match(/\d+/g);
                     extractedText = numbers ? numbers.join('') : '';
-                } else if (rect.label.includes('PRODUCTO')) {
+                } else if (cleanLabel.includes('PRODUCTO')) {
                     const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
                     if (skuMatch && skuMatch[1]) {
-                        const skuLabel = rect.label === 'PRODUCTO' ? 'SKU' : 'SKU 2';
-                        allData.push({ label: skuLabel, value: skuMatch[1], page: currentPageNum });
+                        pageLabelData[labelGroup]['SKU'] = skuMatch[1];
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
                 }
 
                 if (extractedText.trim() !== '') {
-                    allData.push({ label: rect.label, value: extractedText.trim(), page: currentPageNum });
+                   pageLabelData[labelGroup][cleanLabel] = extractedText.trim();
                 }
+            }
+            
+            // After processing all rects for the page, create the rows
+            for (const group of [1, 2]) {
+                 if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['FECHA ENTREGA']) {
+                     allGroupedData.push({
+                         'Página': currentPageNum,
+                         ...pageLabelData[group]
+                     });
+                 }
             }
         }
 
-        if (allData.length === 0 && rectangles.length > 0) {
+        if (allGroupedData.length === 0 && rectangles.length > 0) {
              setError("No se pudo extraer texto de ninguna página utilizando las áreas que definiste.");
         } else {
             setError(null);
         }
-        setExtractedData(allData);
+        setExtractedData(allGroupedData);
 
     } catch(e) {
         console.error("Error extracting data", e);
@@ -301,69 +322,44 @@ export default function TryPage() {
   };
 
   const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
+      // Convert drawnRect (canvas coords) to PDF coords
       const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
       const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
 
-      const rectLeft = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
-      const rectRight = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
-      const rectBottom = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
-      const rectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+      const pdfRectLeft = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+      const pdfRectRight = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+      const pdfRectBottom = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+      const pdfRectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
 
+      // pdfTextItem coords are in PDF space (origin at bottom-left)
       const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
       const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
       const itemRight = itemLeft + itemWidth;
       const itemTop = itemBottom + itemHeight;
 
+      // Standard 2D box intersection test in PDF coordinate space
       return (
-          itemLeft < rectRight &&
-          itemRight > rectLeft &&
-          itemBottom < rectTop &&
-          itemTop > rectBottom
+          itemLeft < pdfRectRight &&
+          itemRight > pdfRectLeft &&
+          itemBottom < pdfRectTop &&
+          itemTop > pdfRectBottom
       );
   };
 
-    const getGroupedData = (): GroupedExtractedData[] => {
-        const labelsData: { [key: number]: GroupedExtractedData } = {};
-        let labelCounter = 1;
-
-        extractedData.forEach(item => {
-            const isSecondLabel = item.label.endsWith(' 2');
-            const labelIndex = isSecondLabel ? 2 : 1;
-            const cleanLabel = item.label.replace(' 2', '').trim();
-            
-            // This is a simple heuristic to decide if we are starting a new "row"
-            // If we encounter a "main" field for a label index that doesn't exist, create it.
-            // We'll use FECHA ENTREGA as the main field.
-            if (cleanLabel === 'FECHA ENTREGA') {
-                if (!labelsData[labelIndex]) {
-                    labelsData[labelIndex] = { 'Página': item.page };
-                }
-            }
-        });
-
-        // If no labels were created, just use a default
-        if (Object.keys(labelsData).length === 0 && extractedData.length > 0) {
-            labelsData[1] = { 'Página': extractedData[0].page };
-        }
-
-        extractedData.forEach(item => {
-            const isSecondLabel = item.label.endsWith(' 2');
-            const labelIndex = isSecondLabel ? 2 : 1;
-            const cleanLabel = item.label.replace(' 2', '').trim();
-            
-            if (labelsData[labelIndex]) {
-                labelsData[labelIndex][cleanLabel] = item.value;
-            }
-        });
-
-        return Object.values(labelsData);
-    };
+  const getGroupedData = (): GroupedExtractedData[] => {
+     return extractedData;
+  };
 
   
   const groupedResults = getGroupedData();
-  const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(' 2', '').trim())));
-  const dynamicHeaders = extractedData.some(d => d.label.includes('SKU')) ? ['SKU'] : [];
-  const tableHeaders = ["Página", ...baseHeaders, ...dynamicHeaders];
+  const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
+  const allHeaders = ["Página", ...baseHeaders];
+  // Dynamically add SKU if it exists in any result
+  if (groupedResults.some(row => row['SKU'])) {
+      if (!allHeaders.includes('SKU')) {
+          allHeaders.push('SKU');
+      }
+  }
 
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -621,7 +617,7 @@ export default function TryPage() {
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
-                                                    {tableHeaders.filter(h => h).map(header => (
+                                                    {allHeaders.filter(h => h).map(header => (
                                                         <TableHead key={header} className="font-semibold">{header}</TableHead>
                                                     ))}
                                                 </TableRow>
@@ -629,7 +625,7 @@ export default function TryPage() {
                                             <TableBody>
                                                 {groupedResults.map((row, index) => (
                                                     <TableRow key={index}>
-                                                        {tableHeaders.filter(h => h).map(header => (
+                                                        {allHeaders.filter(h => h).map(header => (
                                                             <TableCell key={header}>
                                                                 { (row[header] as string) || ''}
                                                             </TableCell>
