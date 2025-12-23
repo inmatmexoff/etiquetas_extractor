@@ -160,6 +160,13 @@ export default function TryPage() {
                            extractedText = `2025-${month}-${day}`;
                         }
                     }
+                } else if (rect.label === 'NUM DE VENTA') {
+                    const cleanText = extractedText.replace(/Pack ID:/gi, '').trim();
+                    const numbers = cleanText.match(/\d+/g);
+                    extractedText = numbers ? numbers.join('') : '';
+                } else if (rect.label === 'CODIGO DE BARRA') {
+                    const numbers = extractedText.match(/\d+/g);
+                    extractedText = numbers ? numbers.join('') : '';
                 } else if (rect.label === 'PRODUCTO') {
                     const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
                     if (skuMatch && skuMatch[1]) {
@@ -224,7 +231,7 @@ export default function TryPage() {
 
     setPageRendering(true);
     try {
-      const page = await pdfDoc.getPage(num);
+      const page = await doc.getPage(num);
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
@@ -287,30 +294,31 @@ export default function TryPage() {
     setPageNum(pageNum + 1);
   };
 
-    const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
-        // Convert drawnRect (canvas coords) to PDF coords
-        const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
-        const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
+  const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
+      // Convert drawnRect (canvas coords) to PDF coords for accurate comparison.
+      // The viewport transform handles the Y-axis inversion and scaling.
+      const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
+      const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
 
-        const pdfRectLeft = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
-        const pdfRectRight = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
-        const pdfRectBottom = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
-        const pdfRectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+      const rectLeft = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+      const rectRight = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+      const rectBottom = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+      const rectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
 
-        // pdfTextItem coords are in PDF space (origin at bottom-left)
-        const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
-        const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
-        const itemRight = itemLeft + itemWidth;
-        const itemTop = itemBottom + itemHeight;
+      // pdfTextItem coords are already in PDF space (origin at bottom-left)
+      const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
+      const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
+      const itemRight = itemLeft + itemWidth;
+      const itemTop = itemBottom + itemHeight;
 
-        // Standard 2D box intersection test in PDF coordinate space
-        return (
-            itemLeft < pdfRectRight &&
-            itemRight > pdfRectLeft &&
-            itemBottom < pdfRectTop &&
-            itemTop > pdfRectBottom
-        );
-    };
+      // Standard 2D box intersection test
+      return (
+          itemLeft < rectRight &&
+          itemRight > rectLeft &&
+          itemBottom < rectTop &&
+          itemTop > rectBottom
+      );
+  };
 
   const getGroupedData = (): GroupedExtractedData[] => {
       const pageGroup: { [key:number]: GroupedExtractedData } = {};
@@ -690,5 +698,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
