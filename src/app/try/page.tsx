@@ -356,7 +356,7 @@ export default function TryPage() {
       const pdfRectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
 
       // pdfTextItem coords are in PDF space (origin at bottom-left)
-      const [itemWidth, itemHeight] = [pdfTextItem.width, itemTextItem.height];
+      const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
       const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
       const itemRight = itemLeft + itemWidth;
       const itemTop = itemBottom + itemHeight;
@@ -771,5 +771,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
