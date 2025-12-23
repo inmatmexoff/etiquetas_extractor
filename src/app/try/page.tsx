@@ -480,7 +480,7 @@ export default function TryPage() {
 
       for (let i = 1; i <= pdfDoc.numPages; i++) {
         const page = await pdfDoc.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 }); // Use a consistent scale
+        const viewport = page.getViewport({ scale: 1.5 });
 
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
@@ -491,27 +491,21 @@ export default function TryPage() {
 
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        // --- Drawing text on canvas ---
         ctx.font = "bold 30px Arial";
         ctx.fillStyle = "red";
         
-        // Coordenadas para la primera etiqueta (izquierda)
-        ctx.fillText(`${listadoCounter++}`, 350, 680); // Número de etiqueta
-        ctx.fillText(selectedCompany, 350, 710); // Nombre de empresa
+        ctx.fillText(`${listadoCounter++}`, 350, 680);
+        ctx.fillText(selectedCompany, 350, 710);
         
-        // Coordenadas para la segunda etiqueta (derecha)
         ctx.fillText(`${listadoCounter++}`, 750, 680);
         ctx.fillText(selectedCompany, 750, 710);
         
-        // --- End of drawing ---
-
         const imgData = canvas.toDataURL("image/png");
         
         if (i > 1) {
             pdf.addPage();
         }
         
-        // Ensure the image fits the page
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
@@ -820,8 +814,9 @@ export default function TryPage() {
                                                         </TableCell>
                                                     ))}
                                                 </TableRow>
-                                            </TableBody>
-                                        </Table>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             </CardContent>
                         </AccordionContent>
@@ -910,5 +905,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
