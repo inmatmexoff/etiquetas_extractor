@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -217,8 +216,8 @@ export default function TryPage() {
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
-                    let fullText = extractedText;
-                    
+                    const fullText = extractedText;
+
                     const cpMatch = fullText.match(/CP:\s*(\S+)/);
                     if (cpMatch && cpMatch[1]) {
                         pageLabelData[labelGroup]['CP'] = cpMatch[1].replace(/,/g, '');
@@ -228,13 +227,11 @@ export default function TryPage() {
                     if (clientMatch && clientMatch[1]) {
                         pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
                     }
-                    
-                    const domicilioIndex = fullText.toLowerCase().indexOf("domicilio:");
-                    let addressText = domicilioIndex !== -1 ? fullText.substring(domicilioIndex + 10) : fullText;
 
-                    const cpIndex = addressText.indexOf("CP:");
-                    if (cpIndex !== -1) {
-                        addressText = addressText.substring(0, cpIndex).trim();
+                    let addressText = fullText;
+                    const domicilioIndex = addressText.search(/domicilio:/i);
+                    if (domicilioIndex !== -1) {
+                        addressText = addressText.substring(domicilioIndex + 10);
                     }
 
                     let foundState = '';
@@ -249,7 +246,7 @@ export default function TryPage() {
                             stateIndex = match.index;
                         }
                     }
-                    
+
                     if (foundState) {
                         pageLabelData[labelGroup]['ESTADO'] = foundState;
                         const cityRegex = new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
@@ -274,9 +271,10 @@ export default function TryPage() {
                             pageLabelData[labelGroup]['CIUDAD'] = foundState;
                         }
                     }
-                    
+
                     extractedText = fullText;
                 }
+
 
                 if (extractedText.trim() !== '') {
                    pageLabelData[labelGroup][cleanLabel] = extractedText.trim();
@@ -286,15 +284,12 @@ export default function TryPage() {
             // After processing all rects for the page, create the rows
             for (const group of [1, 2]) {
                  if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['CP']) {
-                     // *** USER'S SUGGESTED FALLBACK RULE ***
                      if (!pageLabelData[group]['ESTADO']) {
                          pageLabelData[group]['ESTADO'] = "San Luis Potosí";
-                         // Also set the city, as it's likely the same in this specific error case
                          if (!pageLabelData[group]['CIUDAD']) {
                             pageLabelData[group]['CIUDAD'] = "San Luis Potosí";
                          }
                      }
-                     // *** END OF FALLBACK RULE ***
 
                      allGroupedData.push({
                          'LISTADO': listadoCounter++,
@@ -463,54 +458,74 @@ export default function TryPage() {
       }
   });
 
-  const handleDownloadPdf = () => {
-    if (groupedResults.length === 0) {
-        toast({
-            variant: "destructive",
-            title: "No hay datos para descargar",
-            description: "Extrae los datos de un PDF primero.",
-        });
-        return;
+  const handleDownloadModifiedPdf = async () => {
+    if (!pdfDoc) {
+      toast({ variant: "destructive", title: "No hay PDF cargado" });
+      return;
     }
-    const doc = new jsPDF();
+    if (!selectedCompany) {
+      toast({ variant: "destructive", title: "Selecciona una empresa" });
+      return;
+    }
 
-    doc.text(`Resultados de Extracción - ${selectedCompany}`, 14, 15);
+    setIsLoading(true);
+    try {
+      const pdf = new jsPDF({
+        orientation: "p",
+        unit: "pt",
+        format: "letter",
+      });
 
-    const tableColumn = allHeaders;
-    const tableRows: (string | number)[][] = [];
+      let listadoCounter = 1;
 
-    groupedResults.forEach(item => {
-        const rowData = allHeaders.map(header => {
-            return item[header] !== undefined && item[header] !== null ? String(item[header]) : '';
-        });
-        tableRows.push(rowData);
-    });
+      for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const viewport = page.getViewport({ scale: 1.5 }); // Use a consistent scale
 
-    autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        startY: 20,
-        styles: {
-            fontSize: 8,
-            cellPadding: 2,
-            overflow: 'linebreak'
-        },
-        headStyles: {
-            fillColor: [34, 48, 42], // Dark green from your theme
-            textColor: 255,
-            fontStyle: 'bold',
-        },
-        alternateRowStyles: {
-            fillColor: [240, 240, 240]
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        // --- Drawing text on canvas ---
+        ctx.font = "bold 30px Arial";
+        ctx.fillStyle = "red";
+        
+        // Coordenadas para la primera etiqueta (izquierda)
+        ctx.fillText(`${listadoCounter++}`, 350, 680); // Número de etiqueta
+        ctx.fillText(selectedCompany, 350, 710); // Nombre de empresa
+        
+        // Coordenadas para la segunda etiqueta (derecha)
+        ctx.fillText(`${listadoCounter++}`, 750, 680);
+        ctx.fillText(selectedCompany, 750, 710);
+        
+        // --- End of drawing ---
+
+        const imgData = canvas.toDataURL("image/png");
+        
+        if (i > 1) {
+            pdf.addPage();
         }
-    });
+        
+        // Ensure the image fits the page
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      }
 
-    doc.save("etiquetas.pdf");
+      pdf.save("etiquetas_modificadas.pdf");
+      toast({ title: "PDF modificado generado" });
 
-    toast({
-        title: "Descarga iniciada",
-        description: "Tu archivo PDF 'etiquetas.pdf' se está descargando.",
-    });
+    } catch (e: any) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al generar el PDF modificado", description: e.message });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
 
@@ -663,7 +678,7 @@ export default function TryPage() {
                     </div>
                     {error && <p className="mt-4 text-sm text-destructive font-medium">{error}</p>}
                     {qrCodeValue && <p className="mt-4 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-                     {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Extrayendo o guardando datos...</p>}
+                     {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Procesando...</p>}
                   </CardContent>
                 </Card>
                 
@@ -765,58 +780,55 @@ export default function TryPage() {
           </div>
         </div>
         
-        {pdfDoc && (
-            <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
-                <AccordionItem value="item-1" className="border-b-0">
-                    <Card>
-                       <CardHeader>
-                            <div className="flex w-full flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                 <AccordionTrigger className="w-full justify-between">
-                                    <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
-                                 </AccordionTrigger>
-                                 <div className="flex gap-2 w-full sm:w-auto">
-                                    <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0 || !selectedCompany} className="flex-1 sm:flex-none">
-                                        Extraer Datos
-                                    </Button>
-                                    <Button onClick={handleDownloadPdf} disabled={groupedResults.length === 0} className="flex-1 sm:flex-none">
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Descargar PDF
-                                    </Button>
-                                 </div>
-                            </div>
-                        </CardHeader>
-                        {groupedResults.length > 0 && (
-                            <AccordionContent>
-                               <CardContent>
-                                    <div className="overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
+        <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+            <AccordionItem value="item-1" className="border-b-0">
+                <Card>
+                   <CardHeader>
+                        <div className="flex w-full flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                             <AccordionTrigger className="w-full justify-between" disabled={!pdfDoc}>
+                                <CardTitle className="text-xl text-left">Resultados de la Extracción</CardTitle>
+                             </AccordionTrigger>
+                             <div className="flex gap-2 w-full sm:w-auto">
+                                <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0 || !selectedCompany} className="flex-1 sm:flex-none">
+                                    Extraer Datos
+                                </Button>
+                                <Button onClick={handleDownloadModifiedPdf} disabled={isLoading || !pdfDoc || !selectedCompany} className="flex-1 sm:flex-none">
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Descargar PDF Modificado
+                                </Button>
+                             </div>
+                        </div>
+                    </CardHeader>
+                    {groupedResults.length > 0 && (
+                        <AccordionContent>
+                           <CardContent>
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                {allHeaders.filter(h => h).map(header => (
+                                                    <TableHead key={header} className="font-semibold">{header}</TableHead>
+                                                ))}
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {groupedResults.map((row, index) => (
+                                                <TableRow key={index}>
                                                     {allHeaders.filter(h => h).map(header => (
-                                                        <TableHead key={header} className="font-semibold">{header}</TableHead>
+                                                        <TableCell key={header}>
+                                                            { (row[header] as string) || ''}
+                                                        </TableCell>
                                                     ))}
                                                 </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {groupedResults.map((row, index) => (
-                                                    <TableRow key={index}>
-                                                        {allHeaders.filter(h => h).map(header => (
-                                                            <TableCell key={header}>
-                                                                { (row[header] as string) || ''}
-                                                            </TableCell>
-                                                        ))}
-                                                    </TableRow>
-                                                ))}
                                             </TableBody>
                                         </Table>
-                                    </div>
-                                </CardContent>
-                            </AccordionContent>
-                        )}
-                    </Card>
-                </AccordionItem>
-            </Accordion>
-      )}
+                                </div>
+                            </CardContent>
+                        </AccordionContent>
+                    )}
+                </Card>
+            </AccordionItem>
+        </Accordion>
 
           {pdfDoc && (
             <Card>
