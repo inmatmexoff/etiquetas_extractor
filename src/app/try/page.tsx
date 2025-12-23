@@ -45,6 +45,7 @@ interface ExtractedData {
 type GroupedExtractedData = {
     'Página': number;
     'LISTADO'?: number;
+    labelGroup: number;
     [key: string]: string | number | undefined;
 };
 
@@ -152,7 +153,7 @@ export default function TryPage() {
             
             const activeRectangles = rectangles;
             
-            const pageLabelData: { [key: number]: { [key: string]: string } } = {
+            const pageLabelData: { [key: number]: { [key: string]: string | number } } = {
                 1: {},
                 2: {}
             };
@@ -281,11 +282,12 @@ export default function TryPage() {
                 if (extractedText.trim() !== '') {
                    pageLabelData[labelGroup][cleanLabel] = extractedText.trim();
                 }
+                 pageLabelData[labelGroup].labelGroup = labelGroup;
             }
             
             // After processing all rects for the page, create the rows
             for (const group of [1, 2]) {
-                 if (Object.keys(pageLabelData[group]).length > 0 && pageLabelData[group]['CP']) {
+                 if (Object.keys(pageLabelData[group]).length > 1 && pageLabelData[group]['CP']) {
                      if (!pageLabelData[group]['ESTADO']) {
                          pageLabelData[group]['ESTADO'] = "San Luis Potosí";
                          if (!pageLabelData[group]['CIUDAD']) {
@@ -298,7 +300,7 @@ export default function TryPage() {
                          'Página': currentPageNum,
                          'EMPRESA': selectedCompany,
                          ...pageLabelData[group]
-                     });
+                     } as GroupedExtractedData);
                  }
             }
         }
@@ -469,6 +471,10 @@ export default function TryPage() {
       toast({ variant: "destructive", title: "Selecciona una empresa" });
       return;
     }
+    if (groupedResults.length === 0) {
+        toast({ variant: "destructive", title: "No hay datos extraídos", description: "Por favor, extrae los datos primero." });
+        return;
+    }
 
     setIsLoading(true);
     try {
@@ -478,7 +484,14 @@ export default function TryPage() {
         format: "letter",
       });
 
-      let listadoCounter = 1;
+      // Group results by page number
+      const resultsByPage: { [key: number]: GroupedExtractedData[] } = {};
+      groupedResults.forEach(result => {
+        if (!resultsByPage[result['Página']]) {
+          resultsByPage[result['Página']] = [];
+        }
+        resultsByPage[result['Página']].push(result);
+      });
 
       for (let i = 1; i <= pdfDoc.numPages; i++) {
         const page = await pdfDoc.getPage(i);
@@ -492,24 +505,29 @@ export default function TryPage() {
         canvas.height = viewport.height;
 
         await page.render({ canvasContext: ctx, viewport }).promise;
-
-        const smallFontCompanies = ['PALO DE ROSA', 'DOMESKA', 'HOGARDEN'];
-        const companyFontSize = smallFontCompanies.includes(selectedCompany) ? 20 : 30;
         
         ctx.fillStyle = textColor;
         ctx.textAlign = "center";
         
-        // Draw first label
-        ctx.font = `bold 30px Arial`;
-        ctx.fillText(`${listadoCounter++}`, 360, 260);
-        ctx.font = `bold ${companyFontSize}px Arial`;
-        ctx.fillText(selectedCompany, 360, 290);
-        
-        // Draw second label
-        ctx.font = `bold 30px Arial`;
-        ctx.fillText(`${listadoCounter++}`, 753, 260);
-        ctx.font = `bold ${companyFontSize}px Arial`;
-        ctx.fillText(selectedCompany, 753, 290);
+        const pageResults = resultsByPage[i];
+
+        if (pageResults) {
+            pageResults.forEach(result => {
+                const listadoCounter = result['LISTADO'];
+                const labelGroup = result.labelGroup;
+
+                const x = labelGroup === 1 ? 360 : 753;
+                
+                const smallFontCompanies = ['PALO DE ROSA', 'DOMESKA', 'HOGARDEN'];
+                const companyFontSize = smallFontCompanies.includes(selectedCompany) ? 20 : 30;
+
+                ctx.font = `bold 30px Arial`;
+                ctx.fillText(`${listadoCounter}`, x, 260);
+                
+                ctx.font = `bold ${companyFontSize}px Arial`;
+                ctx.fillText(selectedCompany, x, 290);
+            });
+        }
         
         const imgData = canvas.toDataURL("image/png");
         
@@ -810,7 +828,7 @@ export default function TryPage() {
                                 <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0 || !selectedCompany} className="flex-1 sm:flex-none">
                                     Extraer Datos
                                 </Button>
-                                <Button onClick={handleDownloadModifiedPdf} disabled={isLoading || !pdfDoc || !selectedCompany} className="flex-1 sm:flex-none">
+                                <Button onClick={handleDownloadModifiedPdf} disabled={isLoading || !pdfDoc || !selectedCompany || groupedResults.length === 0} className="flex-1 sm:flex-none">
                                     <Download className="mr-2 h-4 w-4" />
                                     Descargar PDF Modificado
                                 </Button>
@@ -929,4 +947,3 @@ export default function TryPage() {
     </main>
   );
 }
-
