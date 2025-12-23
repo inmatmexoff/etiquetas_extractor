@@ -70,13 +70,13 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
 const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA"];
 
 const MEXICAN_STATES = [
-    "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+    "Baja California Sur", "San Luis Potosí", "Estado de México", "Ciudad de México",
+    "Distrito Federal", "Aguascalientes", "Baja California", "Campeche", "Chiapas",
     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero",
-    "Hidalgo", "Jalisco", "Estado de México", "México", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
-    "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
-    "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas",
-    "Ciudad de México", "Distrito Federal"
-].sort((a, b) => b.length - a.length); // Sort by length descending to match longer names first
+    "Hidalgo", "Jalisco", "México", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
+    "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "Sinaloa",
+    "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas"
+];
 
 
 export default function TryPage() {
@@ -216,22 +216,34 @@ export default function TryPage() {
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
                     let fullText = extractedText;
-                    
-                    // First, isolate address part by removing colonia, refs, etc.
+
+                    const cpMatch = fullText.match(/CP:\s*(\S+)/);
+                    if (cpMatch && cpMatch[1]) {
+                        pageLabelData[labelGroup]['CP'] = cpMatch[1].replace(/,/g, '');
+                        fullText = fullText.replace(cpMatch[0], '').trim();
+                    }
+
+                    // Isolate address part by removing colonia, refs, etc.
                     let addressText = fullText;
                     const cpIndex = addressText.indexOf("CP:");
                     if (cpIndex !== -1) {
                         addressText = addressText.substring(0, cpIndex).trim();
                     }
+                    const coloniaIndex = addressText.toLowerCase().indexOf("colonia:");
+                    if (coloniaIndex !== -1) {
+                       addressText = addressText.substring(0, coloniaIndex).trim();
+                    }
+                    const refIndex = addressText.toLowerCase().indexOf("referencia:");
+                     if (refIndex !== -1) {
+                       addressText = addressText.substring(0, refIndex).trim();
+                    }
+                    
 
-                    // Extract Cliente
                     const clientMatch = addressText.match(/^(.*?)\s*\(/);
                     if (clientMatch && clientMatch[1]) {
                         pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
-                         addressText = addressText.replace(clientMatch[0], '');
                     }
 
-                    // Extract Estado and Ciudad from the isolated address text
                     let foundState = '';
                     let stateIndex = -1;
                     for (const state of MEXICAN_STATES) {
@@ -247,19 +259,10 @@ export default function TryPage() {
                         pageLabelData[labelGroup]['ESTADO'] = foundState;
                         const cityRegexWithState = new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
                         const cityMatch = addressText.match(cityRegexWithState);
+
                         if (cityMatch && cityMatch[1]) {
                             pageLabelData[labelGroup]['CIUDAD'] = cityMatch[1].trim();
-                            addressText = addressText.replace(cityMatch[0], '').trim();
-                        } else {
-                            addressText = addressText.replace(new RegExp(`\\b${foundState}\\b`, 'i'), '').replace(/, ,/g,',').trim();
                         }
-                    }
-
-                    // Extract CP from the original full text
-                    const cpMatch = fullText.match(/CP:\s*(\S+)/);
-                    if (cpMatch && cpMatch[1]) {
-                        pageLabelData[labelGroup]['CP'] = cpMatch[1];
-                        fullText = fullText.replace(cpMatch[0], '').trim();
                     }
                     
                     extractedText = fullText;
@@ -820,4 +823,3 @@ export default function TryPage() {
     </main>
   );
 }
-
