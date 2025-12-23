@@ -494,16 +494,22 @@ export default function TryPage() {
         await page.render({ canvasContext: ctx, viewport }).promise;
 
         const smallFontCompanies = ['PALO DE ROSA', 'DOMESKA', 'HOGARDEN'];
-        const fontSize = smallFontCompanies.includes(selectedCompany) ? 20 : 30;
-        ctx.font = `bold ${fontSize}px Arial`;
+        const companyFontSize = smallFontCompanies.includes(selectedCompany) ? 20 : 30;
+        
         ctx.fillStyle = textColor;
         ctx.textAlign = "center";
         
-        ctx.fillText(`${listadoCounter++}`, 363, 260);
-        ctx.fillText(selectedCompany, 363, 290);
+        // Draw first label
+        ctx.font = `bold 30px Arial`;
+        ctx.fillText(`${listadoCounter++}`, 360, 260);
+        ctx.font = `bold ${companyFontSize}px Arial`;
+        ctx.fillText(selectedCompany, 360, 290);
         
-        ctx.fillText(`${listadoCounter++}`, 756, 260);
-        ctx.fillText(selectedCompany, 756, 290);
+        // Draw second label
+        ctx.font = `bold 30px Arial`;
+        ctx.fillText(`${listadoCounter++}`, 753, 260);
+        ctx.font = `bold ${companyFontSize}px Arial`;
+        ctx.fillText(selectedCompany, 753, 290);
         
         const imgData = canvas.toDataURL("image/png");
         
@@ -923,3 +929,4 @@ export default function TryPage() {
     </main>
   );
 }
+
