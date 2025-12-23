@@ -300,26 +300,28 @@ export default function Home() {
   };
 
   const intersects = (pdfTextItem: any, drawnRect: Rectangle, viewport: any) => {
-    const { transform, width, height } = pdfTextItem;
-    
-    // PDF space coords for the text item
-    const itemLeft = transform[4];
-    const itemBottom = transform[5];
-    const itemRight = itemLeft + width;
-    const itemTop = itemBottom + height;
+      // Convert drawnRect (canvas coords) to PDF coords
+      const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
+      const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
 
-    // Convert drawnRect (canvas coords) to PDF coords
-    // The viewport transform takes into account scale and rotation, and inverts the Y-axis
-    const [rectLeft, rectTop] = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
-    const [rectRight, rectBottom] = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
+      const pdfRectLeft = Math.min(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+      const pdfRectRight = Math.max(pdfRectTopLeft[0], pdfRectBottomRight[0]);
+      const pdfRectBottom = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
+      const pdfRectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
 
-    // Standard 2D box intersection test
-    return (
-        itemLeft < Math.max(rectLeft, rectRight) &&
-        itemRight > Math.min(rectLeft, rectRight) &&
-        itemBottom < Math.max(rectTop, rectBottom) &&
-        itemTop > Math.min(rectTop, rectBottom)
-    );
+      // pdfTextItem coords are in PDF space (origin at bottom-left)
+      const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
+      const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
+      const itemRight = itemLeft + itemWidth;
+      const itemTop = itemBottom + itemHeight;
+
+      // Standard 2D box intersection test in PDF coordinate space
+      return (
+          itemLeft < pdfRectRight &&
+          itemRight > pdfRectLeft &&
+          itemBottom < pdfRectTop &&
+          itemTop > pdfRectBottom
+      );
   };
 
   const getGroupedData = (): GroupedExtractedData[] => {
@@ -542,3 +544,5 @@ export default function Home() {
     </main>
   );
 }
+
+    
