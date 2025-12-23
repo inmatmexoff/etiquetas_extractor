@@ -134,7 +134,7 @@ export default function TryPage() {
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
                 if (rect.label === 'PRODUCTO') {
-                    const skuMatch = extractedText.match(/SKU: (\S+)/);
+                    const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
                     if (skuMatch && skuMatch[1]) {
                         allData.push({ label: 'SKU', value: skuMatch[1], page: currentPageNum });
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
