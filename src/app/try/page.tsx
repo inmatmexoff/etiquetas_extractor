@@ -69,6 +69,15 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
 
 const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA"];
 
+const MEXICAN_STATES = [
+    "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+    "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero",
+    "Hidalgo", "Jalisco", "México", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
+    "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
+    "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas",
+    "Ciudad de México"
+];
+
 
 export default function TryPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -206,13 +215,47 @@ export default function TryPage() {
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
-                     const cpMatch = extractedText.match(/CP:\s*(\S+)/);
+                    // Extract CP
+                    const cpMatch = extractedText.match(/CP:\s*(\S+)/);
                     if (cpMatch && cpMatch[1]) {
                         pageLabelData[labelGroup]['CP'] = cpMatch[1];
                         extractedText = extractedText.replace(cpMatch[0], '').trim();
                     }
-                }
 
+                    // Extract Cliente
+                    const clientMatch = extractedText.match(/^(.*?)\s*\(/);
+                    if (clientMatch && clientMatch[1]) {
+                        pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
+                        extractedText = extractedText.replace(clientMatch[0], '(').trim();
+                    }
+
+                    // Extract Estado and Ciudad
+                    let foundState = '';
+                    for (const state of MEXICAN_STATES) {
+                        const stateRegex = new RegExp(`\\b${state}\\b`, 'i');
+                        if (stateRegex.test(extractedText)) {
+                            foundState = state;
+                            pageLabelData[labelGroup]['ESTADO'] = state;
+                            extractedText = extractedText.replace(stateRegex, '').trim();
+                            break;
+                        }
+                    }
+
+                    if (foundState) {
+                        const cityRegex = new RegExp(`([^,]+),\\s*$`, 'i'); // Find text before a comma and the end of the string (after state is removed)
+                        const cityMatch = extractedText.match(new RegExp(`([^,]+),\\s*$`));
+
+                        // More robustly, find city before the state
+                        const fullTextBeforeProcessing = itemsInRect.map((item: any) => item.str).join(' ');
+                        const cityRegexWithState = new RegExp(`([^,]+),\\s*${foundState}`, 'i');
+                        const cityMatchWithState = fullTextBeforeProcessing.match(cityRegexWithState);
+
+                        if (cityMatchWithState && cityMatchWithState[1]) {
+                            pageLabelData[labelGroup]['CIUDAD'] = cityMatchWithState[1].trim();
+                            extractedText = extractedText.replace(new RegExp(`,?\\s*${cityMatchWithState[1].trim()}`,'i'), '').trim();
+                        }
+                    }
+                }
 
                 if (extractedText.trim() !== '') {
                    pageLabelData[labelGroup][cleanLabel] = extractedText.trim();
@@ -378,17 +421,15 @@ export default function TryPage() {
   const groupedResults = getGroupedData();
   const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
   let allHeaders = ["LISTADO", "Página", "EMPRESA", ...baseHeaders];
-  // Dynamically add SKU if it exists in any result
-  if (groupedResults.some(row => row['SKU'])) {
-      if (!allHeaders.includes('SKU')) {
-          allHeaders.push('SKU');
+  // Dynamically add new columns if they exist in any result
+  const dynamicHeaders = ['SKU', 'CP', 'CLIENTE', 'CIUDAD', 'ESTADO'];
+  dynamicHeaders.forEach(header => {
+      if (groupedResults.some(row => row[header])) {
+          if (!allHeaders.includes(header)) {
+              allHeaders.push(header);
+          }
       }
-  }
-   if (groupedResults.some(row => row['CP'])) {
-      if (!allHeaders.includes('CP')) {
-          allHeaders.push('CP');
-      }
-  }
+  });
 
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
