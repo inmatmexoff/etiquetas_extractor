@@ -77,7 +77,7 @@ const MEXICAN_STATES = [
     "Hidalgo", "Jalisco", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
     "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
     "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas",
-    "Ciudad de México", "Distrito Federal", "Estado de México"
+    "Ciudad de México", "Estado de México"
 ];
 
 
@@ -229,12 +229,8 @@ export default function TryPage() {
                         pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
                     }
                     
-                    let addressText = fullText;
-                    const domicilioIndex = addressText.toLowerCase().indexOf("domicilio:");
-                    if (domicilioIndex !== -1) {
-                         addressText = addressText.substring(domicilioIndex + 10);
-                    }
-
+                    const domicilioIndex = fullText.toLowerCase().indexOf("domicilio:");
+                    let addressText = domicilioIndex !== -1 ? fullText.substring(domicilioIndex + 10) : fullText;
 
                     const cpIndex = addressText.indexOf("CP:");
                     if (cpIndex !== -1) {
@@ -480,28 +476,32 @@ export default function TryPage() {
 
     doc.text(`Resultados de Extracción - ${selectedCompany}`, 14, 15);
 
-    const tableColumn = allHeaders.map(h => h.replace(/ /g, '_')); // Replace spaces for key access
+    const tableColumn = allHeaders;
     const tableRows: (string | number)[][] = [];
 
     groupedResults.forEach(item => {
         const rowData = allHeaders.map(header => {
-            const key = header.replace(/ /g, '_');
-            return item[key] !== undefined && item[key] !== null ? String(item[key]) : '';
+            return item[header] !== undefined && item[header] !== null ? String(item[header]) : '';
         });
         tableRows.push(rowData);
     });
 
     autoTable(doc, {
-        head: [allHeaders],
+        head: [tableColumn],
         body: tableRows,
         startY: 20,
         styles: {
             fontSize: 8,
+            cellPadding: 2,
+            overflow: 'linebreak'
         },
         headStyles: {
-            fillColor: [22, 160, 133], // A nice shade of green for the header
+            fillColor: [34, 48, 42], // Dark green from your theme
             textColor: 255,
             fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+            fillColor: [240, 240, 240]
         }
     });
 
@@ -898,3 +898,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
