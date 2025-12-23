@@ -70,7 +70,7 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
 const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA"];
 
 const MEXICAN_STATES = [
-    "Baja California Sur", "San Luis Potosí", "Estado de México", "Ciudad de México",
+    "Estado de México", "Baja California Sur", "San Luis Potosí", "Ciudad de México",
     "Distrito Federal", "Aguascalientes", "Baja California", "Campeche", "Chiapas",
     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero",
     "Hidalgo", "Jalisco", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
@@ -216,7 +216,7 @@ export default function TryPage() {
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
                     let fullText = extractedText;
-
+                    
                     const cpMatch = fullText.match(/CP:\s*(\S+)/);
                     if (cpMatch && cpMatch[1]) {
                         pageLabelData[labelGroup]['CP'] = cpMatch[1].replace(/,/g, '');
@@ -225,10 +225,6 @@ export default function TryPage() {
 
                     // Isolate address part by removing colonia, refs, etc.
                     let addressText = fullText;
-                    const cpIndex = addressText.indexOf("CP:");
-                    if (cpIndex !== -1) {
-                        addressText = addressText.substring(0, cpIndex).trim();
-                    }
                     const coloniaIndex = addressText.toLowerCase().indexOf("colonia:");
                     if (coloniaIndex !== -1) {
                        addressText = addressText.substring(0, coloniaIndex).trim();
@@ -237,7 +233,6 @@ export default function TryPage() {
                      if (refIndex !== -1) {
                        addressText = addressText.substring(0, refIndex).trim();
                     }
-                    
 
                     const clientMatch = addressText.match(/^(.*?)\s*\(/);
                     if (clientMatch && clientMatch[1]) {
@@ -826,3 +821,4 @@ export default function TryPage() {
     </main>
   );
 }
+
