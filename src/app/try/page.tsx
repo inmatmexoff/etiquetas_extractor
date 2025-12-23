@@ -40,7 +40,6 @@ interface ExtractedData {
 }
 
 type GroupedExtractedData = {
-    page: number;
     [key: string]: string | number;
 };
 
@@ -302,8 +301,6 @@ export default function TryPage() {
   };
 
   const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
-      // Convert drawnRect (canvas coords) to PDF coords for accurate comparison.
-      // The viewport transform handles the Y-axis inversion and scaling.
       const pdfRectTopLeft = viewport.convertToPdfPoint(drawnRect.x, drawnRect.y);
       const pdfRectBottomRight = viewport.convertToPdfPoint(drawnRect.x + drawnRect.width, drawnRect.y + drawnRect.height);
 
@@ -312,13 +309,11 @@ export default function TryPage() {
       const rectBottom = Math.min(pdfRectTopLeft[1], pdfRectBottomRight[1]);
       const rectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
 
-      // pdfTextItem coords are already in PDF space (origin at bottom-left)
       const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
       const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
       const itemRight = itemLeft + itemWidth;
       const itemTop = itemBottom + itemHeight;
 
-      // Standard 2D box intersection test
       return (
           itemLeft < rectRight &&
           itemRight > rectLeft &&
@@ -327,21 +322,48 @@ export default function TryPage() {
       );
   };
 
-  const getGroupedData = (): GroupedExtractedData[] => {
-      const pageGroup: { [key:number]: GroupedExtractedData } = {};
-      extractedData.forEach(item => {
-          if (!pageGroup[item.page]) {
-              pageGroup[item.page] = { page: item.page };
-          }
-          if (!pageGroup[item.page][item.label]) {
-             pageGroup[item.page][item.label] = item.value;
-          }
-      });
-      return Object.values(pageGroup);
-  };
+    const getGroupedData = (): GroupedExtractedData[] => {
+        const labelsData: { [key: number]: GroupedExtractedData } = {};
+        let labelCounter = 1;
+
+        extractedData.forEach(item => {
+            const isSecondLabel = item.label.endsWith(' 2');
+            const labelIndex = isSecondLabel ? 2 : 1;
+            const cleanLabel = item.label.replace(' 2', '').trim();
+            
+            // This is a simple heuristic to decide if we are starting a new "row"
+            // If we encounter a "main" field for a label index that doesn't exist, create it.
+            // We'll use FECHA ENTREGA as the main field.
+            if (cleanLabel === 'FECHA ENTREGA') {
+                if (!labelsData[labelIndex]) {
+                    labelsData[labelIndex] = { 'Página': item.page };
+                }
+            }
+        });
+
+        // If no labels were created, just use a default
+        if (Object.keys(labelsData).length === 0 && extractedData.length > 0) {
+            labelsData[1] = { 'Página': extractedData[0].page };
+        }
+
+        extractedData.forEach(item => {
+            const isSecondLabel = item.label.endsWith(' 2');
+            const labelIndex = isSecondLabel ? 2 : 1;
+            const cleanLabel = item.label.replace(' 2', '').trim();
+            
+            if (labelsData[labelIndex]) {
+                labelsData[labelIndex][cleanLabel] = item.value;
+            }
+        });
+
+        return Object.values(labelsData);
+    };
+
   
   const groupedResults = getGroupedData();
-  const tableHeaders = ["Página", ...Array.from(new Set(rectangles.map(r => r.label))).concat(extractedData.some(d => d.label.includes('SKU')) ? ['SKU', 'SKU 2'] : [])];
+  const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(' 2', '').trim())));
+  const dynamicHeaders = extractedData.some(d => d.label.includes('SKU')) ? ['SKU'] : [];
+  const tableHeaders = ["Página", ...baseHeaders, ...dynamicHeaders];
 
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -609,7 +631,7 @@ export default function TryPage() {
                                                     <TableRow key={index}>
                                                         {tableHeaders.filter(h => h).map(header => (
                                                             <TableCell key={header}>
-                                                                {header === "Página" ? row.page : (row[header] as string) || ''}
+                                                                { (row[header] as string) || ''}
                                                             </TableCell>
                                                         ))}
                                                     </TableRow>
