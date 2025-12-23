@@ -48,13 +48,13 @@ type GroupedExtractedData = {
 const PDF_RENDER_SCALE = 1.5;
 
 const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
-    { label: "FECHA ENTREGA", x: 440, y: 466, width: 205, height: 50 },
-    { label: "CANTIDAD", x: 80, y: 147, width: 108, height: 104 },
-    { label: "CLIENTE INFO", x: 67, y: 1402, width: 447, height: 184 },
-    { label: "CODIGO DE BARRA", x: 79, y: 669, width: 532, height: 23 },
-    { label: "NUM DE VENTA", x: 82, y: 86, width: 238, height: 41 },
-    { label: "SKU", x: 71, y: 204, width: 576, height: 30 },
-    { label: "PRODUCTO", x: 209, y: 79, width: 415, height: 71 },
+    { label: "FECHA ENTREGA", x: 293, y: 311, width: 137, height: 33 },
+    { label: "CANTIDAD", x: 69, y: 96, width: 50, height: 69 },
+    { label: "CLIENTE INFO", x: 48, y: 933, width: 291, height: 119 },
+    { label: "CODIGO DE BARRA", x: 144, y: 445, width: 154, height: 30 },
+    { label: "NUM DE VENTA", x: 53, y: 51, width: 168, height: 25 },
+    { label: "SKU", x: 160, y: 144, width: 256, height: 17 },
+    { label: "PRODUCTO", x: 156, y: 88, width: 269, height: 34 },
 ];
 
 
@@ -263,23 +263,29 @@ export default function TryPage() {
     const textTop = textBottom - pdfTextItem.height;
 
     // drawn rectangle bounding box (adjusting for PDF coordinate system)
-    // No need to scale here as rects are already in canvas space
+    const canvas = canvasRef.current;
+    if (!canvas) return false;
+    
+    // The rect coordinates are already in canvas space, so we just use them
+    // but we need to flip the Y axis for comparison with PDF's coordinate system
     const rectLeft = drawnRect.x;
     const rectRight = drawnRect.x + drawnRect.width;
-    const rectTop = drawnRect.y;
-    const rectBottom = drawnRect.y + drawnRect.height;
-    
-    // PDF text coordinate system has Y starting from bottom, canvas has Y from top.
-    // We need to transform one to match the other. Let's transform canvas to PDF text space.
-    const transformedRectTop = viewport.height - rectBottom;
-    const transformedRectBottom = viewport.height - rectTop;
+    const rectTop = viewport.height - (drawnRect.y + drawnRect.height);
+    const rectBottom = viewport.height - drawnRect.y;
+
+    const scaledRect = {
+      left: rectLeft / PDF_RENDER_SCALE,
+      right: rectRight / PDF_RENDER_SCALE,
+      top: rectTop / PDF_RENDER_SCALE,
+      bottom: rectBottom / PDF_RENDER_SCALE,
+    }
 
     // Check for intersection
     return (
-        textLeft < rectRight * PDF_RENDER_SCALE &&
-        textRight > rectLeft * PDF_RENDER_SCALE &&
-        textTop < transformedRectBottom &&
-        textBottom > transformedRectTop
+        textLeft < scaledRect.right &&
+        textRight > scaledRect.left &&
+        textTop < scaledRect.bottom &&
+        textBottom > scaledRect.top
     );
   };
 
