@@ -72,11 +72,11 @@ const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA"];
 const MEXICAN_STATES = [
     "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero",
-    "Hidalgo", "Jalisco", "México", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
+    "Hidalgo", "Jalisco", "Estado de México", "México", "Michoacán", "Morelos", "Nayarit", "Nuevo León",
     "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa",
     "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas",
     "Ciudad de México", "Distrito Federal"
-];
+].sort((a, b) => b.length - a.length); // Sort by length descending to match longer names first
 
 
 export default function TryPage() {
@@ -215,45 +215,44 @@ export default function TryPage() {
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
+                    const fullText = extractedText;
                     // Extract CP
-                    const cpMatch = extractedText.match(/CP:\s*(\S+)/);
+                    const cpMatch = fullText.match(/CP:\s*(\S+)/);
                     if (cpMatch && cpMatch[1]) {
                         pageLabelData[labelGroup]['CP'] = cpMatch[1];
                         extractedText = extractedText.replace(cpMatch[0], '').trim();
                     }
 
                     // Extract Cliente
-                    const clientMatch = extractedText.match(/^(.*?)\s*\(/);
+                    const clientMatch = fullText.match(/^(.*?)\s*\(/);
                     if (clientMatch && clientMatch[1]) {
                         pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
-                        extractedText = extractedText.replace(clientMatch[0], '(').trim();
+                        extractedText = extractedText.replace(clientMatch[1], '').trim(); // Remove only the name part
                     }
 
                     // Extract Estado and Ciudad
                     let foundState = '';
                     for (const state of MEXICAN_STATES) {
                         const stateRegex = new RegExp(`\\b${state}\\b`, 'i');
-                        if (stateRegex.test(extractedText)) {
+                        if (stateRegex.test(fullText)) {
                             foundState = state;
                             pageLabelData[labelGroup]['ESTADO'] = state;
-                            extractedText = extractedText.replace(stateRegex, '').trim();
+                            // Do not remove the state from extractedText yet, we need it to find the city
                             break;
                         }
                     }
 
                     if (foundState) {
-                        const cityRegex = new RegExp(`([^,]+),\\s*$`, 'i'); // Find text before a comma and the end of the string (after state is removed)
-                        const cityMatch = extractedText.match(new RegExp(`([^,]+),\\s*$`));
-
-                        // More robustly, find city before the state
-                        const fullTextBeforeProcessing = itemsInRect.map((item: any) => item.str).join(' ');
+                         // Regex to find city before the state, e.g., "City, State"
                         const cityRegexWithState = new RegExp(`([^,]+),\\s*${foundState}`, 'i');
-                        const cityMatchWithState = fullTextBeforeProcessing.match(cityRegexWithState);
+                        const cityMatchWithState = fullText.match(cityRegexWithState);
 
                         if (cityMatchWithState && cityMatchWithState[1]) {
                             pageLabelData[labelGroup]['CIUDAD'] = cityMatchWithState[1].trim();
-                            extractedText = extractedText.replace(new RegExp(`,?\\s*${cityMatchWithState[1].trim()}`,'i'), '').trim();
                         }
+                        
+                        // Now we can clean up the state from the main text
+                        extractedText = extractedText.replace(new RegExp(`\\b${foundState}\\b`, 'i'), '').replace(/, ,/g,',').trim();
                     }
                 }
 
@@ -812,7 +811,5 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
 
     
