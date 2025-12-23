@@ -48,12 +48,20 @@ type GroupedExtractedData = {
 const PDF_RENDER_SCALE = 1.5;
 
 const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
+    // Primera etiqueta
     { label: "FECHA ENTREGA", x: 293, y: 311, width: 137, height: 33 },
     { label: "CANTIDAD", x: 69, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO", x: 48, y: 933, width: 291, height: 119 },
     { label: "CODIGO DE BARRA", x: 144, y: 445, width: 154, height: 30 },
     { label: "NUM DE VENTA", x: 53, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO", x: 156, y: 88, width: 269, height: 60 },
+    // Segunda etiqueta
+    { label: "FECHA ENTREGA 2", x: 686, y: 311, width: 137, height: 33 },
+    { label: "CANTIDAD 2", x: 462, y: 96, width: 50, height: 69 },
+    { label: "CLIENTE INFO 2", x: 441, y: 933, width: 291, height: 119 },
+    { label: "CODIGO DE BARRA 2", x: 537, y: 445, width: 154, height: 30 },
+    { label: "NUM DE VENTA 2", x: 446, y: 51, width: 168, height: 25 },
+    { label: "PRODUCTO 2", x: 549, y: 88, width: 269, height: 60 },
 ];
 
 
@@ -133,9 +141,9 @@ export default function TryPage() {
 
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
-                if (rect.label === 'CANTIDAD') {
+                if (rect.label.includes('CANTIDAD')) {
                     extractedText = extractedText.replace(/Cantidad|Productos|Unidad|Unidades/gi, '').trim();
-                } else if (rect.label === 'FECHA ENTREGA') {
+                } else if (rect.label.includes('FECHA ENTREGA')) {
                     const monthMap: { [key: string]: string } = {
                         'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
                         'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
@@ -155,22 +163,21 @@ export default function TryPage() {
                         const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
                         const month = monthMap[monthStr];
                         if (month) {
-                           // Assuming current or next year. For now, hardcoding 2025.
-                           // A more robust solution might be needed.
                            extractedText = `2025-${month}-${day}`;
                         }
                     }
-                } else if (rect.label === 'NUM DE VENTA') {
+                } else if (rect.label.includes('NUM DE VENTA')) {
                     const cleanText = extractedText.replace(/Pack ID:/gi, '').trim();
                     const numbers = cleanText.match(/\d+/g);
                     extractedText = numbers ? numbers.join('') : '';
-                } else if (rect.label === 'CODIGO DE BARRA') {
+                } else if (rect.label.includes('CODIGO DE BARRA')) {
                     const numbers = extractedText.match(/\d+/g);
                     extractedText = numbers ? numbers.join('') : '';
-                } else if (rect.label === 'PRODUCTO') {
+                } else if (rect.label.includes('PRODUCTO')) {
                     const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
                     if (skuMatch && skuMatch[1]) {
-                        allData.push({ label: 'SKU', value: skuMatch[1], page: currentPageNum });
+                        const skuLabel = rect.label === 'PRODUCTO' ? 'SKU' : 'SKU 2';
+                        allData.push({ label: skuLabel, value: skuMatch[1], page: currentPageNum });
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
                 }
@@ -334,7 +341,7 @@ export default function TryPage() {
   };
   
   const groupedResults = getGroupedData();
-  const tableHeaders = ["Página", ...Array.from(new Set(rectangles.map(r => r.label))).concat(extractedData.some(d => d.label === 'SKU') ? ['SKU'] : [])];
+  const tableHeaders = ["Página", ...Array.from(new Set(rectangles.map(r => r.label))).concat(extractedData.some(d => d.label.includes('SKU')) ? ['SKU', 'SKU 2'] : [])];
 
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -698,5 +705,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    

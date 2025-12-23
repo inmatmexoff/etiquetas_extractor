@@ -154,8 +154,6 @@ export default function Home() {
                         const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
                         const month = monthMap[monthStr];
                         if (month) {
-                           // Assuming current or next year. For now, hardcoding 2025.
-                           // A more robust solution might be needed.
                            extractedText = `2025-${month}-${day}`;
                         }
                     }
