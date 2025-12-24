@@ -711,7 +711,8 @@ export default function TryPage() {
         organization: row["EMPRESA"],
         deli_date: row["FECHA ENTREGA"],
         quantity: Number(row["CANTIDAD"]) || null,
-        client: row["CLIENTE"],
+        client: row["CLIENTE INFO"],
+        client_name: row["CLIENTE"],
         code: Number(row["CODIGO DE BARRA"]) || null,
         sales_num: Number(row["NUM DE VENTA"]) || null,
         product: row["PRODUCTO"],
@@ -1044,4 +1045,5 @@ export default function TryPage() {
     </main>
   );
 }
+
 
