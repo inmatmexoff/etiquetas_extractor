@@ -144,8 +144,23 @@ export default function TryPage() {
     setError(null);
 
     try {
+        const today = new Date().toISOString().split('T')[0];
+        const { data: lastEntry, error: dbError } = await supabase
+            .from('etiquetas_i')
+            .select('folio')
+            .eq('organization', selectedCompany)
+            .eq('imp_date', today)
+            .order('folio', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (dbError && dbError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine.
+            throw new Error(`Error al consultar el último folio: ${dbError.message}`);
+        }
+
+        let listadoCounter = (lastEntry?.folio || 0) + 1;
+        
         const allGroupedData: GroupedExtractedData[] = [];
-        let listadoCounter = 1;
 
         for (let currentPageNum = 1; currentPageNum <= doc.numPages; currentPageNum++) {
             const page = await doc.getPage(currentPageNum);
@@ -313,9 +328,14 @@ export default function TryPage() {
         }
         setExtractedData(allGroupedData);
 
-    } catch(e) {
+    } catch(e: any) {
         console.error("Error extracting data", e);
-        setError("Ocurrió un error al extraer los datos.");
+        setError(`Ocurrió un error al extraer los datos: ${e.message}`);
+        toast({
+            variant: "destructive",
+            title: "Error de extracción",
+            description: e.message || "Ocurrió un error desconocido.",
+        });
     } finally {
         setIsLoading(false);
     }
