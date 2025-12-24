@@ -402,7 +402,7 @@ export default function TryPage() {
       const html5QrCode = new Html5Qrcode("qr-reader", /* verbose= */ false);
       const decodedText = await html5QrCode.scanFile(file, /* showImage= */ false);
       setQrCodeValue(decodedText);
-    } catch (err) {
+    } catch (err) => {
       setQrCodeValue(null);
       console.log("QR Code scan failed or no QR code found.", err);
     }
@@ -666,6 +666,65 @@ export default function TryPage() {
   const handleRectDelete = (id: number) => {
     setRectangles(prev => prev.filter(rect => rect.id !== id));
   };
+  
+  const saveToDatabase = async () => {
+    if (groupedResults.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No hay datos para guardar",
+        description: "Por favor, extrae los datos primero.",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const now = new Date();
+      const imp_date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
+
+      const payload = groupedResults.map((row) => ({
+        listado: row["LISTADO"],
+        empresa: row["EMPRESA"],
+        deli_date: row["FECHA ENTREGA"],
+        quantity: Number(row["CANTIDAD"]) || null,
+        client_info: row["CLIENTE INFO"],
+        code: row["CODIGO DE BARRA"],
+        sales_num: row["NUM DE VENTA"],
+        product: row["PRODUCTO"],
+        sku: row["SKU"] || null,
+        cp: row["CP"],
+        estado: row["ESTADO"],
+        ciudad: row["CIUDAD"],
+        imp_date: imp_date,
+        hour: hour,
+      }));
+
+      const { error } = await supabase
+        .from("etiquetas_f")
+        .insert(payload);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Etiquetas guardadas correctamente en la base de datos.",
+      });
+
+    } catch (e: any) {
+        toast({
+            variant: "destructive",
+            title: "Error al guardar",
+            description: e.message || "Ocurrió un error desconocido al guardar en la base de datos.",
+        });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
 
   return (
@@ -843,6 +902,10 @@ export default function TryPage() {
                                 <Button onClick={handleDownloadModifiedPdf} disabled={isLoading || !pdfDoc || !selectedCompany || groupedResults.length === 0} className="flex-1 sm:flex-none">
                                     <Download className="mr-2 h-4 w-4" />
                                     Descargar PDF Modificado
+                                </Button>
+                                <Button onClick={saveToDatabase} disabled={isLoading || groupedResults.length === 0} className="flex-1 sm:flex-none">
+                                    <Database className="mr-2 h-4 w-4" />
+                                    Guardar en Base de Datos
                                 </Button>
                              </div>
                         </div>
