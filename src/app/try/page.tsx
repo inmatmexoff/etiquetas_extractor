@@ -472,7 +472,7 @@ export default function TryPage() {
       return;
     }
     if (groupedResults.length === 0) {
-        toast({ variant: "destructive", title: "No hay datos extraídos", description: "Por favor, extrae los datos primero." });
+        toast({ variant: "destructive", title: "No hay datos extraídos", description: "Extrae los datos primero para saber qué etiquetas enumerar." });
         return;
     }
 
@@ -484,7 +484,7 @@ export default function TryPage() {
         format: "letter",
       });
 
-      // Group results by page number
+      // Group results by page number to know what to draw on each page
       const resultsByPage: { [key: number]: GroupedExtractedData[] } = {};
       groupedResults.forEach(result => {
         const pageKey = result['Página'];
@@ -496,7 +496,7 @@ export default function TryPage() {
 
       for (let i = 1; i <= pdfDoc.numPages; i++) {
         const page = await pdfDoc.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
+        const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
 
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
@@ -535,7 +535,7 @@ export default function TryPage() {
             });
         }
         
-        const imgData = canvas.toDataURL("image/png");
+        const imgData = canvas.toDataURL("image/jpeg", 0.7);
         
         if (i > 1) {
             pdf.addPage();
@@ -543,7 +543,7 @@ export default function TryPage() {
         
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
       }
 
       pdf.save("etiquetas_modificadas.pdf");
