@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -402,7 +403,7 @@ export default function TryPage() {
       const html5QrCode = new Html5Qrcode("qr-reader", /* verbose= */ false);
       const decodedText = await html5QrCode.scanFile(file, /* showImage= */ false);
       setQrCodeValue(decodedText);
-    } catch (err) => {
+    } catch (err) {
       setQrCodeValue(null);
       console.log("QR Code scan failed or no QR code found.", err);
     }
@@ -1022,3 +1023,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
