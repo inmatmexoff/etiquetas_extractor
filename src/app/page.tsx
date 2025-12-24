@@ -308,7 +308,7 @@ export default function Home() {
       const pdfRectTop = Math.max(pdfRectTopLeft[1], pdfRectBottomRight[1]);
 
       // pdfTextItem coords are in PDF space (origin at bottom-left)
-      const [itemWidth, itemHeight] = [pdfTextItem.width, pdfTextItem.height];
+      const [itemWidth, itemHeight] = [pdfTextItem.width, itemTextItem.height];
       const [_, __, ___, ____, itemLeft, itemBottom] = pdfTextItem.transform;
       const itemRight = itemLeft + itemWidth;
       const itemTop = itemBottom + itemHeight;
@@ -350,7 +350,14 @@ export default function Home() {
 
 
   const saveToDatabase = async () => {
-    if (groupedResults.length === 0) return;
+    if (groupedResults.length === 0 || !pdfFile) {
+        toast({
+            variant: "destructive",
+            title: "No hay datos para guardar",
+            description: "Extrae datos de un archivo PDF primero.",
+        });
+        return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -361,15 +368,16 @@ export default function Home() {
       const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
 
       const payload = groupedResults.map((row) => ({
-        deli_date: row["FECHA ENTREGA"],
+        deli_date: row["FECHA ENTREGA"] || null,
         quantity: Number(row["CANTIDAD"]) || null,
         client: row["CLIENTE INFO"] || null,
-        code: row["CODIGO DE BARRA"] || null,
-        sales_num: row["NUM DE VENTA"] || null,
+        code: Number(row["CODIGO DE BARRA"]) || null,
+        sales_num: Number(row["NUM DE VENTA"]) || null,
         sku: row["SKU"] || null,
         product: row["PRODUCTO"] || null,
         imp_date: imp_date,
         hour: hour,
+        sou_file: pdfFile.name,
       }));
 
       const { error } = await supabase
@@ -542,7 +550,5 @@ export default function Home() {
     </main>
   );
 }
-
-    
 
     
