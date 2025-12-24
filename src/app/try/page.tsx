@@ -542,7 +542,7 @@ export default function TryPage() {
                 if (selectedCompany === 'PALO DE ROSA') {
                     x = labelGroup === 1 ? 355 : 748;
                 } else {
-                    x = labelGroup === 1 ? 363 : 756;
+                    x = labelGroup === 1 ? 360 : 753;
                 }
                 
                 let companyFontSize;
@@ -909,7 +909,7 @@ export default function TryPage() {
           </div>
         </div>
         
-        <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+        <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="item-1" className="border-b-0">
                 <Card>
                    <CardHeader>
@@ -1044,3 +1044,4 @@ export default function TryPage() {
     </main>
   );
 }
+
