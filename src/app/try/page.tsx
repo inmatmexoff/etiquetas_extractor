@@ -524,8 +524,14 @@ export default function TryPage() {
                     x = labelGroup === 1 ? 360 : 753;
                 }
                 
-                const smallFontCompanies = ['PALO DE ROSA', 'DOMESKA', 'HOGARDEN'];
-                const companyFontSize = smallFontCompanies.includes(selectedCompany) ? 20 : 30;
+                let companyFontSize;
+                if (selectedCompany === 'PALO DE ROSA') {
+                    companyFontSize = 18;
+                } else if (['DOMESKA', 'HOGARDEN'].includes(selectedCompany)) {
+                    companyFontSize = 20;
+                } else {
+                    companyFontSize = 30;
+                }
 
                 ctx.font = `bold 30px Arial`;
                 ctx.fillText(`${listadoCounter}`, x, 260);
