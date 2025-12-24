@@ -522,7 +522,7 @@ export default function TryPage() {
                 if (selectedCompany === 'PALO DE ROSA') {
                     x = labelGroup === 1 ? 355 : 748;
                 } else {
-                    x = labelGroup === 1 ? 360 : 753;
+                    x = labelGroup === 1 ? 363 : 756;
                 }
                 
                 let companyFontSize;
@@ -669,7 +669,7 @@ export default function TryPage() {
   };
   
   const saveToDatabase = async () => {
-    if (groupedResults.length === 0) {
+    if (groupedResults.length === 0 || !pdfFile) {
       toast({
         variant: "destructive",
         title: "No hay datos para guardar",
@@ -687,24 +687,25 @@ export default function TryPage() {
       const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
 
       const payload = groupedResults.map((row) => ({
-        listado: row["LISTADO"],
-        empresa: row["EMPRESA"],
+        folio: row["LISTADO"],
+        organization: row["EMPRESA"],
         deli_date: row["FECHA ENTREGA"],
         quantity: Number(row["CANTIDAD"]) || null,
-        client_info: row["CLIENTE INFO"],
-        code: row["CODIGO DE BARRA"],
-        sales_num: row["NUM DE VENTA"],
+        client: row["CLIENTE INFO"],
+        code: Number(row["CODIGO DE BARRA"]) || null,
+        sales_num: Number(row["NUM DE VENTA"]) || null,
         product: row["PRODUCTO"],
         sku: row["SKU"] || null,
-        cp: row["CP"],
-        estado: row["ESTADO"],
-        ciudad: row["CIUDAD"],
+        cp: Number(row["CP"]) || null,
+        state: row["ESTADO"],
+        city: row["CIUDAD"],
         imp_date: imp_date,
         hour: hour,
+        sou_file: pdfFile.name,
       }));
 
       const { error } = await supabase
-        .from("etiquetas_f")
+        .from("etiquetas_i")
         .insert(payload);
 
       if (error) {
@@ -1023,5 +1024,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
