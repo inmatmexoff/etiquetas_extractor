@@ -867,84 +867,95 @@ export default function TryPage() {
                         </div>
                     </CardContent>
                 </Card>
-
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Entrada Manual de Coordenadas</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <div>
-                            <Label htmlFor="label">Etiqueta</Label>
-                            <Input id="label" name="label" value={manualRect.label} onChange={handleManualInputChange} placeholder="Ej: NÚM DE VENTA" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="x">X</Label>
-                                <Input id="x" name="x" type="number" value={manualRect.x} onChange={handleManualInputChange} placeholder="54" />
-                            </div>
-                            <div>
-                                <Label htmlFor="y">Y</Label>
-                                <Input id="y" name="y" type="number" value={manualRect.y} onChange={handleManualInputChange} placeholder="57" />
-                            </div>
-                            <div>
-                                <Label htmlFor="width">W (ancho)</Label>
-                                <Input id="width" name="width" type="number" value={manualRect.width} onChange={handleManualInputChange} placeholder="159" />
-                            </div>
-                            <div>
-                                <Label htmlFor="height">H (alto)</Label>
-                                <Input id="height" name="height" type="number" value={manualRect.height} onChange={handleManualInputChange} placeholder="27" />
-                            </div>
-                        </div>
-                         <Button onClick={handleManualAdd} className="w-full">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Añadir Rectángulo
-                        </Button>
-                    </CardContent>
-                </Card>
             </div>
             <div className="lg:col-span-2 flex flex-col gap-8">
-              {rectangles.length > 0 && (
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1" className="border-b-0">
                   <Card>
-                      <CardHeader>
-                          <CardTitle>Áreas Definidas</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4 max-h-96 overflow-y-auto">
-                          {rectangles.map((rect) => (
-                              <div key={rect.id} className="p-3 border rounded-lg space-y-3 bg-card">
-                                  <div className="flex justify-between items-center">
-                                      <Input
-                                          value={rect.label}
-                                          onChange={(e) => handleRectUpdate(rect.id, 'label', e.target.value)}
-                                          className="text-base font-semibold border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
-                                      />
-                                      <Button onClick={() => handleRectDelete(rect.id)} variant="ghost" size="icon" className="h-8 w-8">
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
+                      <AccordionTrigger className="p-6 w-full">
+                          <CardTitle>Configuración Manual de Áreas</CardTitle>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="px-6 pb-6 flex flex-col gap-8">
+                          <Card>
+                              <CardHeader>
+                                  <CardTitle>Entrada Manual de Coordenadas</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                  <div>
+                                      <Label htmlFor="label">Etiqueta</Label>
+                                      <Input id="label" name="label" value={manualRect.label} onChange={handleManualInputChange} placeholder="Ej: NÚM DE VENTA" />
                                   </div>
-                                  <div className="grid grid-cols-2 gap-3">
-                                      <div className="space-y-1">
-                                          <Label htmlFor={`x-${rect.id}`} className="text-xs">X</Label>
-                                          <Input id={`x-${rect.id}`} type="number" value={rect.x} onChange={(e) => handleRectUpdate(rect.id, 'x', e.target.value)} />
+                                  <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                          <Label htmlFor="x">X</Label>
+                                          <Input id="x" name="x" type="number" value={manualRect.x} onChange={handleManualInputChange} placeholder="54" />
                                       </div>
-                                      <div className="space-y-1">
-                                          <Label htmlFor={`y-${rect.id}`} className="text-xs">Y</Label>
-                                          <Input id={`y-${rect.id}`} type="number" value={rect.y} onChange={(e) => handleRectUpdate(rect.id, 'y', e.target.value)} />
+                                      <div>
+                                          <Label htmlFor="y">Y</Label>
+                                          <Input id="y" name="y" type="number" value={manualRect.y} onChange={handleManualInputChange} placeholder="57" />
                                       </div>
-                                      <div className="space-y-1">
-                                          <Label htmlFor={`w-${rect.id}`} className="text-xs">Ancho (W)</Label>
-                                          <Input id={`w-${rect.id}`} type="number" value={rect.width} onChange={(e) => handleRectUpdate(rect.id, 'width', e.target.value)} />
+                                      <div>
+                                          <Label htmlFor="width">W (ancho)</Label>
+                                          <Input id="width" name="width" type="number" value={manualRect.width} onChange={handleManualInputChange} placeholder="159" />
                                       </div>
-                                      <div className="space-y-1">
-                                          <Label htmlFor={`h-${rect.id}`} className="text-xs">Alto (H)</Label>
-                                          <Input id={`h-${rect.id}`} type="number" value={rect.height} onChange={(e) => handleRectUpdate(rect.id, 'height', e.target.value)} />
+                                      <div>
+                                          <Label htmlFor="height">H (alto)</Label>
+                                          <Input id="height" name="height" type="number" value={manualRect.height} onChange={handleManualInputChange} placeholder="27" />
                                       </div>
                                   </div>
-                              </div>
-                          ))}
-                      </CardContent>
+                                  <Button onClick={handleManualAdd} className="w-full">
+                                      <PlusCircle className="mr-2 h-4 w-4" />
+                                      Añadir Rectángulo
+                                  </Button>
+                              </CardContent>
+                          </Card>
+                          {rectangles.length > 0 && (
+                              <Card>
+                                  <CardHeader>
+                                      <CardTitle>Áreas Definidas</CardTitle>
+                                  </CardHeader>
+                                  <CardContent className="space-y-4 max-h-96 overflow-y-auto">
+                                      {rectangles.map((rect) => (
+                                          <div key={rect.id} className="p-3 border rounded-lg space-y-3 bg-card">
+                                              <div className="flex justify-between items-center">
+                                                  <Input
+                                                      value={rect.label}
+                                                      onChange={(e) => handleRectUpdate(rect.id, 'label', e.target.value)}
+                                                      className="text-base font-semibold border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+                                                  />
+                                                  <Button onClick={() => handleRectDelete(rect.id)} variant="ghost" size="icon" className="h-8 w-8">
+                                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                                  </Button>
+                                              </div>
+                                              <div className="grid grid-cols-2 gap-3">
+                                                  <div className="space-y-1">
+                                                      <Label htmlFor={`x-${rect.id}`} className="text-xs">X</Label>
+                                                      <Input id={`x-${rect.id}`} type="number" value={rect.x} onChange={(e) => handleRectUpdate(rect.id, 'x', e.target.value)} />
+                                                  </div>
+                                                  <div className="space-y-1">
+                                                      <Label htmlFor={`y-${rect.id}`} className="text-xs">Y</Label>
+                                                      <Input id={`y-${rect.id}`} type="number" value={rect.y} onChange={(e) => handleRectUpdate(rect.id, 'y', e.target.value)} />
+                                                  </div>
+                                                  <div className="space-y-1">
+                                                      <Label htmlFor={`w-${rect.id}`} className="text-xs">Ancho (W)</Label>
+                                                      <Input id={`w-${rect.id}`} type="number" value={rect.width} onChange={(e) => handleRectUpdate(rect.id, 'width', e.target.value)} />
+                                                  </div>
+                                                  <div className="space-y-1">
+                                                      <Label htmlFor={`h-${rect.id}`} className="text-xs">Alto (H)</Label>
+                                                      <Input id={`h-${rect.id}`} type="number" value={rect.height} onChange={(e) => handleRectUpdate(rect.id, 'height', e.target.value)} />
+                                                  </div>
+                                              </div>
+                                          </div>
+                                      ))}
+                                  </CardContent>
+                              </Card>
+                          )}
+                        </div>
+                      </AccordionContent>
                   </Card>
-              )}
+                </AccordionItem>
+              </Accordion>
           </div>
         </div>
         
@@ -1083,6 +1094,8 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
 
