@@ -811,7 +811,7 @@ export default function TryPage() {
             </p>
         </header>
 
-        <div className="flex flex-col gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card>
               <CardHeader>
                 <CardTitle>Cargar Archivo PDF</CardTitle>
