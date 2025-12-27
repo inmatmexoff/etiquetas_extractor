@@ -592,7 +592,10 @@ export default function TryPage() {
                       ctx.fillText(selectedCompany, x, 290);
 
                       if (logoImage.complete && logoImage.naturalWidth > 0) {
-                          const logoWidth = 130;
+                          let logoWidth = 130;
+                          if (selectedCompany === 'MTM' || selectedCompany === 'HOGARDEN') {
+                            logoWidth = 150;
+                          }
                           const logoHeight = logoImage.height * (logoWidth / logoImage.width);
                           let logoX, logoY;
                           if (labelGroup === 1) {
@@ -1080,6 +1083,8 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
 
