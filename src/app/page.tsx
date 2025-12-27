@@ -118,6 +118,18 @@ export default function TryPage() {
       id: Date.now() + index,
     }));
     setRectangles(initialRects);
+
+    const dayOfWeek = new Date().getDay();
+    const colors = [
+        '#000000', // Sunday - Black as default
+        '#0000FF', // Monday - Blue
+        '#000000', // Tuesday - Black
+        '#008000', // Wednesday - Green
+        '#800080', // Thursday - Purple
+        '#FF0000', // Friday - Red
+        '#FFA500', // Saturday - Orange
+    ];
+    setTextColor(colors[dayOfWeek]);
   }, []);
 
   const handleExtractData = async (doc: any) => {
@@ -816,16 +828,6 @@ export default function TryPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <div>
-                            <Label htmlFor="color-picker">Color del Texto</Label>
-                             <Input
-                                id="color-picker"
-                                type="color"
-                                value={textColor}
-                                onChange={(e) => setTextColor(e.target.value)}
-                                className="w-full h-10 p-1"
-                            />
                         </div>
                     </CardContent>
                 </Card>
