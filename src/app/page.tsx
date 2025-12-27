@@ -70,7 +70,7 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "PRODUCTO 2", x: 549, y: 88, width: 269, height: 60 },
 ];
 
-const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA"];
+const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA", "TOLEXAL"];
 
 const MEXICAN_STATES = [
     "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
@@ -528,7 +528,11 @@ export default function TryPage() {
           });
   
           const logoImage = new Image();
-          logoImage.src = `/logos/${selectedCompany}.png`;
+          let logoSrc = `/logos/${selectedCompany}.png`;
+          if (selectedCompany === 'MTM') {
+            logoSrc = `/logos/INMATMEX.png`;
+          }
+          logoImage.src = logoSrc;
           
           await new Promise((resolve, reject) => {
               logoImage.onload = resolve;
@@ -1076,5 +1080,7 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
