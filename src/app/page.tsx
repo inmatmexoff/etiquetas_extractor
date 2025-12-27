@@ -496,104 +496,124 @@ export default function TryPage() {
   });
 
   const handleDownloadModifiedPdf = async () => {
-    if (!pdfDoc) {
-      toast({ variant: "destructive", title: "No hay PDF cargado" });
-      return;
-    }
-    if (!selectedCompany) {
-      toast({ variant: "destructive", title: "Selecciona una empresa" });
-      return;
-    }
-    if (groupedResults.length === 0) {
-        toast({ variant: "destructive", title: "No hay datos extraídos", description: "Extrae los datos primero para saber qué etiquetas enumerar." });
-        return;
-    }
-
-    setIsLoading(true);
-    try {
-      const pdf = new jsPDF({
-        orientation: "p",
-        unit: "pt",
-        format: "letter",
-      });
-
-      // Group results by page number to know what to draw on each page
-      const resultsByPage: { [key: number]: GroupedExtractedData[] } = {};
-      groupedResults.forEach(result => {
-        const pageKey = result['Página'];
-        if (!resultsByPage[pageKey]) {
-          resultsByPage[pageKey] = [];
-        }
-        resultsByPage[pageKey].push(result);
-      });
-
-      for (let i = 1; i <= pdfDoc.numPages; i++) {
-        const page = await pdfDoc.getPage(i);
-        const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
-
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        if (!ctx) continue;
-
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        
-        ctx.fillStyle = textColor;
-        ctx.textAlign = "center";
-        
-        const pageResults = resultsByPage[i];
-
-        if (pageResults) {
-            pageResults.forEach(result => {
-                const listadoCounter = result['LISTADO'];
-                const labelGroup = result.labelGroup;
-
-                let x;
-                if (selectedCompany === 'PALO DE ROSA') {
-                    x = labelGroup === 1 ? 355 : 748;
-                } else {
-                    x = labelGroup === 1 ? 360 : 753;
-                }
-                
-                let companyFontSize;
-                if (selectedCompany === 'PALO DE ROSA') {
-                    companyFontSize = 18;
-                } else if (['DOMESKA', 'HOGARDEN'].includes(selectedCompany)) {
-                    companyFontSize = 20;
-                } else {
-                    companyFontSize = 30;
-                }
-
-                ctx.font = `bold 30px Arial`;
-                ctx.fillText(`${listadoCounter}`, x, 260);
-                
-                ctx.font = `bold ${companyFontSize}px Arial`;
-                ctx.fillText(selectedCompany, x, 290);
-            });
-        }
-        
-        const imgData = canvas.toDataURL("image/jpeg", 0.7);
-        
-        if (i > 1) {
-            pdf.addPage();
-        }
-        
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+      if (!pdfDoc) {
+          toast({ variant: "destructive", title: "No hay PDF cargado" });
+          return;
       }
+      if (!selectedCompany) {
+          toast({ variant: "destructive", title: "Selecciona una empresa" });
+          return;
+      }
+      if (groupedResults.length === 0) {
+          toast({ variant: "destructive", title: "No hay datos extraídos", description: "Extrae los datos primero para saber qué etiquetas enumerar." });
+          return;
+      }
+  
+      setIsLoading(true);
+      try {
+          const pdf = new jsPDF({
+              orientation: "p",
+              unit: "pt",
+              format: "letter",
+          });
+  
+          // Group results by page number to know what to draw on each page
+          const resultsByPage: { [key: number]: GroupedExtractedData[] } = {};
+          groupedResults.forEach(result => {
+              const pageKey = result['Página'];
+              if (!resultsByPage[pageKey]) {
+                  resultsByPage[pageKey] = [];
+              }
+              resultsByPage[pageKey].push(result);
+          });
+  
+          const logoImage = new Image();
+          logoImage.src = `/logos/${selectedCompany}.png`;
+          
+          await new Promise((resolve, reject) => {
+              logoImage.onload = resolve;
+              logoImage.onerror = reject;
+          });
+  
+          for (let i = 1; i <= pdfDoc.numPages; i++) {
+              const page = await pdfDoc.getPage(i);
+              const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+  
+              const canvas = document.createElement("canvas");
+              const ctx = canvas.getContext("2d");
+              if (!ctx) continue;
+  
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+  
+              await page.render({ canvasContext: ctx, viewport }).promise;
+              
+              ctx.fillStyle = textColor;
+              ctx.textAlign = "center";
+              
+              const pageResults = resultsByPage[i];
+  
+              if (pageResults) {
+                  for (const result of pageResults) {
+                      const listadoCounter = result['LISTADO'];
+                      const labelGroup = result.labelGroup;
+  
+                      let x, logoX, logoY, logoWidth, logoHeight;
+                      
+                      const baseL1X = 360;
+                      const baseL2X = 753;
 
-      pdf.save("etiquetas_modificadas.pdf");
-      toast({ title: "PDF modificado generado" });
+                      if (labelGroup === 1) {
+                        x = baseL1X;
+                        logoX = baseL1X - 50;
+                      } else {
+                        x = baseL2X;
+                        logoX = baseL2X - 50;
+                      }
+                      
+                      logoY = 170;
+                      logoWidth = 100;
+                      logoHeight = 50;
+                      
+                      ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
 
-    } catch (e: any) {
-      console.error(e);
-      toast({ variant: "destructive", title: "Error al generar el PDF modificado", description: e.message });
-    } finally {
-      setIsLoading(false);
-    }
+                      ctx.font = `bold 30px Arial`;
+                      ctx.fillText(`${listadoCounter}`, x, 260);
+                      
+                      let companyFontSize;
+                      if (selectedCompany === 'PALO DE ROSA') {
+                          companyFontSize = 18;
+                      } else if (['DOMESKA', 'HOGARDEN'].includes(selectedCompany)) {
+                          companyFontSize = 20;
+                      } else {
+                          companyFontSize = 30;
+                      }
+
+                      ctx.font = `bold ${companyFontSize}px Arial`;
+                      ctx.fillText(selectedCompany, x, 290);
+                  }
+              }
+              
+              const imgData = canvas.toDataURL("image/jpeg", 0.7);
+              
+              if (i > 1) {
+                  pdf.addPage();
+              }
+              
+              const pdfWidth = pdf.internal.pageSize.getWidth();
+              const pdfHeight = pdf.internal.pageSize.getHeight();
+              pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+          }
+  
+          pdf.save("etiquetas_modificadas.pdf");
+          toast({ title: "PDF modificado generado" });
+  
+      } catch (e: any) {
+          console.error(e);
+          toast({ variant: "destructive", title: "Error al generar el PDF modificado", description: "No se pudo cargar el logo. Asegúrate que exista en /public/logos/ con el nombre correcto (ej: HOGARDEN.png)." });
+      } finally {
+          setIsLoading(false);
+      }
   };
 
 
@@ -768,7 +788,7 @@ export default function TryPage() {
       <div className="container mx-auto max-w-7xl space-y-8">
         <header className="text-center">
             <h1 className="text-4xl font-bold tracking-tight text-primary">
-                Extractor de Etiquetas de Envío (Modo Prueba)
+                Extractor de Etiquetas de Envío
             </h1>
             <p className="mt-2 text-lg text-muted-foreground">
                 {pdfDoc && pageNum > 1 ? "La definición de áreas solo está habilitada en la primera página." : "Dibuja rectángulos o introduce coordenadas para definir áreas de extracción."}
@@ -1047,5 +1067,7 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
