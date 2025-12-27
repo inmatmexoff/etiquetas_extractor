@@ -592,10 +592,10 @@ export default function TryPage() {
                           const logoHeight = logoImage.height * (logoWidth / logoImage.width);
                           let logoX, logoY;
                           if (labelGroup === 1) {
-                              logoX = 150;
+                              logoX = 170;
                               logoY = 530;
                           } else { // labelGroup === 2
-                              logoX = 543;
+                              logoX = 563;
                               logoY = 530;
                           }
                           ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
@@ -1076,3 +1076,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
