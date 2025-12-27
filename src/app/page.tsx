@@ -588,14 +588,14 @@ export default function TryPage() {
                       ctx.fillText(selectedCompany, x, 290);
 
                       if (logoImage.complete && logoImage.naturalWidth > 0) {
-                          const logoWidth = 100;
+                          const logoWidth = 130;
                           const logoHeight = logoImage.height * (logoWidth / logoImage.width);
                           let logoX, logoY;
                           if (labelGroup === 1) {
-                              logoX = 100;
+                              logoX = 150;
                               logoY = 530;
                           } else { // labelGroup === 2
-                              logoX = 493;
+                              logoX = 543;
                               logoY = 530;
                           }
                           ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
@@ -1076,5 +1076,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
