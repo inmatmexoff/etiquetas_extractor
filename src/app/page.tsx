@@ -811,66 +811,61 @@ export default function TryPage() {
             </p>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            <div className="lg:col-span-1 flex flex-col gap-8">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Cargar Archivo PDF</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid w-full items-center gap-2">
-                      <Label htmlFor="pdf-upload" className="sr-only">Sube tu factura en PDF</Label>
-                      <Input
-                        id="pdf-upload"
-                        type="file"
-                        accept="application/pdf"
-                        onChange={handleFileChange}
-                        className="hidden"
-                        disabled={isLoading}
-                      />
-                      <label
-                        htmlFor="pdf-upload"
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-accent transition-colors"
-                      >
-                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                              <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
-                              <p className="text-sm text-muted-foreground">
-                                  <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra
-                              </p>
-                              <p className="text-xs text-muted-foreground">Solo archivos PDF</p>
-                          </div>
-                      </label>
+        <div className="flex flex-col gap-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cargar Archivo PDF</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid w-full items-center gap-2">
+                  <Label htmlFor="pdf-upload" className="sr-only">Sube tu factura en PDF</Label>
+                  <Input
+                    id="pdf-upload"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    disabled={isLoading}
+                  />
+                  <label
+                    htmlFor="pdf-upload"
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-accent transition-colors"
+                  >
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                              <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra
+                          </p>
+                          <p className="text-xs text-muted-foreground">Solo archivos PDF</p>
+                      </div>
+                  </label>
+                </div>
+                {error && <p className="mt-4 text-sm text-destructive font-medium">{error}</p>}
+                {qrCodeValue && <p className="mt-4 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
+                 {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Procesando...</p>}
+              </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle>Configuración de Etiqueta</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div>
+                        <Label htmlFor="company-select">Seleccionar Empresa</Label>
+                        <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                            <SelectTrigger id="company-select" className="w-full">
+                                <SelectValue placeholder="Selecciona una empresa" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {COMPANIES.map(company => (
+                                    <SelectItem key={company} value={company}>{company}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    {error && <p className="mt-4 text-sm text-destructive font-medium">{error}</p>}
-                    {qrCodeValue && <p className="mt-4 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
-                     {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Procesando...</p>}
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Configuración de Etiqueta</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <div>
-                            <Label htmlFor="company-select">Seleccionar Empresa</Label>
-                            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                                <SelectTrigger id="company-select" className="w-full">
-                                    <SelectValue placeholder="Selecciona una empresa" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {COMPANIES.map(company => (
-                                        <SelectItem key={company} value={company}>{company}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-            <div className="lg:col-span-2 flex flex-col gap-8">
-              {/* This section is moved below the PDF preview */}
-            </div>
+                </CardContent>
+            </Card>
         </div>
         
         <Accordion type="single" collapsible className="w-full">
