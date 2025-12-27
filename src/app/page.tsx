@@ -532,7 +532,11 @@ export default function TryPage() {
           
           await new Promise((resolve, reject) => {
               logoImage.onload = resolve;
-              logoImage.onerror = reject;
+              logoImage.onerror = (err) => {
+                  console.error("Failed to load logo", err);
+                  // Resolve even if the logo fails to load, so the PDF generation can continue.
+                  resolve(null);
+              };
           });
   
           for (let i = 1; i <= pdfDoc.numPages; i++) {
@@ -558,27 +562,15 @@ export default function TryPage() {
                       const listadoCounter = result['LISTADO'];
                       const labelGroup = result.labelGroup;
   
-                      let x, logoX, logoY, logoWidth, logoHeight;
-                      
+                      let x;
                       const baseL1X = 360;
                       const baseL2X = 753;
 
                       if (labelGroup === 1) {
                         x = baseL1X;
-                        logoX = baseL1X - 50;
                       } else {
                         x = baseL2X;
-                        logoX = baseL2X - 50;
                       }
-                      
-                      logoY = 170;
-                      logoWidth = 100;
-                      logoHeight = 50;
-                      
-                      ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
-
-                      ctx.font = `bold 30px Arial`;
-                      ctx.fillText(`${listadoCounter}`, x, 260);
                       
                       let companyFontSize;
                       if (selectedCompany === 'PALO DE ROSA') {
@@ -589,8 +581,25 @@ export default function TryPage() {
                           companyFontSize = 30;
                       }
 
+                      ctx.font = `bold 30px Arial`;
+                      ctx.fillText(`${listadoCounter}`, x, 260);
+
                       ctx.font = `bold ${companyFontSize}px Arial`;
                       ctx.fillText(selectedCompany, x, 290);
+
+                      if (logoImage.complete && logoImage.naturalWidth > 0) {
+                          const logoWidth = 100;
+                          const logoHeight = logoImage.height * (logoWidth / logoImage.width);
+                          let logoX, logoY;
+                          if (labelGroup === 1) {
+                              logoX = 100;
+                              logoY = 530;
+                          } else { // labelGroup === 2
+                              logoX = 493;
+                              logoY = 530;
+                          }
+                          ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
+                      }
                   }
               }
               
@@ -1067,7 +1076,5 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
 
     
