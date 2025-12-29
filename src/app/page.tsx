@@ -95,6 +95,7 @@ export default function TryPage() {
   const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [textColor, setTextColor] = useState("#000000");
+  const [printerName, setPrinterName] = useState<string>("");
 
 
   // Drawing state
@@ -508,6 +509,10 @@ export default function TryPage() {
           toast({ variant: "destructive", title: "No hay datos extraídos", description: "Extrae los datos primero para saber qué etiquetas enumerar." });
           return;
       }
+      if (!printerName) {
+        toast({ variant: "destructive", title: "Falta nombre", description: "Por favor, introduce el nombre de quien imprime." });
+        return;
+      }
   
       setIsLoading(true);
       try {
@@ -517,7 +522,6 @@ export default function TryPage() {
               format: "letter",
           });
   
-          // Group results by page number to know what to draw on each page
           const resultsByPage: { [key: number]: GroupedExtractedData[] } = {};
           groupedResults.forEach(result => {
               const pageKey = result['Página'];
@@ -540,11 +544,12 @@ export default function TryPage() {
               logoImage.onload = resolve;
               logoImage.onerror = (err) => {
                   console.error("Failed to load logo", err);
-                  // Resolve even if the logo fails to load, so the PDF generation can continue.
                   resolve(null);
               };
           });
   
+          let lastEnumeratedPage = 0;
+
           for (let i = 1; i <= pdfDoc.numPages; i++) {
               const page = await pdfDoc.getPage(i);
               const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
@@ -564,6 +569,7 @@ export default function TryPage() {
               const pageResults = resultsByPage[i];
   
               if (pageResults) {
+                  lastEnumeratedPage = i;
                   for (const result of pageResults) {
                       const listadoCounter = result['LISTADO'];
                       const labelGroup = result.labelGroup;
@@ -621,6 +627,26 @@ export default function TryPage() {
               const pdfWidth = pdf.internal.pageSize.getWidth();
               const pdfHeight = pdf.internal.pageSize.getHeight();
               pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+          }
+
+          // Add summary page
+          if (groupedResults.length > 0) {
+            const now = new Date();
+            const dayOfWeek = now.toLocaleDateString('es-ES', { weekday: 'long' });
+            const date = now.toLocaleDateString('es-ES');
+            const time = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+            const firstListado = groupedResults[0]['LISTADO'];
+            const lastListado = groupedResults[groupedResults.length - 1]['LISTADO'];
+            const deliveryDate = groupedResults[0]['FECHA ENTREGA'] || 'N/A';
+
+            pdf.addPage();
+            pdf.setFontSize(12);
+            pdf.text(`Etiquetas Impresas: ${groupedResults.length}`, 40, 50);
+            pdf.text(`Empresa: ${selectedCompany}`, 40, 65);
+            pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, 40, 80);
+            pdf.text(`Entrega: ${deliveryDate}`, 40, 95);
+            pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, 40, 110);
           }
   
           pdf.save("etiquetas_modificadas.pdf");
@@ -865,6 +891,15 @@ export default function TryPage() {
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                     <div>
+                        <Label htmlFor="printer-name">Imprimió</Label>
+                        <Input 
+                            id="printer-name" 
+                            placeholder="Nombre de la persona" 
+                            value={printerName} 
+                            onChange={(e) => setPrinterName(e.target.value)}
+                        />
                     </div>
                 </CardContent>
             </Card>
