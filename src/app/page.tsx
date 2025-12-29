@@ -596,17 +596,19 @@ export default function TryPage() {
               };
           });
 
-          let textColor: string | undefined = '#000000'; // Default black
+          let textColor: string = '#000000'; // Default black
           let deliveryDateForSummary: Date | null = null;
           if (groupedResults.length > 0 && groupedResults[0]['FECHA ENTREGA']) {
-              const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
-              const parts = deliveryDateStr.split('-').map(part => parseInt(part, 10));
-              if (parts.length === 3) {
+              // Sanitize the date string to remove any non-digit or non-hyphen characters
+              const sanitizedDateStr = (groupedResults[0]['FECHA ENTREGA'] as string).replace(/[^\d-]/g, '');
+              const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
+              
+              if (parts.length === 3 && !parts.some(isNaN)) {
                   // Use Date.UTC to create a date that isn't affected by local timezone.
                   const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
                   if (!isNaN(deliveryDate.getTime())) {
                       deliveryDateForSummary = deliveryDate;
-                      const dayOfWeek = deliveryDate.getUTCDay();
+                      const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                        const colors = [
                           '#FFA500', // Sunday - Orange
                           '#0000FF', // Monday - Blue
@@ -636,7 +638,7 @@ export default function TryPage() {
   
               await page.render({ canvasContext: ctx, viewport }).promise;
               
-              ctx.fillStyle = textColor || '#000000';
+              ctx.fillStyle = textColor;
               ctx.textAlign = "center";
               
               const pageResults = resultsByPage[i];
@@ -653,7 +655,7 @@ export default function TryPage() {
 
                       if (labelGroup === 1) {
                         x = baseL1X;
-                      } else {
+                      } else { // labelGroup === 2
                         x = baseL2X;
                       }
                       
@@ -1241,5 +1243,7 @@ export default function TryPage() {
 
     
 
+
+    
 
     
