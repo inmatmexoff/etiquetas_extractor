@@ -649,11 +649,11 @@ export default function TryPage() {
             const deliveryDate = groupedResults[0]['FECHA ENTREGA'] || 'N/A';
 
             pdf.setFontSize(12);
-            pdf.text(`Etiquetas Impresas: ${groupedResults.length}`, 40, 50);
-            pdf.text(`Empresa: ${selectedCompany}`, 40, 65);
-            pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, 40, 80);
-            pdf.text(`Entrega: ${deliveryDate}`, 40, 95);
-            pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, 40, 110);
+            pdf.text(`Etiquetas Impresas: ${groupedResults.length}`, 40, 20);
+            pdf.text(`Empresa: ${selectedCompany}`, 40, 35);
+            pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, 40, 50);
+            pdf.text(`Entrega: ${deliveryDate}`, 40, 65);
+            pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, 40, 80);
           }
   
           pdf.save("etiquetas_modificadas.pdf");
