@@ -606,7 +606,7 @@ export default function TryPage() {
                   const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
                   if (!isNaN(deliveryDate.getTime())) {
                       deliveryDateForSummary = deliveryDate;
-                      const dayOfWeek = deliveryDate.getDay();
+                      const dayOfWeek = deliveryDate.getUTCDay();
                        const colors = [
                           '#FFA500', // Sunday - Orange
                           '#0000FF', // Monday - Blue
