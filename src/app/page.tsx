@@ -633,10 +633,10 @@ export default function TryPage() {
           if (groupedResults.length > 0) {
             const summaryPageNumber = lastEnumeratedPage + 1;
             
-            if (summaryPageNumber > pdfDoc.numPages) {
-                pdf.addPage();
-            } else {
+            if (summaryPageNumber <= pdfDoc.numPages) {
                 pdf.setPage(summaryPageNumber);
+            } else {
+                 pdf.addPage();
             }
 
             const now = new Date();
@@ -648,7 +648,7 @@ export default function TryPage() {
             const lastListado = groupedResults[groupedResults.length - 1]['LISTADO'];
             const deliveryDate = groupedResults[0]['FECHA ENTREGA'] || 'N/A';
 
-            pdf.setFontSize(12);
+            pdf.setFontSize(10);
             pdf.text(`Etiquetas Impresas: ${groupedResults.length}`, 40, 20);
             pdf.text(`Empresa: ${selectedCompany}`, 40, 35);
             pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, 40, 50);
@@ -1135,3 +1135,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
