@@ -225,7 +225,8 @@ export default function TryPage() {
                         const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
                         const month = monthMap[monthStr];
                         if (month) {
-                           extractedText = `2025-${month}-${day}`; // Assuming year 2025 for now
+                           const currentYear = new Date().getFullYear();
+                           extractedText = `${currentYear}-${month}-${day}`;
                         }
                     }
                 } else if (cleanLabel.includes('NUM DE VENTA')) {
@@ -547,24 +548,23 @@ export default function TryPage() {
           let deliveryDateForSummary: Date | null = null;
           if (groupedResults.length > 0 && groupedResults[0]['FECHA ENTREGA']) {
               const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
-              // The date comes in 'YYYY-MM-DD'
               const parts = deliveryDateStr.split('-').map(part => parseInt(part, 10));
-              // new Date(year, monthIndex, day) - JS months are 0-indexed
-              const deliveryDate = new Date(parts[0], parts[1] - 1, parts[2]);
-              
-              if (!isNaN(deliveryDate.getTime())) {
-                deliveryDateForSummary = deliveryDate;
-                const dayOfWeek = deliveryDate.getDay();
-                const colors = [
-                    '#FFA500', // Sunday - Orange
-                    '#0000FF', // Monday - Blue
-                    '#000000', // Tuesday - Black
-                    '#008000', // Wednesday - Green
-                    '#800080', // Thursday - Purple
-                    '#FF0000', // Friday - Red
-                    '#FFA500', // Saturday - Orange
-                ];
-                textColor = colors[dayOfWeek];
+              if (parts.length === 3) {
+                  const deliveryDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                  if (!isNaN(deliveryDate.getTime())) {
+                      deliveryDateForSummary = deliveryDate;
+                      const dayOfWeek = deliveryDate.getUTCDay();
+                       const colors = [
+                          '#FFA500', // Sunday - Orange
+                          '#0000FF', // Monday - Blue
+                          '#000000', // Tuesday - Black
+                          '#008000', // Wednesday - Green
+                          '#800080', // Thursday - Purple
+                          '#FF0000', // Friday - Red
+                          '#FFA500', // Saturday - Orange
+                      ];
+                      textColor = colors[dayOfWeek];
+                  }
               }
           }
   
@@ -679,16 +679,19 @@ export default function TryPage() {
 
             const lineSpacing = 13;
             let currentY = 20;
+            const leftX = 40;
+            const rightX = 300;
 
-            pdf.text(`Etiquetas Impresas: ${groupedResults.length}`, 40, currentY);
+            pdf.text(`Etiquetas Impresas: ${groupedResults.length}`, leftX, currentY);
             currentY += lineSpacing;
-            pdf.text(`Empresa: ${selectedCompany}`, 40, currentY);
+            pdf.text(`Empresa: ${selectedCompany}`, leftX, currentY);
             currentY += lineSpacing;
-            pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, 40, currentY);
-            currentY += lineSpacing;
-            pdf.text(`Entrega: ${deliveryDateStr || 'N/A'}`, 40, currentY);
-            currentY += lineSpacing;
-            pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, 40, currentY);
+            pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, leftX, currentY);
+            
+            let rightY = 20;
+            pdf.text(`Entrega: ${deliveryDateStr || 'N/A'}`, rightX, rightY);
+            rightY += lineSpacing;
+            pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, rightX, rightY);
           }
   
           pdf.save("etiquetas_modificadas.pdf");
@@ -696,7 +699,7 @@ export default function TryPage() {
   
       } catch (e: any) {
           console.error(e);
-          toast({ variant: "destructive", title: "Error al generar el PDF modificado", description: "No se pudo cargar el logo. Asegúrate que exista en /public/logos/ con el nombre correcto (ej: HOGARDEN.png)." });
+          toast({ variant: "destructive", title: "Error al generar el PDF modificado", description: e.message || "No se pudo generar el PDF." });
       } finally {
           setIsLoading(false);
       }
@@ -1003,82 +1006,82 @@ export default function TryPage() {
             </AccordionItem>
         </Accordion>
 
-          {pdfDoc && (
+        {pdfDoc && (
             <Card>
-              <CardHeader>
+                <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-xl">Vista Previa del PDF</CardTitle>
-                   <div className="flex items-center gap-2">
-                      <Button onClick={() => { setRectangles([]); setExtractedData([]); }} disabled={rectangles.length === 0} variant="destructive" size="sm">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Limpiar Dibujos
-                      </Button>
-                      <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
-                          <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <span className="text-sm font-medium tabular-nums">
-                          Página {pageNum} de {numPages}
-                      </span>
-                      <Button onClick={onNextPage} disabled={pageNum >= numPages || pageRendering} variant="outline" size="icon">
-                          <ChevronRight className="h-4 w-4" />
-                      </Button>
-                  </div>
+                    <CardTitle className="text-xl">Vista Previa del PDF</CardTitle>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={() => { setRectangles([]); setExtractedData([]); }} disabled={rectangles.length === 0} variant="destructive" size="sm">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Limpiar Dibujos
+                        </Button>
+                        <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm font-medium tabular-nums">
+                            Página {pageNum} de {numPages}
+                        </span>
+                        <Button onClick={onNextPage} disabled={pageNum >= numPages || pageRendering} variant="outline" size="icon">
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
-              </CardHeader>
-              <CardContent>
+                </CardHeader>
+                <CardContent>
                 <div 
                     className={cn(
                         "h-[70vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50",
-                         pageNum === 1 ? "cursor-crosshair" : "cursor-default"
+                            pageNum === 1 ? "cursor-crosshair" : "cursor-default"
                     )}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
                 >
-                  <div
+                    <div
                     ref={drawingAreaRef}
                     className="absolute top-0 left-0"
                     style={{ touchAction: 'none' }}
-                  >
+                    >
                     <canvas ref={canvasRef}></canvas>
                     {pageNum === 1 && rectangles.map((rect) => (
                         <div
-                          key={rect.id}
-                          className="absolute border-2 border-destructive/70 drawn-rectangle pointer-events-none"
-                          style={{
-                              left: rect.x,
-                              top: rect.y,
-                              width: rect.width,
-                              height: rect.height,
-                          }}
+                            key={rect.id}
+                            className="absolute border-2 border-destructive/70 drawn-rectangle pointer-events-none"
+                            style={{
+                                left: rect.x,
+                                top: rect.y,
+                                width: rect.width,
+                                height: rect.height,
+                            }}
                         >
-                          <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
+                            <span className="absolute -top-6 left-0 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-sm shadow-sm">
                             {rect.label}
-                          </span>
-                          <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
+                            </span>
+                            <span className="absolute -bottom-5 left-0 text-xs bg-blue-500 text-white px-1 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
                             x:{rect.x}, y:{rect.y}, w:{rect.width}, h:{rect.height}
-                          </span>
+                            </span>
                         </div>
                     ))}
                     {isDrawing && currentRect && (
-                       <div
-                          className="absolute border-2 border-blue-500/70 pointer-events-none"
-                          style={{
-                              left: currentRect.width > 0 ? currentRect.x : currentRect.x + currentRect.width,
-                              top: currentRect.height > 0 ? currentRect.y : currentRect.y + currentRect.height,
-                              width: Math.abs(currentRect.width),
-                              height: Math.abs(currentRect.height),
-                          }}
+                        <div
+                            className="absolute border-2 border-blue-500/70 pointer-events-none"
+                            style={{
+                                left: currentRect.width > 0 ? currentRect.x : currentRect.x + currentRect.width,
+                                top: currentRect.height > 0 ? currentRect.y : currentRect.y + currentRect.height,
+                                width: Math.abs(currentRect.width),
+                                height: Math.abs(currentRect.height),
+                            }}
                         />
                     )}
-                  </div>
-                  {pageRendering && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center font-medium">Cargando...</div>}
+                    </div>
+                    {pageRendering && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center font-medium">Cargando...</div>}
                 </div>
-              </CardContent>
+                </CardContent>
             </Card>
-          )}
-
+        )}
+          
         <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="item-1" className="border-b-0">
                 <Card>
@@ -1176,6 +1179,7 @@ export default function TryPage() {
 
 
     
+
 
 
 
