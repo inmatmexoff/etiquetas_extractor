@@ -55,14 +55,14 @@ const PDF_RENDER_SCALE = 1.5;
 
 const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     // Primera etiqueta
-    { label: "FECHA ENTREGA", x: 293, y: 311, width: 137, height: 33 },
+    { label: "FECHA ENTREGA", x: 193, y: 311, width: 238, height: 33 },
     { label: "CANTIDAD", x: 69, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO", x: 48, y: 933, width: 291, height: 119 },
     { label: "CODIGO DE BARRA", x: 144, y: 445, width: 154, height: 30 },
     { label: "NUM DE VENTA", x: 53, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO", x: 156, y: 88, width: 269, height: 60 },
     // Segunda etiqueta
-    { label: "FECHA ENTREGA 2", x: 686, y: 311, width: 137, height: 33 },
+    { label: "FECHA ENTREGA 2", x: 586, y: 311, width: 238, height: 33 },
     { label: "CANTIDAD 2", x: 462, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO 2", x: 441, y: 933, width: 291, height: 119 },
     { label: "CODIGO DE BARRA 2", x: 537, y: 445, width: 154, height: 30 },
@@ -198,6 +198,14 @@ export default function TryPage() {
                 if (cleanLabel.includes('CANTIDAD')) {
                     extractedText = extractedText.replace(/Cantidad|Productos|Unidad(es)?/gi, '').trim();
                 } else if (cleanLabel.includes('FECHA ENTREGA')) {
+                    const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
+                    const timeMatch = extractedText.match(timeRegex);
+
+                    if (timeMatch) {
+                        pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[0];
+                        extractedText = extractedText.replace(timeMatch[0], '').trim();
+                    }
+                    
                     const monthMap: { [key: string]: string } = {
                         'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
                         'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
@@ -474,7 +482,7 @@ export default function TryPage() {
   const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
   let allHeaders = ["LISTADO", "Página", "EMPRESA", ...baseHeaders];
   // Dynamically add new columns if they exist in any result
-  const dynamicHeaders = ['SKU', 'CP', 'CLIENTE', 'CIUDAD', 'ESTADO'];
+  const dynamicHeaders = ['SKU', 'CP', 'CLIENTE', 'CIUDAD', 'ESTADO', 'HORA ENTREGA'];
   dynamicHeaders.forEach(header => {
       if (groupedResults.some(row => row[header])) {
           if (!allHeaders.includes(header)) {
@@ -816,6 +824,7 @@ export default function TryPage() {
         folio: row["LISTADO"],
         organization: row["EMPRESA"],
         deli_date: row["FECHA ENTREGA"],
+        deli_hour: row["HORA ENTREGA"],
         quantity: Number(row["CANTIDAD"]) || null,
         client: row["CLIENTE INFO"],
         client_name: row["CLIENTE"],
@@ -1163,3 +1172,4 @@ export default function TryPage() {
 
 
     
+
