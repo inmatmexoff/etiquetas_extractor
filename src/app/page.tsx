@@ -94,7 +94,6 @@ export default function TryPage() {
   const [error, setError] = useState<string | null>(null);
   const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
-  const [textColor, setTextColor] = useState("#000000");
   const [printerName, setPrinterName] = useState<string>("");
 
 
@@ -119,18 +118,6 @@ export default function TryPage() {
       id: Date.now() + index,
     }));
     setRectangles(initialRects);
-
-    const dayOfWeek = new Date().getDay();
-    const colors = [
-        '#000000', // Sunday - Black as default
-        '#0000FF', // Monday - Blue
-        '#000000', // Tuesday - Black
-        '#008000', // Wednesday - Green
-        '#800080', // Thursday - Purple
-        '#FF0000', // Friday - Red
-        '#FFA500', // Saturday - Orange
-    ];
-    setTextColor(colors[dayOfWeek]);
   }, []);
 
   const handleExtractData = async (doc: any) => {
@@ -547,6 +534,24 @@ export default function TryPage() {
                   resolve(null);
               };
           });
+
+          let textColor = '#000000'; // Default black
+          if (groupedResults.length > 0 && groupedResults[0]['FECHA ENTREGA']) {
+              const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
+              // The date comes in 'YYYY-MM-DD', but the Date constructor needs 'YYYY,MM,DD' or 'YYYY-MM-DDTHH:mm:ss' to avoid timezone issues.
+              const deliveryDate = new Date(deliveryDateStr.replace(/-/g, '/'));
+              const dayOfWeek = deliveryDate.getDay();
+              const colors = [
+                  '#FFA500', // Sunday - Orange
+                  '#0000FF', // Monday - Blue
+                  '#000000', // Tuesday - Black
+                  '#008000', // Wednesday - Green
+                  '#800080', // Thursday - Purple
+                  '#FF0000', // Friday - Red
+                  '#FFA500', // Saturday - Orange
+              ];
+              textColor = colors[dayOfWeek];
+          }
   
           let lastEnumeratedPage = 0;
 
@@ -640,13 +645,16 @@ export default function TryPage() {
             }
 
             const now = new Date();
-            const dayOfWeek = now.toLocaleDateString('es-ES', { weekday: 'long' });
+            // Use delivery date for day of week
+            const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
+            const deliveryDate = new Date(deliveryDateStr.replace(/-/g, '/'));
+            const dayOfWeek = deliveryDate.toLocaleDateString('es-ES', { weekday: 'long' });
+            
             const date = now.toLocaleDateString('es-ES');
             const time = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
             const firstListado = groupedResults[0]['LISTADO'];
             const lastListado = groupedResults[groupedResults.length - 1]['LISTADO'];
-            const deliveryDate = groupedResults[0]['FECHA ENTREGA'] || 'N/A';
 
             pdf.setFontSize(10);
             const rgb = textColor.substring(1).match(/.{1,2}/g)?.map(hex => parseInt(hex, 16)) || [0,0,0];
@@ -661,7 +669,7 @@ export default function TryPage() {
             currentY += lineSpacing;
             pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, 40, currentY);
             currentY += lineSpacing;
-            pdf.text(`Entrega: ${deliveryDate}`, 40, currentY);
+            pdf.text(`Entrega: ${deliveryDateStr || 'N/A'}`, 40, currentY);
             currentY += lineSpacing;
             pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, 40, currentY);
           }
@@ -1145,5 +1153,8 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
+
 
     
