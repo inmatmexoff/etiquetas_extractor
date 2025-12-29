@@ -536,10 +536,14 @@ export default function TryPage() {
           });
 
           let textColor = '#000000'; // Default black
+          let deliveryDateForSummary: Date | null = null;
           if (groupedResults.length > 0 && groupedResults[0]['FECHA ENTREGA']) {
               const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
-              // The date comes in 'YYYY-MM-DD', but the Date constructor needs 'YYYY,MM,DD' or 'YYYY-MM-DDTHH:mm:ss' to avoid timezone issues.
-              const deliveryDate = new Date(deliveryDateStr.replace(/-/g, '/'));
+              // The date comes in 'YYYY-MM-DD'
+              const parts = deliveryDateStr.split('-').map(part => parseInt(part, 10));
+              // new Date(year, monthIndex, day)
+              const deliveryDate = new Date(parts[0], parts[1] - 1, parts[2]);
+              deliveryDateForSummary = deliveryDate;
               const dayOfWeek = deliveryDate.getDay();
               const colors = [
                   '#FFA500', // Sunday - Orange
@@ -647,8 +651,9 @@ export default function TryPage() {
             const now = new Date();
             // Use delivery date for day of week
             const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
-            const deliveryDate = new Date(deliveryDateStr.replace(/-/g, '/'));
-            const dayOfWeek = deliveryDate.toLocaleDateString('es-ES', { weekday: 'long' });
+            const dayOfWeek = deliveryDateForSummary 
+                ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long' }) 
+                : 'N/A';
             
             const date = now.toLocaleDateString('es-ES');
             const time = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
