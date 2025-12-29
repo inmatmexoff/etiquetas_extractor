@@ -649,11 +649,21 @@ export default function TryPage() {
             const deliveryDate = groupedResults[0]['FECHA ENTREGA'] || 'N/A';
 
             pdf.setFontSize(10);
-            pdf.text(`Etiquetas Impresas: ${groupedResults.length}`, 40, 20);
-            pdf.text(`Empresa: ${selectedCompany}`, 40, 35);
-            pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, 40, 50);
-            pdf.text(`Entrega: ${deliveryDate}`, 40, 65);
-            pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, 40, 80);
+            const rgb = textColor.substring(1).match(/.{1,2}/g)?.map(hex => parseInt(hex, 16)) || [0,0,0];
+            pdf.setTextColor(rgb[0], rgb[1], rgb[2]);
+
+            const lineSpacing = 13;
+            let currentY = 20;
+
+            pdf.text(`Etiquetas Impresas: ${groupedResults.length}`, 40, currentY);
+            currentY += lineSpacing;
+            pdf.text(`Empresa: ${selectedCompany}`, 40, currentY);
+            currentY += lineSpacing;
+            pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, 40, currentY);
+            currentY += lineSpacing;
+            pdf.text(`Entrega: ${deliveryDate}`, 40, currentY);
+            currentY += lineSpacing;
+            pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, 40, currentY);
           }
   
           pdf.save("etiquetas_modificadas.pdf");
