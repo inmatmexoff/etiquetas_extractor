@@ -602,12 +602,11 @@ export default function TryPage() {
               const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
               const parts = deliveryDateStr.split('-').map(part => parseInt(part, 10));
               if (parts.length === 3) {
-                  // Use new Date(year, monthIndex, day) for robustness against timezone issues
-                  // This creates a date in the local timezone
-                  const deliveryDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                  // Use Date.UTC to create a date that isn't affected by local timezone.
+                  const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
                   if (!isNaN(deliveryDate.getTime())) {
                       deliveryDateForSummary = deliveryDate;
-                      const dayOfWeek = deliveryDate.getDay(); // Use getDay() for local timezone
+                      const dayOfWeek = deliveryDate.getDay();
                        const colors = [
                           '#FFA500', // Sunday - Orange
                           '#0000FF', // Monday - Blue
@@ -715,7 +714,7 @@ export default function TryPage() {
 
             const now = new Date();
             const dayOfWeek = deliveryDateForSummary 
-                ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long' }) 
+                ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' }) 
                 : 'N/A';
             
             const date = now.toLocaleDateString('es-ES');
@@ -1238,6 +1237,9 @@ export default function TryPage() {
 
 
 
+
+
+    
 
 
     
