@@ -225,7 +225,7 @@ export default function TryPage() {
                         const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
                         const month = monthMap[monthStr];
                         if (month) {
-                           extractedText = `2025-${month}-${day}`;
+                           extractedText = `2025-${month}-${day}`; // Assuming year 2025 for now
                         }
                     }
                 } else if (cleanLabel.includes('NUM DE VENTA')) {
@@ -549,20 +549,23 @@ export default function TryPage() {
               const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
               // The date comes in 'YYYY-MM-DD'
               const parts = deliveryDateStr.split('-').map(part => parseInt(part, 10));
-              // new Date(year, monthIndex, day)
+              // new Date(year, monthIndex, day) - JS months are 0-indexed
               const deliveryDate = new Date(parts[0], parts[1] - 1, parts[2]);
-              deliveryDateForSummary = deliveryDate;
-              const dayOfWeek = deliveryDate.getDay();
-              const colors = [
-                  '#FFA500', // Sunday - Orange
-                  '#0000FF', // Monday - Blue
-                  '#000000', // Tuesday - Black
-                  '#008000', // Wednesday - Green
-                  '#800080', // Thursday - Purple
-                  '#FF0000', // Friday - Red
-                  '#FFA500', // Saturday - Orange
-              ];
-              textColor = colors[dayOfWeek];
+              
+              if (!isNaN(deliveryDate.getTime())) {
+                deliveryDateForSummary = deliveryDate;
+                const dayOfWeek = deliveryDate.getDay();
+                const colors = [
+                    '#FFA500', // Sunday - Orange
+                    '#0000FF', // Monday - Blue
+                    '#000000', // Tuesday - Black
+                    '#008000', // Wednesday - Green
+                    '#800080', // Thursday - Purple
+                    '#FF0000', // Friday - Red
+                    '#FFA500', // Saturday - Orange
+                ];
+                textColor = colors[dayOfWeek];
+              }
           }
   
           let lastEnumeratedPage = 0;
@@ -657,8 +660,6 @@ export default function TryPage() {
             }
 
             const now = new Date();
-            // Use delivery date for day of week
-            const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
             const dayOfWeek = deliveryDateForSummary 
                 ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long' }) 
                 : 'N/A';
@@ -668,6 +669,8 @@ export default function TryPage() {
 
             const firstListado = groupedResults[0]['LISTADO'];
             const lastListado = groupedResults[groupedResults.length - 1]['LISTADO'];
+            const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
+
 
             pdf.setFontSize(10);
             const safeTextColor = textColor || '#000000';
@@ -1173,5 +1176,6 @@ export default function TryPage() {
 
 
     
+
 
 
