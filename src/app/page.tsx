@@ -531,6 +531,8 @@ export default function TryPage() {
           let logoSrc = `/logos/${selectedCompany}.png`;
           if (selectedCompany === 'MTM') {
             logoSrc = `/logos/INMATMEX.png`;
+          } else if (selectedCompany === 'PALO DE ROSA') {
+            logoSrc = `/logos/PALODEROSA.png`;
           }
           logoImage.src = logoSrc;
           
@@ -1091,13 +1093,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
-
-    
-
-    
-
-    
-
-    
