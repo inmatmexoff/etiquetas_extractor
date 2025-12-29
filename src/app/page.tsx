@@ -543,7 +543,7 @@ export default function TryPage() {
               };
           });
 
-          let textColor = '#000000'; // Default black
+          let textColor: string | undefined = '#000000'; // Default black
           let deliveryDateForSummary: Date | null = null;
           if (groupedResults.length > 0 && groupedResults[0]['FECHA ENTREGA']) {
               const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
@@ -580,7 +580,7 @@ export default function TryPage() {
   
               await page.render({ canvasContext: ctx, viewport }).promise;
               
-              ctx.fillStyle = textColor;
+              ctx.fillStyle = textColor || '#000000';
               ctx.textAlign = "center";
               
               const pageResults = resultsByPage[i];
@@ -670,7 +670,8 @@ export default function TryPage() {
             const lastListado = groupedResults[groupedResults.length - 1]['LISTADO'];
 
             pdf.setFontSize(10);
-            const rgb = textColor.substring(1).match(/.{1,2}/g)?.map(hex => parseInt(hex, 16)) || [0,0,0];
+            const safeTextColor = textColor || '#000000';
+            const rgb = safeTextColor.substring(1).match(/.{1,2}/g)?.map(hex => parseInt(hex, 16)) || [0,0,0];
             pdf.setTextColor(rgb[0], rgb[1], rgb[2]);
 
             const lineSpacing = 13;
@@ -1172,4 +1173,5 @@ export default function TryPage() {
 
 
     
+
 
