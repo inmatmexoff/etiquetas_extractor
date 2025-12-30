@@ -610,6 +610,15 @@ export default function TryPage() {
               };
           });
 
+          const companyPhones: { [key: string]: string } = {
+            "PALO DE ROSA": "777 522 9204",
+            "TOLEXAL": "735 279 0563",
+            "MTM": "735 252 7148",
+            "DOMESKA": "735 252 7148",
+            "TAL": "735 252 7148"
+          };
+          const phoneNumber = companyPhones[selectedCompany];
+
           let textColor: string = '#000000'; // Default black
           let deliveryDateForSummary: Date | null = null;
           if (groupedResults.length > 0 && groupedResults[0]['FECHA ENTREGA']) {
@@ -704,6 +713,12 @@ export default function TryPage() {
                               logoY = 530;
                           }
                           ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
+
+                          if (phoneNumber) {
+                              ctx.font = `bold 24px Arial`;
+                              ctx.fillStyle = '#000000'; // Always black for phone number
+                              ctx.fillText(phoneNumber, logoX + logoWidth / 2, logoY + logoHeight + 25);
+                          }
                       }
                   }
               }
@@ -1268,6 +1283,8 @@ export default function TryPage() {
 
     
 
+
+    
 
     
 
