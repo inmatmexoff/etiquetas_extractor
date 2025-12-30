@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -276,6 +277,8 @@ export default function TryPage() {
                 } else if (cleanLabel.includes('FECHA ENTREGA')) {
                     // Use the pre-fetched and formatted date
                      if (currentPageNum === 1 && labelGroup === 1) {
+                        pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
+                        pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
                         extractedText = deliveryDateInfo.dbFormat; // Use DB format for consistency in data
                     } else {
                         // For other pages/labels, extract as before for display or other logic if needed
@@ -296,18 +299,29 @@ export default function TryPage() {
                         let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
                         
                         const datePartsNumeric = cleanText.split('/');
+                        let formattedDate: string | null = null;
                         if (datePartsNumeric.length === 3) {
                             const day = datePartsNumeric[0].padStart(2, '0');
                             const month = datePartsNumeric[1].padStart(2, '0');
                             const year = datePartsNumeric[2];
-                            extractedText = `${year}-${month}-${day}`;
+                            formattedDate = `${year}-${month}-${day}`;
                         } else if (datePartsNumeric.length >= 2) { // Handle "7/feb"
                             const day = datePartsNumeric[0].padStart(2, '0');
                             const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
                             const month = monthMap[monthStr];
                             if (month) {
                                const currentYear = new Date().getFullYear();
-                               extractedText = `${currentYear}-${month}-${day}`;
+                               formattedDate = `${currentYear}-${month}-${day}`;
+                            }
+                        }
+
+                        if (formattedDate) {
+                            extractedText = formattedDate;
+                            const parts = formattedDate.split('-').map(part => parseInt(part, 10));
+                            if (parts.length === 3 && !parts.some(isNaN)) {
+                                const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                                const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+                                pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = `${formattedDate}-${dayOfWeekStr} ${parts[2]}`;
                             }
                         }
                     }
@@ -409,11 +423,18 @@ export default function TryPage() {
                          ...pageLabelData[group]
                      };
 
-                    if (currentPageNum === 1 && group === 1) {
-                        rowData['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
-                        rowData['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
+                    if (!rowData['FECHA ENTREGA (Display)']) {
+                        const dateStr = rowData['FECHA ENTREGA'] as string;
+                        if (dateStr) {
+                            const parts = dateStr.split('-').map(part => parseInt(part, 10));
+                            if (parts.length === 3 && !parts.some(isNaN)) {
+                                const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                                const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+                                rowData['FECHA ENTREGA (Display)'] = `${dateStr}-${dayOfWeekStr} ${parts[2]}`;
+                            }
+                        }
                     }
-
+                    
                      allGroupedData.push(rowData);
                  }
             }
@@ -673,31 +694,6 @@ export default function TryPage() {
             "TAL": "735 252 7148"
           };
           const phoneNumber = companyPhones[selectedCompany];
-
-          let textColor: string = '#000000'; // Default black
-          let deliveryDateForSummary: Date | null = null;
-          if (groupedResults.length > 0 && groupedResults[0]['FECHA ENTREGA']) {
-              const sanitizedDateStr = (groupedResults[0]['FECHA ENTREGA'] as string).replace(/[^\d-]/g, '');
-              const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
-              
-              if (parts.length === 3 && !parts.some(isNaN)) {
-                  const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-                  if (!isNaN(deliveryDate.getTime())) {
-                      deliveryDateForSummary = deliveryDate;
-                      const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-                       const colors = [
-                          '#FFA500', // Sunday - Orange
-                          '#0000FF', // Monday - Blue
-                          '#000000', // Tuesday - Black
-                          '#008000', // Wednesday - Green
-                          '#800080', // Thursday - Purple
-                          '#FF0000', // Friday - Red
-                          '#FFA500', // Saturday - Orange
-                      ];
-                      textColor = colors[dayOfWeek];
-                  }
-              }
-          }
   
           let lastEnumeratedPage = 0;
 
@@ -714,15 +710,38 @@ export default function TryPage() {
   
               await page.render({ canvasContext: ctx, viewport }).promise;
               
-              const safeTextColor = textColor || '#000000';
-              ctx.fillStyle = safeTextColor;
-              ctx.textAlign = "center";
-              
               const pageResults = resultsByPage[i];
   
               if (pageResults) {
                   lastEnumeratedPage = i;
                   for (const result of pageResults) {
+                      
+                      let textColor: string = '#000000'; // Default black
+                      if (result['FECHA ENTREGA']) {
+                          const sanitizedDateStr = (result['FECHA ENTREGA'] as string).replace(/[^\d-]/g, '');
+                          const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
+                          if (parts.length === 3 && !parts.some(isNaN)) {
+                              const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                              if (!isNaN(deliveryDate.getTime())) {
+                                  const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+                                  const colors = [
+                                      '#FFA500', // Sunday - Orange
+                                      '#0000FF', // Monday - Blue
+                                      '#000000', // Tuesday - Black
+                                      '#008000', // Wednesday - Green
+                                      '#800080', // Thursday - Purple
+                                      '#FF0000', // Friday - Red
+                                      '#FFA500', // Saturday - Orange
+                                  ];
+                                  textColor = colors[dayOfWeek];
+                              }
+                          }
+                      }
+                      
+                      const safeTextColor = textColor || '#000000';
+                      ctx.fillStyle = safeTextColor;
+                      ctx.textAlign = "center";
+                      
                       const listadoCounter = result['LISTADO'];
                       const labelGroup = result.labelGroup;
   
@@ -803,6 +822,29 @@ export default function TryPage() {
             }
 
             const now = new Date();
+
+            const firstResultDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
+            let deliveryDateForSummary: Date | null = null;
+            let textColor = '#000000';
+            if(firstResultDateStr) {
+                 const sanitizedDateStr = firstResultDateStr.replace(/[^\d-]/g, '');
+                 const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
+                 if(parts.length === 3 && !parts.some(isNaN)) {
+                     deliveryDateForSummary = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
+                     const dayOfWeek = deliveryDateForSummary.getUTCDay();
+                      const colors = [
+                          '#FFA500', // Sunday - Orange
+                          '#0000FF', // Monday - Blue
+                          '#000000', // Tuesday - Black
+                          '#008000', // Wednesday - Green
+                          '#800080', // Thursday - Purple
+                          '#FF0000', // Friday - Red
+                          '#FFA500', // Saturday - Orange
+                      ];
+                      textColor = colors[dayOfWeek];
+                 }
+            }
+            
             const dayOfWeek = deliveryDateForSummary 
                 ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' }) 
                 : 'N/A';
@@ -1349,3 +1391,4 @@ export default function TryPage() {
 }
 
     
+
