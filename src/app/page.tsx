@@ -705,7 +705,7 @@ export default function TryPage() {
                   for (const result of pageResults) {
                       
                       let textColor: string = '#000000'; // Default black
-                      const dateStr = result['FECHA ENTREGA'] as string;
+                      const dateStr = result['FECHA ENTREGA (Display)'] as string;
                       if (dateStr) {
                           const sanitizedDateStr = dateStr.replace(/[^\d-]/g, '');
                           const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
@@ -812,7 +812,7 @@ export default function TryPage() {
 
             const now = new Date();
 
-            const firstResultDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
+            const firstResultDateStr = groupedResults[0]['FECHA ENTREGA (Display)'] as string;
             let deliveryDateForSummary: Date | null = null;
             let textColor = '#000000';
             if(firstResultDateStr) {
@@ -1405,15 +1405,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
-
-
-
-
-
-
-
-
-
-
