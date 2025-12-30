@@ -286,7 +286,6 @@ export default function TryPage() {
             }
         }
         
-        // If no folios were found for existing codes, then calculate the next starting folio number
         if (Object.keys(existingFolios).length === 0) { 
             const { data: lastEntry, error: dbError } = await supabase
                 .from('etiquetas_i')
@@ -712,15 +711,15 @@ export default function TryPage() {
                           if (parts.length === 3 && !parts.some(isNaN)) {
                               const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
                               if (!isNaN(deliveryDate.getTime())) {
-                                  const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+                                  const dayOfWeek = deliveryDate.getUTCDay();
                                   const colors = [
-                                      '#FFA500', // Sunday - Orange
-                                      '#0000FF', // Monday - Blue
-                                      '#000000', // Tuesday - Black
-                                      '#008000', // Wednesday - Green
-                                      '#800080', // Thursday - Purple
-                                      '#FF0000', // Friday - Red
-                                      '#FFA500', // Saturday - Orange
+                                      '#FFA500', // 0 Domingo - Naranja
+                                      '#0000FF', // 1 Lunes - Azul
+                                      '#000000', // 2 Martes - Negro
+                                      '#008000', // 3 Miércoles - Verde
+                                      '#800080', // 4 Jueves - Púrpura
+                                      '#FF0000', // 5 Viernes - Rojo
+                                      '#FFA500', // 6 Sábado - Naranja
                                   ];
                                   textColor = colors[dayOfWeek];
                               }
@@ -822,13 +821,13 @@ export default function TryPage() {
                      deliveryDateForSummary = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
                       const dayOfWeek = deliveryDateForSummary.getUTCDay();
                       const colors = [
-                          '#FFA500', // Sunday - Orange
-                          '#0000FF', // Monday - Blue
-                          '#000000', // Tuesday - Black
-                          '#008000', // Wednesday - Green
-                          '#800080', // Thursday - Purple
-                          '#FF0000', // Friday - Red
-                          '#FFA500', // Saturday - Orange
+                          '#FFA500', // 0 Domingo - Naranja
+                          '#0000FF', // 1 Lunes - Azul
+                          '#000000', // 2 Martes - Negro
+                          '#008000', // 3 Miércoles - Verde
+                          '#800080', // 4 Jueves - Púrpura
+                          '#FF0000', // 5 Viernes - Rojo
+                          '#FFA500', // 6 Sábado - Naranja
                       ];
                       textColor = colors[dayOfWeek];
                  }
@@ -998,7 +997,6 @@ export default function TryPage() {
     setError(null);
 
     try {
-      // 1. Check for duplicates using `code`
       const codesToCheck = groupedResults.map(r => r['CODIGO DE BARRA']).filter(c => c !== undefined && c !== null);
       const deliveryDate = groupedResults[0]['FECHA ENTREGA'] as string;
       const company = groupedResults[0]['EMPRESA'] as string;
@@ -1026,7 +1024,6 @@ export default function TryPage() {
         }
       }
       
-      // 2. If no duplicates, proceed to insert
       const now = new Date();
       const imp_date = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
