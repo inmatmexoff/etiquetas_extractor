@@ -125,67 +125,63 @@ export default function TryPage() {
 
   const getDeliveryDateFromFirstPage = async (doc: any): Promise<{ dbFormat: string; displayFormat: string } | null> => {
     if (!doc) return null;
-    const page = await doc.getPage(1);
-    const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
-    const textContent = await page.getTextContent();
-    const dateRect = rectangles.find(r => r.label === 'FECHA ENTREGA');
-    if (!dateRect) return null;
+    try {
+        const page = await doc.getPage(1);
+        const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+        const textContent = await page.getTextContent();
+        const dateRect = rectangles.find(r => r.label === 'FECHA ENTREGA');
+        if (!dateRect) return null;
 
-    const itemsInRect = textContent.items.filter((item: any) => intersects(item, dateRect, viewport));
-    itemsInRect.sort((a: any, b: any) => {
-        const yA = a.transform[5];
-        const yB = b.transform[5];
-        if (Math.abs(yA - yB) < 2) return a.transform[4] - b.transform[4];
-        return yB - yA;
-    });
+        const itemsInRect = textContent.items.filter((item: any) => intersects(item, dateRect, viewport));
+        itemsInRect.sort((a: any, b: any) => {
+            const yA = a.transform[5];
+            const yB = b.transform[5];
+            if (Math.abs(yA - yB) < 2) return a.transform[4] - b.transform[4];
+            return yB - yA;
+        });
 
-    let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
+        let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
 
-    const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
-    extractedText = extractedText.replace(timeRegex, '').trim();
+        const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
+        extractedText = extractedText.replace(timeRegex, '').trim();
 
-    const monthMap: { [key: string]: string } = {
-        'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
-        'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
-    };
-    const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
-    let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
+        const monthMap: { [key: string]: string } = {
+            'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
+            'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
+        };
+        const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
+        let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
 
-    const datePartsNumeric = cleanText.split('/');
-    let dbFormat: string | null = null;
-    let displayFormat: string | null = null;
+        const datePartsNumeric = cleanText.split('/');
+        let dbFormat: string | null = null;
 
-    if (datePartsNumeric.length === 3) { // DD/MM/YYYY
-        const day = datePartsNumeric[0].padStart(2, '0');
-        const month = datePartsNumeric[1].padStart(2, '0');
-        const year = datePartsNumeric[2];
-        dbFormat = `${year}-${month}-${day}`;
-    } else if (datePartsNumeric.length >= 2) { // DD/mon
-        const day = datePartsNumeric[0].padStart(2, '0');
-        const monthStr = datePartsNumeric[1].toLowerCase().substring(0, 3);
-        const month = monthMap[monthStr];
-        if (month) {
-            const currentYear = new Date().getFullYear();
-            dbFormat = `${currentYear}-${month}-${day}`;
+        if (datePartsNumeric.length === 3) { // DD/MM/YYYY
+            const day = datePartsNumeric[0].padStart(2, '0');
+            const month = datePartsNumeric[1].padStart(2, '0');
+            const year = datePartsNumeric[2];
+            dbFormat = `${year}-${month}-${day}`;
+        } else if (datePartsNumeric.length >= 2) { // DD/mon
+            const day = datePartsNumeric[0].padStart(2, '0');
+            const monthStr = datePartsNumeric[1].toLowerCase().substring(0, 3);
+            const month = monthMap[monthStr];
+            if (month) {
+                const currentYear = new Date().getFullYear();
+                dbFormat = `${currentYear}-${month}-${day}`;
+            }
         }
-    }
-
-    // Ensure dbFormat is clean
-    if (dbFormat) {
-      dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
-    } else {
-        return null;
-    }
-
-
-    if (dbFormat) {
-        const parts = dbFormat.split('-').map(part => parseInt(part, 10));
-        if (parts.length === 3 && !parts.some(isNaN)) {
-             const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-            const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
-            displayFormat = `${dbFormat}-${dayOfWeekStr} ${parts[2]}`;
-            return { dbFormat, displayFormat };
+        
+        if (dbFormat) {
+            dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
+            const parts = dbFormat.split('-').map(part => parseInt(part, 10));
+            if (parts.length === 3 && !parts.some(isNaN)) {
+                const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+                const displayFormat = `${dbFormat}-${dayOfWeekStr} ${parts[2]}`;
+                return { dbFormat, displayFormat };
+            }
         }
+    } catch(e) {
+        console.error("Error getting delivery date:", e);
     }
 
     return null;
@@ -310,8 +306,7 @@ export default function TryPage() {
 
                     if (dbFormat) {
                         dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
-                        extractedText = dbFormat; // Store clean date
-                        pageLabelData[labelGroup][cleanLabel] = dbFormat;
+                        pageLabelData[labelGroup]['FECHA ENTREGA'] = dbFormat;
 
                         const parts = dbFormat.split('-').map(part => parseInt(part, 10));
                         if (parts.length === 3 && !parts.some(isNaN)) {
@@ -321,9 +316,10 @@ export default function TryPage() {
                         }
                     } else {
                         // Fallback to pre-fetched date if extraction fails on other pages
-                        pageLabelData[labelGroup][cleanLabel] = deliveryDateInfo.dbFormat;
+                        pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
                         pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
                     }
+                    extractedText = (pageLabelData[labelGroup]['FECHA ENTREGA'] as string) || '';
                 } else if (cleanLabel.includes('NUM DE VENTA')) {
                     const cleanText = extractedText.replace(/Pack ID:/gi, '').trim();
                     const numbers = cleanText.match(/\d+/g);
@@ -716,8 +712,9 @@ export default function TryPage() {
                   for (const result of pageResults) {
                       
                       let textColor: string = '#000000'; // Default black
-                      if (result['FECHA ENTREGA']) {
-                          const sanitizedDateStr = (result['FECHA ENTREGA'] as string).replace(/[^\d-]/g, '');
+                      const dateStr = result['FECHA ENTREGA'] as string;
+                      if (dateStr) {
+                          const sanitizedDateStr = dateStr.replace(/[^\d-]/g, '');
                           const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
                           if (parts.length === 3 && !parts.some(isNaN)) {
                               const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
@@ -1012,30 +1009,32 @@ export default function TryPage() {
     setError(null);
 
     try {
-      // 1. Check for duplicates
-      const foliosToCheck = groupedResults.map(r => r['LISTADO']).filter(f => f !== undefined);
+      // 1. Check for duplicates using `code`
+      const codesToCheck = groupedResults.map(r => r['CODIGO DE BARRA']).filter(c => c !== undefined && c !== null);
       const deliveryDate = groupedResults[0]['FECHA ENTREGA'] as string;
       const company = groupedResults[0]['EMPRESA'] as string;
 
-      const { data: existing, error: checkError } = await supabase
-        .from('etiquetas_i')
-        .select('folio')
-        .eq('organization', company)
-        .eq('deli_date', deliveryDate)
-        .in('folio', foliosToCheck);
+      if (codesToCheck.length > 0) {
+        const { data: existing, error: checkError } = await supabase
+          .from('etiquetas_i')
+          .select('code')
+          .eq('organization', company)
+          .eq('deli_date', deliveryDate)
+          .in('code', codesToCheck);
 
-      if (checkError) {
-        throw new Error(`Error al verificar duplicados: ${checkError.message}`);
-      }
+        if (checkError) {
+          throw new Error(`Error al verificar duplicados: ${checkError.message}`);
+        }
 
-      if (existing && existing.length > 0) {
-        toast({
-          variant: "destructive",
-          title: "Etiquetas duplicadas",
-          description: `Las etiquetas con folios ${existing.map(e => e.folio).join(', ')} ya existen para esta fecha y empresa.`,
-        });
-        setIsLoading(false);
-        return;
+        if (existing && existing.length > 0) {
+          toast({
+            variant: "destructive",
+            title: "Etiquetas duplicadas",
+            description: `Las etiquetas con los códigos de barra ${existing.map(e => e.code).join(', ')} ya existen para esta fecha y empresa.`,
+          });
+          setIsLoading(false);
+          return;
+        }
       }
       
       // 2. If no duplicates, proceed to insert
@@ -1417,5 +1416,6 @@ export default function TryPage() {
 }
 
     
+
 
 
