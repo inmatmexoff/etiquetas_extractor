@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -1214,10 +1215,6 @@ export default function TryPage() {
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-xl">Vista Previa del PDF</CardTitle>
                     <div className="flex items-center gap-2">
-                        <Button onClick={() => { setRectangles([]); setExtractedData([]); }} disabled={rectangles.length === 0} variant="destructive" size="sm">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Limpiar Dibujos
-                        </Button>
                         <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
