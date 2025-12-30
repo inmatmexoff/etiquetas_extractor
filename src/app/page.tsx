@@ -217,24 +217,11 @@ export default function TryPage() {
         if (!deliveryDateInfo?.dbFormat) {
             throw new Error("No se pudo determinar la fecha de entrega desde la primera página. Asegúrate de que el área 'FECHA ENTREGA' esté definida correctamente.");
         }
-
-        const { data: lastEntry, error: dbError } = await supabase
-            .from('etiquetas_i')
-            .select('folio')
-            .eq('organization', selectedCompany)
-            .eq('deli_date', deliveryDateInfo.dbFormat)
-            .order('folio', { ascending: false })
-            .limit(1)
-            .single();
-
-        if (dbError && dbError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine.
-            throw new Error(`Error al consultar el último folio: ${dbError.message}`);
-        }
-
-        let listadoCounter = (lastEntry?.folio || 0) + 1;
         
         const allGroupedData: GroupedExtractedData[] = [];
+        const preliminaryData: any[] = [];
 
+        // --- Step 1: Preliminary data extraction to get all codes ---
         for (let currentPageNum = 1; currentPageNum <= doc.numPages; currentPageNum++) {
             const page = await doc.getPage(currentPageNum);
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
@@ -242,72 +229,132 @@ export default function TryPage() {
             
             const activeRectangles = rectangles;
             
-            const pageLabelData: { [key: number]: { [key: string]: string | number } } = {
-                1: {},
-                2: {}
-            };
+            const pageLabelData: { [key: number]: { [key: string]: string | number } } = { 1: {}, 2: {} };
 
             for (const rect of activeRectangles) {
                 if (rect.width === 0 && rect.height === 0) continue;
 
                 const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
-
                 itemsInRect.sort((a: any, b: any) => {
-                    const yA = a.transform[5];
-                    const yB = b.transform[5];
-                    if (Math.abs(yA - yB) < 2) {
-                        return a.transform[4] - b.transform[4];
-                    }
+                    const yA = a.transform[5]; const yB = b.transform[5];
+                    if (Math.abs(yA - yB) < 2) { return a.transform[4] - b.transform[4]; }
                     return yB - yA;
                 });
-
                 let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
                 
                 const isSecondLabel = rect.label.endsWith(' 2');
                 const labelGroup = isSecondLabel ? 2 : 1;
                 const cleanLabel = rect.label.replace(' 2', '').trim();
 
+                if (cleanLabel.includes('CODIGO DE BARRA')) {
+                    const numbers = extractedText.match(/\d+/g);
+                    extractedText = numbers ? numbers.join('') : '';
+                }
+
+                if (extractedText.trim() !== '') {
+                   pageLabelData[labelGroup][cleanLabel] = extractedText.trim();
+                   pageLabelData[labelGroup].labelGroup = labelGroup;
+                }
+            }
+            for (const group of [1, 2]) {
+                 if (Object.keys(pageLabelData[group]).length > 1 && pageLabelData[group]['CODIGO DE BARRA']) {
+                     preliminaryData.push({
+                         page: currentPageNum,
+                         labelGroup: group,
+                         code: Number(pageLabelData[group]['CODIGO DE BARRA']) || null
+                     });
+                 }
+            }
+        }
+        
+        const codesToCheck = preliminaryData.map(d => d.code).filter(c => c);
+
+        let existingFolios: { [key: number]: number } = {};
+        let listadoCounter = 0;
+
+        if (codesToCheck.length > 0) {
+            const { data: existingData, error: checkError } = await supabase
+                .from('etiquetas_i')
+                .select('code, folio')
+                .eq('organization', selectedCompany)
+                .eq('deli_date', deliveryDateInfo.dbFormat)
+                .in('code', codesToCheck);
+
+            if (checkError) throw new Error(`Error al verificar etiquetas existentes: ${checkError.message}`);
+
+            if (existingData && existingData.length > 0) {
+                existingData.forEach(d => {
+                    if (d.code && d.folio) {
+                        existingFolios[d.code] = d.folio;
+                    }
+                });
+            }
+        }
+        
+        if (Object.keys(existingFolios).length === 0) { // If no labels are found, start new folio count
+            const { data: lastEntry, error: dbError } = await supabase
+                .from('etiquetas_i')
+                .select('folio')
+                .eq('organization', selectedCompany)
+                .eq('deli_date', deliveryDateInfo.dbFormat)
+                .order('folio', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (dbError && dbError.code !== 'PGRST116') {
+                throw new Error(`Error al consultar el último folio: ${dbError.message}`);
+            }
+            listadoCounter = (lastEntry?.folio || 0) + 1;
+        }
+
+
+        // --- Step 2: Full data extraction and folio assignment ---
+        for (let currentPageNum = 1; currentPageNum <= doc.numPages; currentPageNum++) {
+            const page = await doc.getPage(currentPageNum);
+            const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+            const textContent = await page.getTextContent();
+            
+            const activeRectangles = rectangles;
+            
+            const pageLabelData: { [key: number]: { [key: string]: string | number } } = { 1: {}, 2: {} };
+
+            for (const rect of activeRectangles) {
+                 if (rect.width === 0 && rect.height === 0) continue;
+                const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
+                itemsInRect.sort((a: any, b: any) => {
+                    const yA = a.transform[5]; const yB = b.transform[5];
+                    if (Math.abs(yA - yB) < 2) { return a.transform[4] - b.transform[4]; }
+                    return yB - yA;
+                });
+                let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
+                
+                const isSecondLabel = rect.label.endsWith(' 2');
+                const labelGroup = isSecondLabel ? 2 : 1;
+                const cleanLabel = rect.label.replace(' 2', '').trim();
 
                 if (cleanLabel.includes('CANTIDAD')) {
                     extractedText = extractedText.replace(/Cantidad|Productos|Unidad(es)?/gi, '').trim();
                 } else if (cleanLabel.includes('FECHA ENTREGA')) {
                      const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
                      const timeMatch = extractedText.match(timeRegex);
-
                      if (timeMatch) {
                          pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[0];
                          extractedText = extractedText.replace(timeMatch[0], '').trim();
                      }
-                    
-                     const monthMap: { [key: string]: string } = {
-                         'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
-                         'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
-                     };
+                     const monthMap: { [key: string]: string } = { 'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12' };
                      const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
-                    
                      let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
-                    
                      const datePartsNumeric = cleanText.split('/');
                      let dbFormat: string | null = null;
-                     if (datePartsNumeric.length === 3) { // DD/MM/YYYY
-                         const day = datePartsNumeric[0].padStart(2, '0');
-                         const month = datePartsNumeric[1].padStart(2, '0');
-                         const year = datePartsNumeric[2];
-                         dbFormat = `${year}-${month}-${day}`;
-                     } else if (datePartsNumeric.length >= 2) { // DD/mon
-                         const day = datePartsNumeric[0].padStart(2, '0');
-                         const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
-                         const month = monthMap[monthStr];
-                         if (month) {
-                            const currentYear = new Date().getFullYear();
-                            dbFormat = `${currentYear}-${month}-${day}`;
-                         }
+                     if (datePartsNumeric.length === 3) {
+                         dbFormat = `${datePartsNumeric[2]}-${datePartsNumeric[1].padStart(2, '0')}-${datePartsNumeric[0].padStart(2, '0')}`;
+                     } else if (datePartsNumeric.length >= 2) {
+                         const month = monthMap[datePartsNumeric[1].toLowerCase().substring(0,3)];
+                         if (month) dbFormat = `${new Date().getFullYear()}-${month}-${datePartsNumeric[0].padStart(2, '0')}`;
                      }
-
                     if (dbFormat) {
                         dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
                         pageLabelData[labelGroup]['FECHA ENTREGA'] = dbFormat;
-
                         const parts = dbFormat.split('-').map(part => parseInt(part, 10));
                         if (parts.length === 3 && !parts.some(isNaN)) {
                             const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
@@ -315,104 +362,63 @@ export default function TryPage() {
                             pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = `${dbFormat}-${dayOfWeekStr} ${parts[2]}`;
                         }
                     } else {
-                        // Fallback to pre-fetched date if extraction fails on other pages
                         pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
                         pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
                     }
                     extractedText = (pageLabelData[labelGroup]['FECHA ENTREGA'] as string) || '';
                 } else if (cleanLabel.includes('NUM DE VENTA')) {
-                    const cleanText = extractedText.replace(/Pack ID:/gi, '').trim();
-                    const numbers = cleanText.match(/\d+/g);
-                    extractedText = numbers ? numbers.join('') : '';
+                    extractedText = extractedText.replace(/Pack ID:/gi, '').match(/\d+/g)?.join('') || '';
                 } else if (cleanLabel.includes('CODIGO DE BARRA')) {
-                    const numbers = extractedText.match(/\d+/g);
-                    extractedText = numbers ? numbers.join('') : '';
+                    extractedText = extractedText.match(/\d+/g)?.join('') || '';
                 } else if (cleanLabel.includes('PRODUCTO')) {
                     const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
-                    if (skuMatch && skuMatch[1]) {
+                    if (skuMatch?.[1]) {
                         pageLabelData[labelGroup]['SKU'] = skuMatch[1];
                         extractedText = extractedText.replace(skuMatch[0], '').trim();
                     }
                 } else if (cleanLabel.includes('CLIENTE INFO')) {
                     const fullText = extractedText;
-
                     const cpMatch = fullText.match(/CP:\s*(\S+)/);
-                    if (cpMatch && cpMatch[1]) {
-                        pageLabelData[labelGroup]['CP'] = cpMatch[1].replace(/,/g, '');
-                    }
-
+                    if (cpMatch?.[1]) pageLabelData[labelGroup]['CP'] = cpMatch[1].replace(/,/g, '');
                     const clientMatch = fullText.match(/^(.*?)\s*\(/);
-                    if (clientMatch && clientMatch[1]) {
-                        pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
-                    }
+                    if (clientMatch?.[1]) pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
                     
-                    let addressText = fullText;
-                    
-                    const domicilioIndex = addressText.search(/domicilio:/i);
-                    if (domicilioIndex !== -1) {
-                        addressText = addressText.substring(domicilioIndex + 10);
-                    }
+                    let addressText = domicilioIndex !== -1 ? fullText.substring(fullText.search(/domicilio:/i) + 10) : fullText;
+                    var domicilioIndex = addressText.search(/domicilio:/i);
 
-                    let foundState = '';
-                    let stateIndex = -1;
-                    const sortedStates = [...MEXICAN_STATES].sort((a, b) => b.length - a.length);
-
-                    for (const state of sortedStates) {
-                        const stateRegex = new RegExp(`\\b${state}\\b`, 'i');
-                        const match = addressText.match(stateRegex);
-                        if (match && match.index !== undefined && match.index > stateIndex) {
-                            foundState = match[0];
-                            stateIndex = match.index;
+                    let foundState = '', stateIndex = -1;
+                    for (const state of [...MEXICAN_STATES].sort((a, b) => b.length - a.length)) {
+                        const match = addressText.match(new RegExp(`\\b${state}\\b`, 'i'));
+                        if (match?.index !== undefined && match.index > stateIndex) {
+                            foundState = match[0]; stateIndex = match.index;
                         }
                     }
-
                     if (foundState) {
                         pageLabelData[labelGroup]['ESTADO'] = foundState;
-                        const cityRegex = new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
-                        const cityMatch = addressText.match(cityRegex);
-
-                        let extractedCity = '';
-                        if (cityMatch && cityMatch[1]) {
-                            extractedCity = cityMatch[1].trim();
-                        } else {
-                             const doubleNameRegex = new RegExp(`\\b${foundState}\\b`, 'ig');
-                             const matches = addressText.match(doubleNameRegex);
-                             if (matches && matches.length > 1) {
-                                extractedCity = foundState;
-                             }
-                        }
-
-                        if (extractedCity.length > 30 || extractedCity.toLowerCase().includes('domicilio')) {
-                            pageLabelData[labelGroup]['CIUDAD'] = foundState;
-                        } else if (extractedCity) {
-                            pageLabelData[labelGroup]['CIUDAD'] = extractedCity;
-                        } else {
-                            pageLabelData[labelGroup]['CIUDAD'] = foundState;
-                        }
+                        const cityMatch = addressText.match(new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'));
+                        let extractedCity = cityMatch?.[1] ? cityMatch[1].trim() : (addressText.match(new RegExp(`\\b${foundState}\\b`, 'ig'))?.length || 0) > 1 ? foundState : '';
+                        pageLabelData[labelGroup]['CIUDAD'] = extractedCity.length > 30 || extractedCity.toLowerCase().includes('domicilio') ? foundState : extractedCity || foundState;
                     }
-
                     extractedText = fullText;
                 }
-
-
                 if (extractedText.trim() !== '') {
                    pageLabelData[labelGroup][cleanLabel] = extractedText.trim();
+                   pageLabelData[labelGroup].labelGroup = labelGroup;
                 }
-                 pageLabelData[labelGroup].labelGroup = labelGroup;
             }
             
-            // After processing all rects for the page, create the rows
             for (const group of [1, 2]) {
                  if (Object.keys(pageLabelData[group]).length > 1 && pageLabelData[group]['CP']) {
                      if (!pageLabelData[group]['ESTADO']) {
                          pageLabelData[group]['ESTADO'] = "San Luis Potosí";
-                         if (!pageLabelData[group]['CIUDAD']) {
-                            pageLabelData[group]['CIUDAD'] = "San Luis Potosí";
-                         }
+                         if (!pageLabelData[group]['CIUDAD']) pageLabelData[group]['CIUDAD'] = "San Luis Potosí";
                      }
+                    
+                     const code = Number(pageLabelData[group]['CODIGO DE BARRA']);
+                     const folio = existingFolios[code] || (listadoCounter > 0 ? listadoCounter++ : 0);
 
                      const rowData: GroupedExtractedData = {
-                         'LISTADO': listadoCounter++,
+                         'LISTADO': folio,
                          'Página': currentPageNum,
                          'EMPRESA': selectedCompany,
                          ...pageLabelData[group]
@@ -429,7 +435,6 @@ export default function TryPage() {
                             }
                         }
                     }
-                    
                      allGroupedData.push(rowData);
                  }
             }
@@ -440,6 +445,7 @@ export default function TryPage() {
         } else {
             setError(null);
         }
+        allGroupedData.sort((a,b) => (a['LISTADO'] || 0) < (b['LISTADO'] || 0) ? -1 : 1);
         setExtractedData(allGroupedData);
 
     } catch(e: any) {
@@ -1020,7 +1026,7 @@ export default function TryPage() {
           .select('code')
           .eq('organization', company)
           .eq('deli_date', deliveryDate)
-          .in('code', codesToCheck);
+          .in('code', codesToCheck as (string | number)[]);
 
         if (checkError) {
           throw new Error(`Error al verificar duplicados: ${checkError.message}`);
@@ -1416,6 +1422,7 @@ export default function TryPage() {
 }
 
     
+
 
 
 
