@@ -83,26 +83,24 @@ const MEXICAN_STATES = [
 const getDayColor = (dateStr: string | undefined): string => {
     if (!dateStr) return '#000000'; // Default black
 
-    const sanitizedDateStr = String(dateStr).replace(/[^\d-]/g, '');
-    const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
+    // Expects 'YYYY-MM-DD'
+    const utcDateStr = `${dateStr}T12:00:00Z`;
+    const deliveryDate = new Date(utcDateStr);
 
-    if (parts.length === 3 && !parts.some(isNaN)) {
-        // Use UTC to avoid timezone issues
-        const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-        if (!isNaN(deliveryDate.getTime())) {
-            const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
-            const colors = [
-                '#FFA500', // 0 Domingo - Naranja
-                '#0000FF', // 1 Lunes - Azul
-                '#000000', // 2 Martes - Negro
-                '#008000', // 3 Miércoles - Verde
-                '#800080', // 4 Jueves - Púrpura
-                '#FF0000', // 5 Viernes - Rojo
-                '#FFA500', // 6 Sábado - Naranja
-            ];
-            return colors[dayOfWeek];
-        }
+    if (!isNaN(deliveryDate.getTime())) {
+        const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+        const colors = [
+            '#FFA500', // 0 Domingo - Naranja
+            '#0000FF', // 1 Lunes - Azul
+            '#000000', // 2 Martes - Negro
+            '#008000', // 3 Miércoles - Verde
+            '#800080', // 4 Jueves - Púrpura
+            '#FF0000', // 5 Viernes - Rojo
+            '#FFA500', // 6 Sábado - Naranja
+        ];
+        return colors[dayOfWeek];
     }
+    
     return '#000000'; // Default black if date is invalid
 };
 
@@ -181,19 +179,28 @@ export default function TryPage() {
         if (datePartsNumeric.length === 3) { // DD/MM/YYYY
             const day = datePartsNumeric[0].padStart(2, '0');
             const month = datePartsNumeric[1].padStart(2, '0');
-            const year = datePartsNumeric[2];
+            let year = datePartsNumeric[2];
+            if (year.includes('2025')) {
+                year = year.replace('2025', '2026');
+            }
             dbFormat = `${year}-${month}-${day}`;
         } else if (datePartsNumeric.length >= 2) { // DD/mon
             const day = datePartsNumeric[0].padStart(2, '0');
             const monthStr = datePartsNumeric[1].toLowerCase().substring(0, 3);
             const month = monthMap[monthStr];
             if (month) {
-                const currentYear = new Date().getFullYear();
+                let currentYear = new Date().getFullYear();
+                if (String(currentYear).includes('2025')) {
+                    currentYear = 2026;
+                }
                 dbFormat = `${currentYear}-${month}-${day}`;
             }
         }
         
         if (dbFormat) {
+            if (dbFormat.includes('2025')) {
+                dbFormat = dbFormat.replace('2025', '2026');
+            }
             dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
             const parts = dbFormat.split('-').map(part => parseInt(part, 10));
             if (parts.length === 3 && !parts.some(isNaN)) {
@@ -617,7 +624,7 @@ export default function TryPage() {
   const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
   let allHeaders = ["Color", "LISTADO", "Página", "EMPRESA", ...baseHeaders];
   // Dynamically add new columns if they exist in any result
-  const dynamicHeaders = ['SKU', 'CP', 'CLIENTE', 'CIUDAD', 'ESTADO', 'HORA ENTREGA', 'FECHA ENTREGA (Display)'];
+  const dynamicHeaders = ['SKU', 'CP', 'CLIENTE', 'CIUDAD', 'ESTADO', 'HORA ENTREGA'];
   dynamicHeaders.forEach(header => {
       if (groupedResults.some(row => row[header])) {
           if (!allHeaders.includes(header)) {
@@ -799,10 +806,9 @@ export default function TryPage() {
             let deliveryDateForSummary: Date | null = null;
             let textColor = '#000000';
             if(firstResultDateStr) {
-                 const sanitizedDateStr = firstResultDateStr.replace(/[^\d-]/g, '');
-                 const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
-                 if(parts.length === 3 && !parts.some(isNaN)) {
-                     deliveryDateForSummary = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
+                 const utcDateStr = `${firstResultDateStr}T12:00:00Z`;
+                 deliveryDateForSummary = new Date(utcDateStr);
+                 if(!isNaN(deliveryDateForSummary.getTime())) {
                      textColor = getDayColor(firstResultDateStr);
                  }
             }
@@ -1171,10 +1177,9 @@ export default function TryPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                {allHeaders.filter(h => h && h !== 'FECHA ENTREGA' && h !== 'FECHA ENTREGA (Display)').map(header => (
+                                                {allHeaders.filter(h => h).map(header => (
                                                     <TableHead key={header} className="font-semibold">{header}</TableHead>
                                                 ))}
-                                                <TableHead className="font-semibold">FECHA ENTREGA</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -1186,12 +1191,11 @@ export default function TryPage() {
                                                             style={{ backgroundColor: getDayColor(row['FECHA ENTREGA (Display)'] as string) }}
                                                         ></div>
                                                     </TableCell>
-                                                    {allHeaders.filter(h => h && h !== 'Color' && h !== 'FECHA ENTREGA' && h !== 'FECHA ENTREGA (Display)').map(header => (
+                                                    {allHeaders.filter(h => h && h !== 'Color').map(header => (
                                                         <TableCell key={header}>
                                                             { (row[header] as string) || ''}
                                                         </TableCell>
                                                     ))}
-                                                    <TableCell>{row['FECHA ENTREGA (Display)'] as string || ''}</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
