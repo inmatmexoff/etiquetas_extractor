@@ -174,10 +174,7 @@ export default function TryPage() {
             dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
             const parts = dbFormat.split('-').map(part => parseInt(part, 10));
             if (parts.length === 3 && !parts.some(isNaN)) {
-                const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-                const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
-                const displayFormat = `${dbFormat}-${dayOfWeekStr} ${parts[2]}`;
-                return { dbFormat, displayFormat };
+                return { dbFormat, displayFormat: dbFormat };
             }
         }
     } catch(e) {
@@ -355,12 +352,7 @@ export default function TryPage() {
                     if (dbFormat) {
                         dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
                         pageLabelData[labelGroup]['FECHA ENTREGA'] = dbFormat;
-                        const parts = dbFormat.split('-').map(part => parseInt(part, 10));
-                        if (parts.length === 3 && !parts.some(isNaN)) {
-                            const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-                            const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
-                            pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = `${dbFormat}-${dayOfWeekStr} ${parts[2]}`;
-                        }
+                        pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = dbFormat;
                     } else {
                         pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
                         pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
@@ -427,12 +419,7 @@ export default function TryPage() {
                     if (!rowData['FECHA ENTREGA (Display)']) {
                         const dateStr = rowData['FECHA ENTREGA'] as string;
                         if (dateStr) {
-                            const parts = dateStr.split('-').map(part => parseInt(part, 10));
-                            if (parts.length === 3 && !parts.some(isNaN)) {
-                                const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-                                const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
-                                rowData['FECHA ENTREGA (Display)'] = `${dateStr}-${dayOfWeekStr} ${parts[2]}`;
-                            }
+                            rowData['FECHA ENTREGA (Display)'] = dateStr;
                         }
                     }
                      allGroupedData.push(rowData);
@@ -1422,6 +1409,7 @@ export default function TryPage() {
 }
 
     
+
 
 
 
