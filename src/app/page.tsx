@@ -275,55 +275,54 @@ export default function TryPage() {
                 if (cleanLabel.includes('CANTIDAD')) {
                     extractedText = extractedText.replace(/Cantidad|Productos|Unidad(es)?/gi, '').trim();
                 } else if (cleanLabel.includes('FECHA ENTREGA')) {
-                    // Use the pre-fetched and formatted date
-                     if (currentPageNum === 1 && labelGroup === 1) {
-                        pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
-                        pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
-                        extractedText = deliveryDateInfo.dbFormat; // Use DB format for consistency in data
+                     const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
+                     const timeMatch = extractedText.match(timeRegex);
+
+                     if (timeMatch) {
+                         pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[0];
+                         extractedText = extractedText.replace(timeMatch[0], '').trim();
+                     }
+                    
+                     const monthMap: { [key: string]: string } = {
+                         'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
+                         'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
+                     };
+                     const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
+                    
+                     let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
+                    
+                     const datePartsNumeric = cleanText.split('/');
+                     let dbFormat: string | null = null;
+                     if (datePartsNumeric.length === 3) { // DD/MM/YYYY
+                         const day = datePartsNumeric[0].padStart(2, '0');
+                         const month = datePartsNumeric[1].padStart(2, '0');
+                         const year = datePartsNumeric[2];
+                         dbFormat = `${year}-${month}-${day}`;
+                     } else if (datePartsNumeric.length >= 2) { // DD/mon
+                         const day = datePartsNumeric[0].padStart(2, '0');
+                         const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
+                         const month = monthMap[monthStr];
+                         if (month) {
+                            const currentYear = new Date().getFullYear();
+                            dbFormat = `${currentYear}-${month}-${day}`;
+                         }
+                     }
+
+                    if (dbFormat) {
+                        dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
+                        extractedText = dbFormat; // Store clean date
+                        pageLabelData[labelGroup][cleanLabel] = dbFormat;
+
+                        const parts = dbFormat.split('-').map(part => parseInt(part, 10));
+                        if (parts.length === 3 && !parts.some(isNaN)) {
+                            const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                            const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+                            pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = `${dbFormat}-${dayOfWeekStr} ${parts[2]}`;
+                        }
                     } else {
-                        // For other pages/labels, extract as before for display or other logic if needed
-                        const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
-                        const timeMatch = extractedText.match(timeRegex);
-
-                        if (timeMatch) {
-                            pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[0];
-                            extractedText = extractedText.replace(timeMatch[0], '').trim();
-                        }
-                        
-                        const monthMap: { [key: string]: string } = {
-                            'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
-                            'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
-                        };
-                        const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
-                        
-                        let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
-                        
-                        const datePartsNumeric = cleanText.split('/');
-                        let formattedDate: string | null = null;
-                        if (datePartsNumeric.length === 3) {
-                            const day = datePartsNumeric[0].padStart(2, '0');
-                            const month = datePartsNumeric[1].padStart(2, '0');
-                            const year = datePartsNumeric[2];
-                            formattedDate = `${year}-${month}-${day}`;
-                        } else if (datePartsNumeric.length >= 2) { // Handle "7/feb"
-                            const day = datePartsNumeric[0].padStart(2, '0');
-                            const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
-                            const month = monthMap[monthStr];
-                            if (month) {
-                               const currentYear = new Date().getFullYear();
-                               formattedDate = `${currentYear}-${month}-${day}`;
-                            }
-                        }
-
-                        if (formattedDate) {
-                            extractedText = formattedDate;
-                            const parts = formattedDate.split('-').map(part => parseInt(part, 10));
-                            if (parts.length === 3 && !parts.some(isNaN)) {
-                                const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-                                const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
-                                pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = `${formattedDate}-${dayOfWeekStr} ${parts[2]}`;
-                            }
-                        }
+                        // Fallback to pre-fetched date if extraction fails on other pages
+                        pageLabelData[labelGroup][cleanLabel] = deliveryDateInfo.dbFormat;
+                        pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
                     }
                 } else if (cleanLabel.includes('NUM DE VENTA')) {
                     const cleanText = extractedText.replace(/Pack ID:/gi, '').trim();
@@ -1013,6 +1012,33 @@ export default function TryPage() {
     setError(null);
 
     try {
+      // 1. Check for duplicates
+      const foliosToCheck = groupedResults.map(r => r['LISTADO']).filter(f => f !== undefined);
+      const deliveryDate = groupedResults[0]['FECHA ENTREGA'] as string;
+      const company = groupedResults[0]['EMPRESA'] as string;
+
+      const { data: existing, error: checkError } = await supabase
+        .from('etiquetas_i')
+        .select('folio')
+        .eq('organization', company)
+        .eq('deli_date', deliveryDate)
+        .in('folio', foliosToCheck);
+
+      if (checkError) {
+        throw new Error(`Error al verificar duplicados: ${checkError.message}`);
+      }
+
+      if (existing && existing.length > 0) {
+        toast({
+          variant: "destructive",
+          title: "Etiquetas duplicadas",
+          description: `Las etiquetas con folios ${existing.map(e => e.folio).join(', ')} ya existen para esta fecha y empresa.`,
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // 2. If no duplicates, proceed to insert
       const now = new Date();
       const imp_date = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
@@ -1038,12 +1064,12 @@ export default function TryPage() {
         personal_inc: printerName,
       }));
 
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from("etiquetas_i")
         .insert(payload);
 
-      if (error) {
-        throw error;
+      if (insertError) {
+        throw insertError;
       }
 
       toast({
@@ -1391,4 +1417,5 @@ export default function TryPage() {
 }
 
     
+
 
