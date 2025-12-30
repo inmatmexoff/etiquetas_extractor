@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Html5Qrcode } from "html5-qrcode";
-import { ChevronLeft, ChevronRight, UploadCloud, Database, Trash2, PlusCircle, Save, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, UploadCloud, Database, Trash2, PlusCircle, Save, Download, FileText, X } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
@@ -85,6 +85,7 @@ const MEXICAN_STATES = [
 export default function TryPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [pdfThumbnail, setPdfThumbnail] = useState<string | null>(null);
   const [pageNum, setPageNum] = useState(1);
   const [pageInput, setPageInput] = useState("1");
   const [numPages, setNumPages] = useState(0);
@@ -433,19 +434,32 @@ export default function TryPage() {
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-      const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
-      try {
-        const doc = await pdfjsLib.getDocument({ data: typedArray }).promise;
-        setPdfDoc(doc);
-        setNumPages(doc.numPages);
-        setPageNum(1);
-        setPageInput("1");
-        setExtractedData([]); 
-        // We keep the predefined rectangles when a new PDF is loaded
-      } catch (err) {
-        console.error("Error loading PDF:", err);
-        setError("No se pudo cargar el archivo PDF.");
-      }
+        const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
+        try {
+            const doc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+            setPdfDoc(doc);
+            setNumPages(doc.numPages);
+            setPageNum(1);
+            setPageInput("1");
+            setExtractedData([]);
+
+            // Generate thumbnail
+            const page = await doc.getPage(1);
+            const viewport = page.getViewport({ scale: 0.2 }); // Small scale for thumbnail
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            if (context) {
+              await page.render({ canvasContext: context, viewport: viewport }).promise;
+              setPdfThumbnail(canvas.toDataURL());
+            }
+
+        } catch (err) {
+            console.error("Error loading PDF:", err);
+            setError("No se pudo cargar el archivo PDF.");
+            resetPdfState();
+        }
     };
     reader.readAsArrayBuffer(pdfFile);
 
@@ -497,15 +511,21 @@ export default function TryPage() {
     if (file && file.type === "application/pdf") {
       setPdfFile(file);
       setError(null);
-      setQrCodeValue(null);
-      setPdfDoc(null);
     } else {
-      setPdfFile(null);
-      setPdfDoc(null);
-      setQrCodeValue(null);
+      resetPdfState();
       setError("Por favor, sube un archivo PDF válido.");
     }
   };
+  
+  const resetPdfState = () => {
+      setPdfFile(null);
+      setPdfDoc(null);
+      setPdfThumbnail(null);
+      setQrCodeValue(null);
+      setExtractedData([]);
+      setNumPages(0);
+      setPageNum(1);
+  }
 
   const scanQrCode = async (file: File) => {
     try {
@@ -1007,29 +1027,43 @@ export default function TryPage() {
                 <CardTitle>Cargar Archivo PDF</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid w-full items-center gap-2">
-                  <Label htmlFor="pdf-upload" className="sr-only">Sube tu factura en PDF</Label>
-                  <Input
-                    id="pdf-upload"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    disabled={isLoading}
-                  />
-                  <label
-                    htmlFor="pdf-upload"
-                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-accent transition-colors"
-                  >
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                              <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra
-                          </p>
-                          <p className="text-xs text-muted-foreground">Solo archivos PDF</p>
-                      </div>
-                  </label>
-                </div>
+                {pdfFile && pdfThumbnail ? (
+                    <div className="flex items-center gap-4 p-4 border rounded-lg">
+                        <img src={pdfThumbnail} alt="PDF preview" className="w-16 h-20 object-cover rounded-md bg-gray-100" />
+                        <div className="flex-grow">
+                            <p className="font-medium text-sm truncate">{pdfFile.name}</p>
+                            <p className="text-xs text-muted-foreground">{numPages} página(s)</p>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={resetPdfState} className="shrink-0">
+                            <X className="h-4 w-4" />
+                            <span className="sr-only">Quitar archivo</span>
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="grid w-full items-center gap-2">
+                        <Label htmlFor="pdf-upload" className="sr-only">Sube tu factura en PDF</Label>
+                        <Input
+                            id="pdf-upload"
+                            type="file"
+                            accept="application/pdf"
+                            onChange={handleFileChange}
+                            className="hidden"
+                            disabled={isLoading}
+                        />
+                        <label
+                            htmlFor="pdf-upload"
+                            className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-accent transition-colors"
+                        >
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
+                                <p className="text-sm text-muted-foreground">
+                                    <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra
+                                </p>
+                                <p className="text-xs text-muted-foreground">Solo archivos PDF</p>
+                            </div>
+                        </label>
+                    </div>
+                )}
                 {error && <p className="mt-4 text-sm text-destructive font-medium">{error}</p>}
                 {qrCodeValue && <p className="mt-4 text-sm text-green-600">Código QR encontrado: {qrCodeValue}</p>}
                  {isLoading && <p className="mt-4 text-sm text-primary animate-pulse">Procesando...</p>}
@@ -1300,26 +1334,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
-
-
-    
-
-
-
-
-
-
-    
-
-
-    
-
-    
-
-    
-
-
-
-
