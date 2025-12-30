@@ -80,6 +80,31 @@ const MEXICAN_STATES = [
     "Ciudad de México", "Estado de México"
 ];
 
+const getDayColor = (dateStr: string | undefined): string => {
+    if (!dateStr) return '#000000'; // Default black
+
+    const sanitizedDateStr = String(dateStr).replace(/[^\d-]/g, '');
+    const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
+
+    if (parts.length === 3 && !parts.some(isNaN)) {
+        // Use UTC to avoid timezone issues
+        const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+        if (!isNaN(deliveryDate.getTime())) {
+            const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+            const colors = [
+                '#FFA500', // 0 Domingo - Naranja
+                '#0000FF', // 1 Lunes - Azul
+                '#000000', // 2 Martes - Negro
+                '#008000', // 3 Miércoles - Verde
+                '#800080', // 4 Jueves - Púrpura
+                '#FF0000', // 5 Viernes - Rojo
+                '#FFA500', // 6 Sábado - Naranja
+            ];
+            return colors[dayOfWeek];
+        }
+    }
+    return '#000000'; // Default black if date is invalid
+};
 
 export default function TryPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -152,7 +177,6 @@ export default function TryPage() {
 
         const datePartsNumeric = cleanText.split('/');
         let dbFormat: string | null = null;
-        let displayFormat: string | null = null;
 
         if (datePartsNumeric.length === 3) { // DD/MM/YYYY
             const day = datePartsNumeric[0].padStart(2, '0');
@@ -173,8 +197,7 @@ export default function TryPage() {
             dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
             const parts = dbFormat.split('-').map(part => parseInt(part, 10));
             if (parts.length === 3 && !parts.some(isNaN)) {
-                displayFormat = dbFormat; // Both are YYYY-MM-DD
-                return { dbFormat, displayFormat };
+                return { dbFormat, displayFormat: dbFormat };
             }
         }
     } catch(e) {
@@ -288,22 +311,20 @@ export default function TryPage() {
             }
         }
         
-        if (Object.keys(existingFolios).length === 0) { 
-            const { data: lastEntry, error: dbError } = await supabase
-                .from('etiquetas_i')
-                .select('folio')
-                .eq('organization', selectedCompany)
-                .eq('deli_date', deliveryDateInfo.dbFormat)
-                .order('folio', { ascending: false })
-                .limit(1)
-                .single();
+        const { data: lastEntry, error: dbError } = await supabase
+            .from('etiquetas_i')
+            .select('folio')
+            .eq('organization', selectedCompany)
+            .eq('deli_date', deliveryDateInfo.dbFormat)
+            .order('folio', { ascending: false })
+            .limit(1)
+            .single();
 
-            if (dbError && dbError.code !== 'PGRST116') {
-                throw new Error(`Error al consultar el último folio: ${dbError.message}`);
-            }
-            listadoCounter = (lastEntry?.folio || 0) + 1;
+        if (dbError && dbError.code !== 'PGRST116') {
+            throw new Error(`Error al consultar el último folio: ${dbError.message}`);
         }
-
+        listadoCounter = (lastEntry?.folio || 0);
+        
 
         // --- Step 2: Full data extraction and folio assignment ---
         for (let currentPageNum = 1; currentPageNum <= doc.numPages; currentPageNum++) {
@@ -336,27 +357,10 @@ export default function TryPage() {
                      const timeMatch = extractedText.match(timeRegex);
                      if (timeMatch) {
                          pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[0];
-                         extractedText = extractedText.replace(timeMatch[0], '').trim();
                      }
-                     const monthMap: { [key: string]: string } = { 'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12' };
-                     const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
-                     let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
-                     const datePartsNumeric = cleanText.split('/');
-                     let dbFormat: string | null = null;
-                     if (datePartsNumeric.length === 3) {
-                         dbFormat = `${datePartsNumeric[2]}-${datePartsNumeric[1].padStart(2, '0')}-${datePartsNumeric[0].padStart(2, '0')}`;
-                     } else if (datePartsNumeric.length >= 2) {
-                         const month = monthMap[datePartsNumeric[1].toLowerCase().substring(0,3)];
-                         if (month) dbFormat = `${new Date().getFullYear()}-${month}-${datePartsNumeric[0].padStart(2, '0')}`;
-                     }
-                    if (dbFormat) {
-                        dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
-                        pageLabelData[labelGroup]['FECHA ENTREGA'] = dbFormat;
-                    } else {
-                        pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
-                    }
-                    pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = pageLabelData[labelGroup]['FECHA ENTREGA'];
-                    extractedText = (pageLabelData[labelGroup]['FECHA ENTREGA'] as string) || '';
+                    pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
+                    pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
+                    extractedText = deliveryDateInfo.displayFormat;
                 } else if (cleanLabel.includes('NUM DE VENTA')) {
                     extractedText = extractedText.replace(/Pack ID:/gi, '').match(/\d+/g)?.join('') || '';
                 } else if (cleanLabel.includes('CODIGO DE BARRA')) {
@@ -409,11 +413,10 @@ export default function TryPage() {
                      let folio;
                      if (existingFolios[code]) {
                         folio = existingFolios[code];
-                     } else if (listadoCounter > 0) {
-                        folio = listadoCounter++;
-                        existingFolios[code] = folio; // Add new folio to the map to avoid re-assigning
                      } else {
-                        folio = 0; // Should not happen if logic is correct, but as a fallback
+                        listadoCounter++;
+                        folio = listadoCounter;
+                        existingFolios[code] = folio;
                      }
 
                      const rowData: GroupedExtractedData = {
@@ -612,7 +615,7 @@ export default function TryPage() {
   const groupedResults = getGroupedData();
   
   const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
-  let allHeaders = ["LISTADO", "Página", "EMPRESA", ...baseHeaders];
+  let allHeaders = ["Color", "LISTADO", "Página", "EMPRESA", ...baseHeaders];
   // Dynamically add new columns if they exist in any result
   const dynamicHeaders = ['SKU', 'CP', 'CLIENTE', 'CIUDAD', 'ESTADO', 'HORA ENTREGA', 'FECHA ENTREGA (Display)'];
   dynamicHeaders.forEach(header => {
@@ -705,28 +708,7 @@ export default function TryPage() {
                   lastEnumeratedPage = i;
                   for (const result of pageResults) {
                       
-                      let textColor: string = '#000000'; // Default black
-                      const dateStr = result['FECHA ENTREGA (Display)'] as string;
-                      if (dateStr) {
-                          const sanitizedDateStr = dateStr.replace(/[^\d-]/g, '');
-                          const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
-                          if (parts.length === 3 && !parts.some(isNaN)) {
-                              const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-                              if (!isNaN(deliveryDate.getTime())) {
-                                  const dayOfWeek = deliveryDate.getUTCDay();
-                                  const colors = [
-                                      '#FFA500', // 0 Domingo - Naranja
-                                      '#0000FF', // 1 Lunes - Azul
-                                      '#000000', // 2 Martes - Negro
-                                      '#008000', // 3 Miércoles - Verde
-                                      '#800080', // 4 Jueves - Púrpura
-                                      '#FF0000', // 5 Viernes - Rojo
-                                      '#FFA500', // 6 Sábado - Naranja
-                                  ];
-                                  textColor = colors[dayOfWeek];
-                              }
-                          }
-                      }
+                      const textColor = getDayColor(result['FECHA ENTREGA (Display)'] as string);
                       
                       const safeTextColor = textColor || '#000000';
                       ctx.fillStyle = safeTextColor;
@@ -821,17 +803,7 @@ export default function TryPage() {
                  const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
                  if(parts.length === 3 && !parts.some(isNaN)) {
                      deliveryDateForSummary = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
-                      const dayOfWeek = deliveryDateForSummary.getUTCDay();
-                      const colors = [
-                          '#FFA500', // 0 Domingo - Naranja
-                          '#0000FF', // 1 Lunes - Azul
-                          '#000000', // 2 Martes - Negro
-                          '#008000', // 3 Miércoles - Verde
-                          '#800080', // 4 Jueves - Púrpura
-                          '#FF0000', // 5 Viernes - Rojo
-                          '#FFA500', // 6 Sábado - Naranja
-                      ];
-                      textColor = colors[dayOfWeek];
+                     textColor = getDayColor(firstResultDateStr);
                  }
             }
             
@@ -1208,7 +1180,13 @@ export default function TryPage() {
                                         <TableBody>
                                             {groupedResults.map((row, index) => (
                                                 <TableRow key={index}>
-                                                    {allHeaders.filter(h => h && h !== 'FECHA ENTREGA' && h !== 'FECHA ENTREGA (Display)').map(header => (
+                                                     <TableCell>
+                                                        <div 
+                                                            className="h-4 w-4 rounded-full"
+                                                            style={{ backgroundColor: getDayColor(row['FECHA ENTREGA (Display)'] as string) }}
+                                                        ></div>
+                                                    </TableCell>
+                                                    {allHeaders.filter(h => h && h !== 'Color' && h !== 'FECHA ENTREGA' && h !== 'FECHA ENTREGA (Display)').map(header => (
                                                         <TableCell key={header}>
                                                             { (row[header] as string) || ''}
                                                         </TableCell>
