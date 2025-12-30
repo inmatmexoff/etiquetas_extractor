@@ -759,7 +759,7 @@ export default function TryPage() {
                           }
                           
                           if (selectedCompany === 'PALO DE ROSA') {
-                            logoY -= 15;
+                            logoY -= 25;
                           }
 
                           ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
