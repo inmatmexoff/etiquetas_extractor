@@ -154,6 +154,7 @@ export default function TryPage() {
 
         const datePartsNumeric = cleanText.split('/');
         let dbFormat: string | null = null;
+        let displayFormat: string | null = null;
 
         if (datePartsNumeric.length === 3) { // DD/MM/YYYY
             const day = datePartsNumeric[0].padStart(2, '0');
@@ -174,7 +175,10 @@ export default function TryPage() {
             dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
             const parts = dbFormat.split('-').map(part => parseInt(part, 10));
             if (parts.length === 3 && !parts.some(isNaN)) {
-                return { dbFormat, displayFormat: dbFormat };
+                const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                const dayOfWeek = date.toLocaleDateString('es-ES', { weekday: 'short' });
+                displayFormat = `${dbFormat}-${dayOfWeek}`;
+                return { dbFormat, displayFormat };
             }
         }
     } catch(e) {
@@ -355,7 +359,7 @@ export default function TryPage() {
                         pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = dbFormat;
                     } else {
                         pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
-                        pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
+                        pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.dbFormat;
                     }
                     extractedText = (pageLabelData[labelGroup]['FECHA ENTREGA'] as string) || '';
                 } else if (cleanLabel.includes('NUM DE VENTA')) {
@@ -710,9 +714,9 @@ export default function TryPage() {
                           const sanitizedDateStr = dateStr.replace(/[^\d-]/g, '');
                           const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
                           if (parts.length === 3 && !parts.some(isNaN)) {
-                              const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                              const deliveryDate = new Date(parts[0], parts[1] - 1, parts[2]);
                               if (!isNaN(deliveryDate.getTime())) {
-                                  const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+                                  const dayOfWeek = deliveryDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                                   const colors = [
                                       '#FFA500', // Sunday - Orange
                                       '#0000FF', // Monday - Blue
@@ -819,8 +823,8 @@ export default function TryPage() {
                  const sanitizedDateStr = firstResultDateStr.replace(/[^\d-]/g, '');
                  const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
                  if(parts.length === 3 && !parts.some(isNaN)) {
-                     deliveryDateForSummary = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
-                     const dayOfWeek = deliveryDateForSummary.getUTCDay();
+                     deliveryDateForSummary = new Date(parts[0], parts[1]-1, parts[2]);
+                     const dayOfWeek = deliveryDateForSummary.getDay();
                       const colors = [
                           '#FFA500', // Sunday - Orange
                           '#0000FF', // Monday - Blue
@@ -835,7 +839,7 @@ export default function TryPage() {
             }
             
             const dayOfWeek = deliveryDateForSummary 
-                ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' }) 
+                ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long' }) 
                 : 'N/A';
             
             const date = now.toLocaleDateString('es-ES');
@@ -1409,6 +1413,7 @@ export default function TryPage() {
 }
 
     
+
 
 
 
