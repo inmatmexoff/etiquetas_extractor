@@ -169,12 +169,22 @@ export default function TryPage() {
         }
     }
 
+    // Ensure dbFormat is clean
     if (dbFormat) {
-        const dateParts = dbFormat.split('-').map(part => parseInt(part, 10));
-        const dateObj = new Date(Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2]));
-        const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
-        displayFormat = `${dbFormat}-${dayOfWeekStr} ${dateParts[2]}`;
-        return { dbFormat, displayFormat };
+      dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
+    } else {
+        return null;
+    }
+
+
+    if (dbFormat) {
+        const parts = dbFormat.split('-').map(part => parseInt(part, 10));
+        if (parts.length === 3 && !parts.some(isNaN)) {
+             const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+            const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+            displayFormat = `${dbFormat}-${dayOfWeekStr} ${parts[2]}`;
+            return { dbFormat, displayFormat };
+        }
     }
 
     return null;
@@ -392,12 +402,12 @@ export default function TryPage() {
                          }
                      }
 
-                     const rowData = {
+                     const rowData: GroupedExtractedData = {
                          'LISTADO': listadoCounter++,
                          'Página': currentPageNum,
                          'EMPRESA': selectedCompany,
                          ...pageLabelData[group]
-                     } as GroupedExtractedData;
+                     };
 
                     if (currentPageNum === 1 && group === 1) {
                         rowData['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
@@ -594,7 +604,7 @@ export default function TryPage() {
   const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
   let allHeaders = ["LISTADO", "Página", "EMPRESA", ...baseHeaders];
   // Dynamically add new columns if they exist in any result
-  const dynamicHeaders = ['SKU', 'CP', 'CLIENTE', 'CIUDAD', 'ESTADO', 'HORA ENTREGA'];
+  const dynamicHeaders = ['SKU', 'CP', 'CLIENTE', 'CIUDAD', 'ESTADO', 'HORA ENTREGA', 'FECHA ENTREGA (Display)'];
   dynamicHeaders.forEach(header => {
       if (groupedResults.some(row => row[header])) {
           if (!allHeaders.includes(header)) {
@@ -667,12 +677,10 @@ export default function TryPage() {
           let textColor: string = '#000000'; // Default black
           let deliveryDateForSummary: Date | null = null;
           if (groupedResults.length > 0 && groupedResults[0]['FECHA ENTREGA']) {
-              // Sanitize the date string to remove any non-digit or non-hyphen characters
               const sanitizedDateStr = (groupedResults[0]['FECHA ENTREGA'] as string).replace(/[^\d-]/g, '');
               const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
               
               if (parts.length === 3 && !parts.some(isNaN)) {
-                  // Use Date.UTC to create a date that isn't affected by local timezone.
                   const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
                   if (!isNaN(deliveryDate.getTime())) {
                       deliveryDateForSummary = deliveryDate;
@@ -1136,7 +1144,7 @@ export default function TryPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                {allHeaders.filter(h => h).map(header => (
+                                                {allHeaders.filter(h => h && h !== 'FECHA ENTREGA').map(header => (
                                                     <TableHead key={header} className="font-semibold">{header}</TableHead>
                                                 ))}
                                             </TableRow>
@@ -1144,7 +1152,7 @@ export default function TryPage() {
                                         <TableBody>
                                             {groupedResults.map((row, index) => (
                                                 <TableRow key={index}>
-                                                    {allHeaders.filter(h => h).map(header => (
+                                                    {allHeaders.filter(h => h && h !== 'FECHA ENTREGA').map(header => (
                                                         <TableCell key={header}>
                                                             { (row[header] as string) || ''}
                                                         </TableCell>
