@@ -762,7 +762,7 @@ export default function TryPage() {
                           if (phoneNumber) {
                               ctx.font = `bold 24px Arial`;
                               ctx.fillStyle = '#000000'; // Always black for phone number
-                              ctx.fillText(phoneNumber, logoX + logoWidth / 2, 645);
+                              ctx.fillText(phoneNumber, logoX + logoWidth / 2, 650);
                           }
                       }
                   }
