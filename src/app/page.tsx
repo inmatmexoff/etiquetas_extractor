@@ -175,8 +175,7 @@ export default function TryPage() {
             dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
             const parts = dbFormat.split('-').map(part => parseInt(part, 10));
             if (parts.length === 3 && !parts.some(isNaN)) {
-                const date = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0); // Use midday to avoid timezone shifts
-                displayFormat = dbFormat;
+                displayFormat = dbFormat; // Keep display format clean
                 return { dbFormat, displayFormat };
             }
         }
@@ -355,11 +354,10 @@ export default function TryPage() {
                     if (dbFormat) {
                         dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
                         pageLabelData[labelGroup]['FECHA ENTREGA'] = dbFormat;
-                        pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = dbFormat;
                     } else {
                         pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
-                        pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.dbFormat;
                     }
+                    pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = pageLabelData[labelGroup]['FECHA ENTREGA'];
                     extractedText = (pageLabelData[labelGroup]['FECHA ENTREGA'] as string) || '';
                 } else if (cleanLabel.includes('NUM DE VENTA')) {
                     extractedText = extractedText.replace(/Pack ID:/gi, '').match(/\d+/g)?.join('') || '';
@@ -419,12 +417,6 @@ export default function TryPage() {
                          ...pageLabelData[group]
                      };
 
-                    if (!rowData['FECHA ENTREGA (Display)']) {
-                        const dateStr = rowData['FECHA ENTREGA'] as string;
-                        if (dateStr) {
-                            rowData['FECHA ENTREGA (Display)'] = dateStr;
-                        }
-                    }
                      allGroupedData.push(rowData);
                  }
             }
@@ -713,9 +705,9 @@ export default function TryPage() {
                           const sanitizedDateStr = dateStr.replace(/[^\d-]/g, '');
                           const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
                           if (parts.length === 3 && !parts.some(isNaN)) {
-                              const deliveryDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+                              const deliveryDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
                               if (!isNaN(deliveryDate.getTime())) {
-                                  const dayOfWeek = deliveryDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+                                  const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                                   const colors = [
                                       '#FFA500', // Sunday - Orange
                                       '#0000FF', // Monday - Blue
@@ -822,8 +814,8 @@ export default function TryPage() {
                  const sanitizedDateStr = firstResultDateStr.replace(/[^\d-]/g, '');
                  const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
                  if(parts.length === 3 && !parts.some(isNaN)) {
-                     deliveryDateForSummary = new Date(parts[0], parts[1]-1, parts[2], 12, 0, 0);
-                     const dayOfWeek = deliveryDateForSummary.getDay();
+                     deliveryDateForSummary = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
+                     const dayOfWeek = deliveryDateForSummary.getUTCDay();
                       const colors = [
                           '#FFA500', // Sunday - Orange
                           '#0000FF', // Monday - Blue
@@ -838,7 +830,7 @@ export default function TryPage() {
             }
             
             const dayOfWeek = deliveryDateForSummary 
-                ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long' }) 
+                ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' }) 
                 : 'N/A';
             
             const date = now.toLocaleDateString('es-ES');
@@ -1203,19 +1195,21 @@ export default function TryPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                {allHeaders.filter(h => h && h !== 'FECHA ENTREGA').map(header => (
+                                                {allHeaders.filter(h => h && h !== 'FECHA ENTREGA' && h !== 'FECHA ENTREGA (Display)').map(header => (
                                                     <TableHead key={header} className="font-semibold">{header}</TableHead>
                                                 ))}
+                                                <TableHead className="font-semibold">FECHA ENTREGA</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {groupedResults.map((row, index) => (
                                                 <TableRow key={index}>
-                                                    {allHeaders.filter(h => h && h !== 'FECHA ENTREGA').map(header => (
+                                                    {allHeaders.filter(h => h && h !== 'FECHA ENTREGA' && h !== 'FECHA ENTREGA (Display)').map(header => (
                                                         <TableCell key={header}>
                                                             { (row[header] as string) || ''}
                                                         </TableCell>
                                                     ))}
+                                                    <TableCell>{row['FECHA ENTREGA (Display)'] as string || ''}</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
@@ -1408,6 +1402,7 @@ export default function TryPage() {
 }
 
     
+
 
 
 
