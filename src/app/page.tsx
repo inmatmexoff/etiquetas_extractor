@@ -86,6 +86,7 @@ export default function TryPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
   const [numPages, setNumPages] = useState(0);
   const [pageRendering, setPageRendering] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -413,6 +414,7 @@ export default function TryPage() {
         setPdfDoc(doc);
         setNumPages(doc.numPages);
         setPageNum(1);
+        setPageInput("1");
         setExtractedData([]); 
         // We keep the predefined rectangles when a new PDF is loaded
       } catch (err) {
@@ -429,6 +431,7 @@ export default function TryPage() {
   useEffect(() => {
     if (pdfDoc) {
       renderPage(pageNum);
+      setPageInput(String(pageNum));
     }
   }, [pdfDoc, pageNum]);
 
@@ -498,6 +501,17 @@ export default function TryPage() {
   const onNextPage = () => {
     if (pageNum >= numPages) return;
     setPageNum(pageNum + 1);
+  };
+
+  const handlePageInputChange = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+          const newPageNum = parseInt(pageInput, 10);
+          if (newPageNum >= 1 && newPageNum <= numPages) {
+              setPageNum(newPageNum);
+          } else {
+              setPageInput(String(pageNum)); // Reset to current page if invalid
+          }
+      }
   };
 
   const intersects = (pdfTextItem: any, drawnRect: Omit<Rectangle, "id">, viewport: any) => {
@@ -638,7 +652,8 @@ export default function TryPage() {
   
               await page.render({ canvasContext: ctx, viewport }).promise;
               
-              ctx.fillStyle = textColor;
+              const safeTextColor = textColor || '#000000';
+              ctx.fillStyle = safeTextColor;
               ctx.textAlign = "center";
               
               const pageResults = resultsByPage[i];
@@ -1075,9 +1090,19 @@ export default function TryPage() {
                         <Button onClick={onPrevPage} disabled={pageNum <= 1 || pageRendering} variant="outline" size="icon">
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <span className="text-sm font-medium tabular-nums">
-                            Página {pageNum} de {numPages}
-                        </span>
+                        <div className="flex items-center gap-1.5 text-sm font-medium tabular-nums">
+                            <span>Página</span>
+                            <Input
+                                type="number"
+                                value={pageInput}
+                                onChange={(e) => setPageInput(e.target.value)}
+                                onKeyDown={handlePageInputChange}
+                                onBlur={() => setPageInput(String(pageNum))}
+                                className="h-8 w-16 text-center"
+                                disabled={pageRendering}
+                            />
+                            <span>de {numPages}</span>
+                        </div>
                         <Button onClick={onNextPage} disabled={pageNum >= numPages || pageRendering} variant="outline" size="icon">
                             <ChevronRight className="h-4 w-4" />
                         </Button>
