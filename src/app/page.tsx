@@ -121,7 +121,7 @@ export default function TryPage() {
     setRectangles(initialRects);
   }, []);
 
-  const getDeliveryDateFromFirstPage = async (doc: any): Promise<string | null> => {
+  const getDeliveryDateFromFirstPage = async (doc: any): Promise<{ dbFormat: string; displayFormat: string } | null> => {
     if (!doc) return null;
     const page = await doc.getPage(1);
     const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
@@ -150,20 +150,32 @@ export default function TryPage() {
     let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
 
     const datePartsNumeric = cleanText.split('/');
-    if (datePartsNumeric.length === 3) {
+    let dbFormat: string | null = null;
+    let displayFormat: string | null = null;
+
+    if (datePartsNumeric.length === 3) { // DD/MM/YYYY
         const day = datePartsNumeric[0].padStart(2, '0');
         const month = datePartsNumeric[1].padStart(2, '0');
         const year = datePartsNumeric[2];
-        return `${year}-${month}-${day}`;
-    } else if (datePartsNumeric.length >= 2) {
+        dbFormat = `${year}-${month}-${day}`;
+    } else if (datePartsNumeric.length >= 2) { // DD/mon
         const day = datePartsNumeric[0].padStart(2, '0');
         const monthStr = datePartsNumeric[1].toLowerCase().substring(0, 3);
         const month = monthMap[monthStr];
         if (month) {
             const currentYear = new Date().getFullYear();
-            return `${currentYear}-${month}-${day}`;
+            dbFormat = `${currentYear}-${month}-${day}`;
         }
     }
+
+    if (dbFormat) {
+        const dateParts = dbFormat.split('-').map(part => parseInt(part, 10));
+        const dateObj = new Date(Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2]));
+        const dayOfWeekStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+        displayFormat = `${dbFormat}-${dayOfWeekStr} ${dateParts[2]}`;
+        return { dbFormat, displayFormat };
+    }
+
     return null;
   };
 
@@ -192,9 +204,9 @@ export default function TryPage() {
     setError(null);
 
     try {
-        const deliveryDate = await getDeliveryDateFromFirstPage(doc);
+        const deliveryDateInfo = await getDeliveryDateFromFirstPage(doc);
         
-        if (!deliveryDate) {
+        if (!deliveryDateInfo?.dbFormat) {
             throw new Error("No se pudo determinar la fecha de entrega desde la primera página. Asegúrate de que el área 'FECHA ENTREGA' esté definida correctamente.");
         }
 
@@ -202,7 +214,7 @@ export default function TryPage() {
             .from('etiquetas_i')
             .select('folio')
             .eq('organization', selectedCompany)
-            .eq('deli_date', deliveryDate)
+            .eq('deli_date', deliveryDateInfo.dbFormat)
             .order('folio', { ascending: false })
             .limit(1)
             .single();
@@ -251,35 +263,41 @@ export default function TryPage() {
                 if (cleanLabel.includes('CANTIDAD')) {
                     extractedText = extractedText.replace(/Cantidad|Productos|Unidad(es)?/gi, '').trim();
                 } else if (cleanLabel.includes('FECHA ENTREGA')) {
-                    const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
-                    const timeMatch = extractedText.match(timeRegex);
+                    // Use the pre-fetched and formatted date
+                     if (currentPageNum === 1 && labelGroup === 1) {
+                        extractedText = deliveryDateInfo.dbFormat; // Use DB format for consistency in data
+                    } else {
+                        // For other pages/labels, extract as before for display or other logic if needed
+                        const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
+                        const timeMatch = extractedText.match(timeRegex);
 
-                    if (timeMatch) {
-                        pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[0];
-                        extractedText = extractedText.replace(timeMatch[0], '').trim();
-                    }
-                    
-                    const monthMap: { [key: string]: string } = {
-                        'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
-                        'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
-                    };
-                    const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
-                    
-                    let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
-                    
-                    const datePartsNumeric = cleanText.split('/');
-                    if (datePartsNumeric.length === 3) {
-                        const day = datePartsNumeric[0].padStart(2, '0');
-                        const month = datePartsNumeric[1].padStart(2, '0');
-                        const year = datePartsNumeric[2];
-                        extractedText = `${year}-${month}-${day}`;
-                    } else if (datePartsNumeric.length >= 2) { // Handle "7/feb"
-                        const day = datePartsNumeric[0].padStart(2, '0');
-                        const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
-                        const month = monthMap[monthStr];
-                        if (month) {
-                           const currentYear = new Date().getFullYear();
-                           extractedText = `${currentYear}-${month}-${day}`;
+                        if (timeMatch) {
+                            pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[0];
+                            extractedText = extractedText.replace(timeMatch[0], '').trim();
+                        }
+                        
+                        const monthMap: { [key: string]: string } = {
+                            'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
+                            'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
+                        };
+                        const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
+                        
+                        let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
+                        
+                        const datePartsNumeric = cleanText.split('/');
+                        if (datePartsNumeric.length === 3) {
+                            const day = datePartsNumeric[0].padStart(2, '0');
+                            const month = datePartsNumeric[1].padStart(2, '0');
+                            const year = datePartsNumeric[2];
+                            extractedText = `${year}-${month}-${day}`;
+                        } else if (datePartsNumeric.length >= 2) { // Handle "7/feb"
+                            const day = datePartsNumeric[0].padStart(2, '0');
+                            const monthStr = datePartsNumeric[1].toLowerCase().substring(0,3);
+                            const month = monthMap[monthStr];
+                            if (month) {
+                               const currentYear = new Date().getFullYear();
+                               extractedText = `${currentYear}-${month}-${day}`;
+                            }
                         }
                     }
                 } else if (cleanLabel.includes('NUM DE VENTA')) {
@@ -373,12 +391,19 @@ export default function TryPage() {
                          }
                      }
 
-                     allGroupedData.push({
+                     const rowData = {
                          'LISTADO': listadoCounter++,
                          'Página': currentPageNum,
                          'EMPRESA': selectedCompany,
                          ...pageLabelData[group]
-                     } as GroupedExtractedData);
+                     } as GroupedExtractedData;
+
+                    if (currentPageNum === 1 && group === 1) {
+                        rowData['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
+                        rowData['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
+                    }
+
+                     allGroupedData.push(rowData);
                  }
             }
         }
@@ -754,7 +779,7 @@ export default function TryPage() {
 
             const firstListado = groupedResults[0]['LISTADO'];
             const lastListado = groupedResults[groupedResults.length - 1]['LISTADO'];
-            const deliveryDateStr = groupedResults[0]['FECHA ENTREGA'] as string;
+            const deliveryDateStr = groupedResults[0]['FECHA ENTREGA (Display)'] as string || groupedResults[0]['FECHA ENTREGA'] as string;
 
 
             pdf.setFontSize(10);
