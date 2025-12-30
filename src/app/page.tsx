@@ -182,7 +182,7 @@ export default function TryPage() {
             const month = datePartsNumeric[1].padStart(2, '0');
             let year = datePartsNumeric[2];
             if (year.includes('2025')) {
-                year = year.replace('2025', '2026');
+                year = '2026';
             }
             dbFormat = `${year}-${month}-${day}`;
         } else if (datePartsNumeric.length >= 2) { // DD/mon
@@ -216,7 +216,7 @@ export default function TryPage() {
   };
 
 
-  const handleExtractData = async (doc: any) => {
+  const handleExtractData = async (doc: any): Promise<GroupedExtractedData[]> => {
     if (!doc || rectangles.length === 0) {
         if (rectangles.length === 0) {
             toast({
@@ -225,7 +225,7 @@ export default function TryPage() {
                 description: "Por favor, dibuja o añade al menos un rectángulo antes de extraer datos.",
             });
         }
-        return;
+        return [];
     }
     if (!selectedCompany) {
         toast({
@@ -233,7 +233,7 @@ export default function TryPage() {
             title: "No se ha seleccionado una empresa",
             description: "Por favor, selecciona una empresa antes de extraer los datos.",
         });
-        return;
+        return [];
     }
     setIsLoading(true);
     setExtractedData([]);
@@ -446,6 +446,7 @@ export default function TryPage() {
         }
         allGroupedData.sort((a,b) => (a['LISTADO'] || 0) < (b['LISTADO'] || 0) ? -1 : 1);
         setExtractedData(allGroupedData);
+        return allGroupedData;
 
     } catch(e: any) {
         console.error("Error extracting data", e);
@@ -455,6 +456,7 @@ export default function TryPage() {
             title: "Error de extracción",
             description: e.message || "Ocurrió un error desconocido.",
         });
+        return [];
     } finally {
         setIsLoading(false);
     }
@@ -643,10 +645,6 @@ export default function TryPage() {
           toast({ variant: "destructive", title: "Selecciona una empresa" });
           return;
       }
-      if (groupedResults.length === 0) {
-          toast({ variant: "destructive", title: "No hay datos extraídos", description: "Extrae los datos primero para saber qué etiquetas enumerar." });
-          return;
-      }
       if (!printerName) {
         toast({ variant: "destructive", title: "Falta nombre", description: "Por favor, introduce el nombre de quien imprime." });
         return;
@@ -654,6 +652,14 @@ export default function TryPage() {
   
       setIsLoading(true);
       try {
+          const currentExtractedData = await handleExtractData(pdfDoc);
+
+          if (currentExtractedData.length === 0) {
+              toast({ variant: "destructive", title: "No hay datos extraídos", description: "La extracción no devolvió resultados. No se puede generar el PDF." });
+              setIsLoading(false);
+              return;
+          }
+
           const pdf = new jsPDF({
               orientation: "p",
               unit: "pt",
@@ -661,7 +667,7 @@ export default function TryPage() {
           });
   
           const resultsByPage: { [key: number]: GroupedExtractedData[] } = {};
-          groupedResults.forEach(result => {
+          currentExtractedData.forEach(result => {
               const pageKey = result['Página'];
               if (!resultsByPage[pageKey]) {
                   resultsByPage[pageKey] = [];
@@ -792,7 +798,7 @@ export default function TryPage() {
           }
 
           // Add summary page
-          if (groupedResults.length > 0) {
+          if (currentExtractedData.length > 0) {
             const summaryPageNumber = lastEnumeratedPage + 1;
             
             if (summaryPageNumber <= pdfDoc.numPages) {
@@ -803,7 +809,7 @@ export default function TryPage() {
 
             const now = new Date();
 
-            const firstResultDateStr = groupedResults[0]['FECHA ENTREGA (Display)'] as string;
+            const firstResultDateStr = currentExtractedData[0]['FECHA ENTREGA (Display)'] as string;
             let deliveryDateForSummary: Date | null = null;
             let textColor = '#000000';
             if(firstResultDateStr) {
@@ -821,10 +827,10 @@ export default function TryPage() {
             const date = now.toLocaleDateString('es-ES');
             const time = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-            const firstListado = groupedResults[0]['LISTADO'];
-            const lastListado = groupedResults[groupedResults.length - 1]['LISTADO'];
+            const firstListado = currentExtractedData[0]['LISTADO'];
+            const lastListado = currentExtractedData[currentExtractedData.length - 1]['LISTADO'];
             
-            let deliveryDateStr = groupedResults[0]['FECHA ENTREGA (Display)'] as string || groupedResults[0]['FECHA ENTREGA'] as string;
+            let deliveryDateStr = currentExtractedData[0]['FECHA ENTREGA (Display)'] as string || currentExtractedData[0]['FECHA ENTREGA'] as string;
 
 
             pdf.setFontSize(10);
@@ -837,7 +843,7 @@ export default function TryPage() {
             const leftX = 40;
             const rightX = 300;
 
-            pdf.text(`Etiquetas Impresas: ${groupedResults.length}`, leftX, currentY);
+            pdf.text(`Etiquetas Impresas: ${currentExtractedData.length}`, leftX, currentY);
             currentY += lineSpacing;
             pdf.text(`Empresa: ${selectedCompany}`, leftX, currentY);
             currentY += lineSpacing;
@@ -1160,7 +1166,7 @@ export default function TryPage() {
                                 <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0 || !selectedCompany} className="flex-1 sm:flex-none">
                                     Extraer Datos
                                 </Button>
-                                <Button onClick={handleDownloadModifiedPdf} disabled={isLoading || !pdfDoc || !selectedCompany || groupedResults.length === 0} className="flex-1 sm:flex-none">
+                                <Button onClick={handleDownloadModifiedPdf} disabled={isLoading || !pdfDoc || !selectedCompany } className="flex-1 sm:flex-none">
                                     <Download className="mr-2 h-4 w-4" />
                                     Descargar PDF Modificado
                                 </Button>
