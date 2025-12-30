@@ -175,9 +175,8 @@ export default function TryPage() {
             dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
             const parts = dbFormat.split('-').map(part => parseInt(part, 10));
             if (parts.length === 3 && !parts.some(isNaN)) {
-                const date = new Date(parts[0], parts[1] - 1, parts[2]);
-                const dayOfWeek = date.toLocaleDateString('es-ES', { weekday: 'short' });
-                displayFormat = `${dbFormat}-${dayOfWeek}`;
+                const date = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0); // Use midday to avoid timezone shifts
+                displayFormat = dbFormat;
                 return { dbFormat, displayFormat };
             }
         }
@@ -714,7 +713,7 @@ export default function TryPage() {
                           const sanitizedDateStr = dateStr.replace(/[^\d-]/g, '');
                           const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
                           if (parts.length === 3 && !parts.some(isNaN)) {
-                              const deliveryDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                              const deliveryDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
                               if (!isNaN(deliveryDate.getTime())) {
                                   const dayOfWeek = deliveryDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                                   const colors = [
@@ -823,7 +822,7 @@ export default function TryPage() {
                  const sanitizedDateStr = firstResultDateStr.replace(/[^\d-]/g, '');
                  const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
                  if(parts.length === 3 && !parts.some(isNaN)) {
-                     deliveryDateForSummary = new Date(parts[0], parts[1]-1, parts[2]);
+                     deliveryDateForSummary = new Date(parts[0], parts[1]-1, parts[2], 12, 0, 0);
                      const dayOfWeek = deliveryDateForSummary.getDay();
                       const colors = [
                           '#FFA500', // Sunday - Orange
@@ -849,10 +848,6 @@ export default function TryPage() {
             const lastListado = groupedResults[groupedResults.length - 1]['LISTADO'];
             
             let deliveryDateStr = groupedResults[0]['FECHA ENTREGA (Display)'] as string || groupedResults[0]['FECHA ENTREGA'] as string;
-            // Clean the display string for the DB query error
-            if (deliveryDateStr) {
-                deliveryDateStr = deliveryDateStr.replace(/-\w{3} \d{2}$/, '');
-            }
 
 
             pdf.setFontSize(10);
@@ -1413,6 +1408,7 @@ export default function TryPage() {
 }
 
     
+
 
 
 
