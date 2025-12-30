@@ -152,6 +152,7 @@ export default function TryPage() {
 
         const datePartsNumeric = cleanText.split('/');
         let dbFormat: string | null = null;
+        let displayFormat: string | null = null;
 
         if (datePartsNumeric.length === 3) { // DD/MM/YYYY
             const day = datePartsNumeric[0].padStart(2, '0');
@@ -172,7 +173,8 @@ export default function TryPage() {
             dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
             const parts = dbFormat.split('-').map(part => parseInt(part, 10));
             if (parts.length === 3 && !parts.some(isNaN)) {
-                return { dbFormat, displayFormat: dbFormat };
+                displayFormat = dbFormat; // Both are YYYY-MM-DD
+                return { dbFormat, displayFormat };
             }
         }
     } catch(e) {
