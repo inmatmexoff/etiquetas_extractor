@@ -152,7 +152,6 @@ export default function TryPage() {
 
         const datePartsNumeric = cleanText.split('/');
         let dbFormat: string | null = null;
-        let displayFormat: string | null = null;
 
         if (datePartsNumeric.length === 3) { // DD/MM/YYYY
             const day = datePartsNumeric[0].padStart(2, '0');
@@ -173,8 +172,7 @@ export default function TryPage() {
             dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
             const parts = dbFormat.split('-').map(part => parseInt(part, 10));
             if (parts.length === 3 && !parts.some(isNaN)) {
-                displayFormat = dbFormat; 
-                return { dbFormat, displayFormat };
+                return { dbFormat, displayFormat: dbFormat };
             }
         }
     } catch(e) {
@@ -720,8 +718,8 @@ export default function TryPage() {
                                       '#0000FF', // Monday - Blue
                                       '#000000', // Tuesday - Black
                                       '#008000', // Wednesday - Green
-                                      '#FF0000', // Thursday (now Friday) - Red
-                                      '#800080', // Friday (now Thursday) - Purple
+                                      '#800080', // Thursday - Purple
+                                      '#FF0000', // Friday - Red
                                       '#FFA500', // Saturday - Orange
                                   ];
                                   textColor = colors[dayOfWeek];
@@ -822,14 +820,14 @@ export default function TryPage() {
                  const parts = sanitizedDateStr.split('-').map(part => parseInt(part, 10));
                  if(parts.length === 3 && !parts.some(isNaN)) {
                      deliveryDateForSummary = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
-                     const dayOfWeek = deliveryDateForSummary.getUTCDay();
+                      const dayOfWeek = deliveryDateForSummary.getUTCDay();
                       const colors = [
                           '#FFA500', // Sunday - Orange
                           '#0000FF', // Monday - Blue
                           '#000000', // Tuesday - Black
                           '#008000', // Wednesday - Green
-                          '#FF0000', // Thursday (now Friday) - Red
-                          '#800080', // Friday (now Thursday) - Purple
+                          '#800080', // Thursday - Purple
+                          '#FF0000', // Friday - Red
                           '#FFA500', // Saturday - Orange
                       ];
                       textColor = colors[dayOfWeek];
@@ -1409,6 +1407,7 @@ export default function TryPage() {
 }
 
     
+
 
 
 
