@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -175,7 +173,7 @@ export default function TryPage() {
             dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
             const parts = dbFormat.split('-').map(part => parseInt(part, 10));
             if (parts.length === 3 && !parts.some(isNaN)) {
-                displayFormat = dbFormat; // Keep display format clean
+                displayFormat = dbFormat; 
                 return { dbFormat, displayFormat };
             }
         }
@@ -290,7 +288,8 @@ export default function TryPage() {
             }
         }
         
-        if (Object.keys(existingFolios).length === 0) { // If no labels are found, start new folio count
+        // If no folios were found for existing codes, then calculate the next starting folio number
+        if (Object.keys(existingFolios).length === 0) { 
             const { data: lastEntry, error: dbError } = await supabase
                 .from('etiquetas_i')
                 .select('folio')
@@ -408,7 +407,15 @@ export default function TryPage() {
                      }
                     
                      const code = Number(pageLabelData[group]['CODIGO DE BARRA']);
-                     const folio = existingFolios[code] || (listadoCounter > 0 ? listadoCounter++ : 0);
+                     let folio;
+                     if (existingFolios[code]) {
+                        folio = existingFolios[code];
+                     } else if (listadoCounter > 0) {
+                        folio = listadoCounter++;
+                        existingFolios[code] = folio; // Add new folio to the map to avoid re-assigning
+                     } else {
+                        folio = 0; // Should not happen if logic is correct, but as a fallback
+                     }
 
                      const rowData: GroupedExtractedData = {
                          'LISTADO': folio,
@@ -713,8 +720,8 @@ export default function TryPage() {
                                       '#0000FF', // Monday - Blue
                                       '#000000', // Tuesday - Black
                                       '#008000', // Wednesday - Green
-                                      '#800080', // Thursday - Purple
-                                      '#FF0000', // Friday - Red
+                                      '#FF0000', // Thursday (now Friday) - Red
+                                      '#800080', // Friday (now Thursday) - Purple
                                       '#FFA500', // Saturday - Orange
                                   ];
                                   textColor = colors[dayOfWeek];
@@ -821,8 +828,8 @@ export default function TryPage() {
                           '#0000FF', // Monday - Blue
                           '#000000', // Tuesday - Black
                           '#008000', // Wednesday - Green
-                          '#800080', // Thursday - Purple
-                          '#FF0000', // Friday - Red
+                          '#FF0000', // Thursday (now Friday) - Red
+                          '#800080', // Friday (now Thursday) - Purple
                           '#FFA500', // Saturday - Orange
                       ];
                       textColor = colors[dayOfWeek];
@@ -1402,6 +1409,7 @@ export default function TryPage() {
 }
 
     
+
 
 
 
