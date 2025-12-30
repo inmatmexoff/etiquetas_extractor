@@ -779,7 +779,12 @@ export default function TryPage() {
 
             const firstListado = groupedResults[0]['LISTADO'];
             const lastListado = groupedResults[groupedResults.length - 1]['LISTADO'];
-            const deliveryDateStr = groupedResults[0]['FECHA ENTREGA (Display)'] as string || groupedResults[0]['FECHA ENTREGA'] as string;
+            
+            let deliveryDateStr = groupedResults[0]['FECHA ENTREGA (Display)'] as string || groupedResults[0]['FECHA ENTREGA'] as string;
+            // Clean the display string for the DB query error
+            if (deliveryDateStr) {
+                deliveryDateStr = deliveryDateStr.replace(/-\w{3} \d{2}$/, '');
+            }
 
 
             pdf.setFontSize(10);
@@ -1314,3 +1319,4 @@ export default function TryPage() {
     
 
     
+
