@@ -979,6 +979,10 @@ export default function TryPage() {
       });
       return;
     }
+    if (!printerName) {
+      toast({ variant: "destructive", title: "Falta nombre", description: "Por favor, introduce el nombre de quien imprime para guardar." });
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
