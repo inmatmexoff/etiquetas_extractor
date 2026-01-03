@@ -1103,7 +1103,6 @@ export default function TryPage() {
         hour: hour,
         sou_file: pdfFile.name,
         personal_inc: printerName,
-        batch_id: batchId,
       }));
 
       if(payload.length > 0) {
@@ -1474,13 +1473,5 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
-
-
-
-
-
-    
 
     
