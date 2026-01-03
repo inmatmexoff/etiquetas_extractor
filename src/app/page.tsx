@@ -75,7 +75,7 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "CANTIDAD 3", x: 69, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO 3", x:45, y:711, width: 298, height:130 },
     { label: "CODIGO DE BARRA 3", x:150, y:383, width:140, height: 35 },
-    { label: "NUM DE VENTA", x: 53, y: 51, width: 168, height: 25 },
+    { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 105 },
     // Cuarto juego de coordenadas (fallback 2)
     { label: "FECHA ENTREGA 4", x:587, y:281, width:237, height:30 },
@@ -160,7 +160,7 @@ export default function TryPage() {
   const [manualEnumeration, setManualEnumeration] = useState(false);
   const [startFolio, setStartFolio] = useState('');
   const [endFolio, setEndFolio] = useState('');
-  const [manualColor, setManualColor] = useState('#000000');
+  const [manualColor, setManualColor] = useState('#0000FF');
 
 
   // Extraction state
@@ -910,22 +910,30 @@ export default function TryPage() {
             }
 
             const now = new Date();
-
-            const firstResultDateStr = currentExtractedData[0]['FECHA ENTREGA (Display)'] as string;
-            let deliveryDateForSummary: Date | null = null;
+            let dayOfWeek = 'N/A';
             let textColor = manualEnumeration ? manualColor : '#000000';
 
-            if (!manualEnumeration && firstResultDateStr) {
-                 const utcDateStr = `${firstResultDateStr}T12:00:00Z`;
-                 deliveryDateForSummary = new Date(utcDateStr);
-                 if(!isNaN(deliveryDateForSummary.getTime())) {
-                     textColor = getDayColor(firstResultDateStr);
-                 }
+            if (manualEnumeration) {
+                const colorToDayMap: { [key: string]: string } = {
+                    [DAY_COLORS.Azul]: 'Lunes',
+                    [DAY_COLORS.Negro]: 'Martes',
+                    [DAY_COLORS.Verde]: 'Miércoles',
+                    [DAY_COLORS.Púrpura]: 'Jueves',
+                    [DAY_COLORS.Rojo]: 'Viernes',
+                    [DAY_COLORS.Naranja]: 'Sábado / Domingo',
+                };
+                dayOfWeek = colorToDayMap[manualColor] || 'N/A';
+            } else {
+                const firstResultDateStr = currentExtractedData[0]['FECHA ENTREGA (Display)'] as string;
+                if (firstResultDateStr) {
+                    const utcDateStr = `${firstResultDateStr}T12:00:00Z`;
+                    const deliveryDateForSummary = new Date(utcDateStr);
+                    if (!isNaN(deliveryDateForSummary.getTime())) {
+                        textColor = getDayColor(firstResultDateStr);
+                        dayOfWeek = deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' });
+                    }
+                }
             }
-            
-            const dayOfWeek = deliveryDateForSummary 
-                ? deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' }) 
-                : 'N/A';
             
             const date = now.toLocaleDateString('es-ES');
             const time = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -1592,4 +1600,5 @@ export default function TryPage() {
 
     
     
+
 
