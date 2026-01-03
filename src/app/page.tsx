@@ -75,6 +75,13 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "CODIGO DE BARRA 3", x:150, y:383, width:140, height: 35 },
     { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 }, // Copied from 1
     { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 60 }, // Copied from 1
+    // Cuarto juego de coordenadas (fallback 2)
+    { label: "FECHA ENTREGA 4", x: 194 + 393, y:281, width:237, height:30 },
+    { label: "CANTIDAD 4", x: 69 + 393, y: 96, width: 50, height: 69 },
+    { label: "CLIENTE INFO 4", x: 45 + 393, y:711, width: 298, height:130 },
+    { label: "CODIGO DE BARRA 4", x: 150 + 393, y:383, width:140, height: 35 },
+    { label: "NUM DE VENTA 4", x: 53 + 393, y: 51, width: 168, height: 25 },
+    { label: "PRODUCTO 4", x: 156 + 393, y: 88, width: 269, height: 60 },
 ];
 
 const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA", "TOLEXAL"];
@@ -159,7 +166,7 @@ export default function TryPage() {
         const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
         const textContent = await page.getTextContent();
         
-        const dateRectLabels = ['FECHA ENTREGA', 'FECHA ENTREGA 2', 'FECHA ENTREGA 3'];
+        const dateRectLabels = ['FECHA ENTREGA', 'FECHA ENTREGA 2', 'FECHA ENTREGA 3', 'FECHA ENTREGA 4'];
         
         for (const label of dateRectLabels) {
             const dateRect = rectangles.find(r => r.label === label);
@@ -1441,3 +1448,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
