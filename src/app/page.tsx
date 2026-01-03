@@ -837,7 +837,7 @@ export default function TryPage() {
         const companyPhones: { [key: string]: string } = { "PALO DE ROSA": "777 522 9204", "TOLEXAL": "735 279 0563", "MTM": "735 252 7148", "DOMESKA": "735 252 7148", "TAL": "735 252 7148" };
         const phoneNumber = companyPhones[selectedCompany];
 
-        const pagesToProcess = pdfDoc.numPages > 1 ? pdfDoc.numPages - 1 : pdfDoc.numPages;
+        const pagesToProcess = pdfDoc.numPages;
 
         for (let i = 1; i <= pagesToProcess; i++) {
             const page = await pdfDoc.getPage(i);
@@ -885,8 +885,8 @@ export default function TryPage() {
             pdf.addImage(canvas.toDataURL("image/jpeg", 0.7), "JPEG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
         }
 
-        if (currentExtractedData.length > 0) {
-            pdf.addPage();
+        if (currentExtractedData.length > 0 && numPages > 0) {
+            pdf.setPage(numPages);
 
             let dayOfWeek = 'N/A';
             let textColor = manualEnumeration ? manualColor : '#000000';
@@ -1423,6 +1423,7 @@ export default function TryPage() {
 
     
     
+
 
 
 
