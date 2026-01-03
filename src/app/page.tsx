@@ -1010,9 +1010,18 @@ export default function TryPage() {
     setError(null);
 
     try {
-      const codesToCheck = groupedResults.map(r => r['CODIGO DE BARRA']).filter(c => c !== undefined && c !== null);
-      const deliveryDate = groupedResults[0]['FECHA ENTREGA'] as string;
-      const company = groupedResults[0]['EMPRESA'] as string;
+      const uniqueResults = groupedResults.reduce((acc, current) => {
+        const x = acc.find(item => item['CODIGO DE BARRA'] === current['CODIGO DE BARRA']);
+        if (!x) {
+          return acc.concat([current]);
+        } else {
+          return acc;
+        }
+      }, [] as GroupedExtractedData[]);
+
+      const codesToCheck = uniqueResults.map(r => r['CODIGO DE BARRA']).filter(c => c !== undefined && c !== null);
+      const deliveryDate = uniqueResults[0]['FECHA ENTREGA'] as string;
+      const company = uniqueResults[0]['EMPRESA'] as string;
 
       if (codesToCheck.length > 0) {
         const { data: existing, error: checkError } = await supabase
@@ -1027,13 +1036,25 @@ export default function TryPage() {
         }
 
         if (existing && existing.length > 0) {
+          const existingCodes = existing.map(e => e.code);
+          const newResults = uniqueResults.filter(r => !existingCodes.includes(Number(r['CODIGO DE BARRA'])));
+
+          if(newResults.length === 0) {
+            toast({
+              variant: "destructive",
+              title: "Etiquetas duplicadas",
+              description: `Todas las etiquetas ya existen para esta fecha y empresa.`,
+            });
+            setIsLoading(false);
+            return;
+          }
+          
           toast({
-            variant: "destructive",
-            title: "Etiquetas duplicadas",
-            description: `Las etiquetas con los códigos de barra ${existing.map(e => e.code).join(', ')} ya existen para esta fecha y empresa.`,
+            variant: "default",
+            title: "Algunas etiquetas ya existen",
+            description: `Se guardarán ${newResults.length} nuevas etiquetas. Las demás ya existen.`,
           });
-          setIsLoading(false);
-          return;
+          
         }
       }
       
@@ -1041,7 +1062,7 @@ export default function TryPage() {
       const imp_date = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
 
-      const payload = groupedResults.map((row) => ({
+      const payload = uniqueResults.map((row) => ({
         folio: row["LISTADO"],
         organization: row["EMPRESA"],
         deli_date: row["FECHA ENTREGA"],
@@ -1415,6 +1436,8 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
 
