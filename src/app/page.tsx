@@ -158,61 +158,68 @@ export default function TryPage() {
         const page = await doc.getPage(1);
         const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
         const textContent = await page.getTextContent();
-        const dateRect = rectangles.find(r => r.label === 'FECHA ENTREGA');
-        if (!dateRect) return null;
-
-        const itemsInRect = textContent.items.filter((item: any) => intersects(item, dateRect, viewport));
-        itemsInRect.sort((a: any, b: any) => {
-            const yA = a.transform[5];
-            const yB = b.transform[5];
-            if (Math.abs(yA - yB) < 2) return a.transform[4] - b.transform[4];
-            return yB - yA;
-        });
-
-        let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
-
-        const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
-        extractedText = extractedText.replace(timeRegex, '').trim();
-
-        const monthMap: { [key: string]: string } = {
-            'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
-            'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
-        };
-        const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
-        let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
-
-        const datePartsNumeric = cleanText.split('/');
-        let dbFormat: string | null = null;
-
-        if (datePartsNumeric.length === 3) { // DD/MM/YYYY
-            const day = datePartsNumeric[0].padStart(2, '0');
-            const month = datePartsNumeric[1].padStart(2, '0');
-            let year = datePartsNumeric[2];
-            if (year.includes('2025')) {
-                year = '2026';
-            }
-            dbFormat = `${year}-${month}-${day}`;
-        } else if (datePartsNumeric.length >= 2) { // DD/mon
-            const day = datePartsNumeric[0].padStart(2, '0');
-            const monthStr = datePartsNumeric[1].toLowerCase().substring(0, 3);
-            const month = monthMap[monthStr];
-            if (month) {
-                let currentYear = new Date().getFullYear();
-                if (String(currentYear).includes('2025')) {
-                    currentYear = 2026;
-                }
-                dbFormat = `${currentYear}-${month}-${day}`;
-            }
-        }
         
-        if (dbFormat) {
-            if (dbFormat.includes('2025')) {
-                dbFormat = dbFormat.replace('2025', '2026');
+        const dateRectLabels = ['FECHA ENTREGA', 'FECHA ENTREGA 2', 'FECHA ENTREGA 3'];
+        
+        for (const label of dateRectLabels) {
+            const dateRect = rectangles.find(r => r.label === label);
+            if (!dateRect) continue;
+
+            const itemsInRect = textContent.items.filter((item: any) => intersects(item, dateRect, viewport));
+            if (itemsInRect.length === 0) continue;
+
+            itemsInRect.sort((a: any, b: any) => {
+                const yA = a.transform[5];
+                const yB = b.transform[5];
+                if (Math.abs(yA - yB) < 2) return a.transform[4] - b.transform[4];
+                return yB - yA;
+            });
+
+            let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
+
+            const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
+            extractedText = extractedText.replace(timeRegex, '').trim();
+
+            const monthMap: { [key: string]: string } = {
+                'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
+                'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
+            };
+            const daysOfWeek = /lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi;
+            let cleanText = extractedText.replace(/ENTREGAR:|ENTREGAR/gi, '').replace(daysOfWeek, '').replace(':', '').trim();
+
+            const datePartsNumeric = cleanText.split('/');
+            let dbFormat: string | null = null;
+
+            if (datePartsNumeric.length === 3) { // DD/MM/YYYY
+                const day = datePartsNumeric[0].padStart(2, '0');
+                const month = datePartsNumeric[1].padStart(2, '0');
+                let year = datePartsNumeric[2];
+                if (year.includes('2025')) {
+                    year = '2026';
+                }
+                dbFormat = `${year}-${month}-${day}`;
+            } else if (datePartsNumeric.length >= 2) { // DD/mon
+                const day = datePartsNumeric[0].padStart(2, '0');
+                const monthStr = datePartsNumeric[1].toLowerCase().substring(0, 3);
+                const month = monthMap[monthStr];
+                if (month) {
+                    let currentYear = new Date().getFullYear();
+                    if (String(currentYear).includes('2025')) {
+                        currentYear = 2026;
+                    }
+                    dbFormat = `${currentYear}-${month}-${day}`;
+                }
             }
-            dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
-            const parts = dbFormat.split('-').map(part => parseInt(part, 10));
-            if (parts.length === 3 && !parts.some(isNaN)) {
-                return { dbFormat, displayFormat: dbFormat };
+            
+            if (dbFormat) {
+                if (dbFormat.includes('2025')) {
+                    dbFormat = dbFormat.replace('2025', '2026');
+                }
+                dbFormat = dbFormat.replace(/[^0-9-]/g, '').slice(0, 10);
+                const parts = dbFormat.split('-').map(part => parseInt(part, 10));
+                if (parts.length === 3 && !parts.some(isNaN)) {
+                    return { dbFormat, displayFormat: dbFormat };
+                }
             }
         }
     } catch(e) {
@@ -374,7 +381,7 @@ export default function TryPage() {
                          const timeRegex = /antes de (\d{1,2}:\d{2}) hs/i;
                          const timeMatch = extractedText.match(timeRegex);
                          if (timeMatch && timeMatch[1]) {
-                             pageLabelData['HORA ENTREGA'] = timeMatch[1];
+                             pageLabelData['HORA ENTREGA'] = timeMatch[1].replace(/antes de\s*|\s*hs/gi, '').trim();
                          }
                         pageLabelData['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
                         pageLabelData['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
@@ -1379,7 +1386,7 @@ export default function TryPage() {
                                                         <Input id={`y-${rect.id}`} type="number" value={rect.y} onChange={(e) => handleRectUpdate(rect.id, 'y', e.target.value)} />
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <Label htmlFor={`w-${rect.id}`} className="text-xs">Ancho (W)</Label>_
+                                                        <Label htmlFor={`w-${rect.id}`} className="text-xs">Ancho (W)</Label>
                                                         <Input id={`w-${rect.id}`} type="number" value={rect.width} onChange={(e) => handleRectUpdate(rect.id, 'width', e.target.value)} />
                                                     </div>
                                                     <div className="space-y-1">
@@ -1402,5 +1409,7 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
