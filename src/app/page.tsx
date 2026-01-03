@@ -76,12 +76,12 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 60 },
     // Cuarto juego de coordenadas (fallback 2)
-    { label: "FECHA ENTREGA 4", x: 587, y:281, width:237, height:30 },
-    { label: "CANTIDAD 4", x: 462, y: 96, width: 50, height: 69 },
-    { label: "CLIENTE INFO 4", x: 438, y:711, width: 298, height:130 },
-    { label: "CODIGO DE BARRA 4", x: 543, y:383, width:140, height: 35 },
-    { label: "NUM DE VENTA 4", x: 446, y: 51, width: 168, height: 25 },
-    { label: "PRODUCTO 4", x: 549, y: 88, width: 269, height: 60 },
+    { label: "FECHA ENTREGA 4", x:587, y:281, width:237, height:30 },
+    { label: "CANTIDAD 4", x:462, y:96, width:50, height:69 },
+    { label: "CLIENTE INFO 4", x:438, y:711, width:298, height:130 },
+    { label: "CODIGO DE BARRA 4", x:543, y:383, width:140, height:35 },
+    { label: "NUM DE VENTA 4", x:446, y:51, width:168, height:25 },
+    { label: "PRODUCTO 4", x:549, y:88, width:269, height:60 },
 ];
 
 const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA", "TOLEXAL"];
@@ -1120,7 +1120,6 @@ export default function TryPage() {
                 code_i: batchId,
                 personal_inc: printerName,
                 imp_date: imp_date,
-                hour: hour,
             });
 
         if (batchInsertError) {
@@ -1475,3 +1474,4 @@ export default function TryPage() {
 }
 
     
+
