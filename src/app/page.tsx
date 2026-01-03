@@ -76,12 +76,12 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 }, // Copied from 1
     { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 60 }, // Copied from 1
     // Cuarto juego de coordenadas (fallback 2)
-    { label: "FECHA ENTREGA 4", x: 194 + 393, y:281, width:237, height:30 },
-    { label: "CANTIDAD 4", x: 69 + 393, y: 96, width: 50, height: 69 },
-    { label: "CLIENTE INFO 4", x: 45 + 393, y:711, width: 298, height:130 },
-    { label: "CODIGO DE BARRA 4", x: 150 + 393, y:383, width:140, height: 35 },
-    { label: "NUM DE VENTA 4", x: 53 + 393, y: 51, width: 168, height: 25 },
-    { label: "PRODUCTO 4", x: 156 + 393, y: 88, width: 269, height: 60 },
+    { label: "FECHA ENTREGA 4", x: 587, y:281, width:237, height:30 },
+    { label: "CANTIDAD 4", x: 462, y: 96, width: 50, height: 69 },
+    { label: "CLIENTE INFO 4", x: 438, y:711, width: 298, height:130 },
+    { label: "CODIGO DE BARRA 4", x: 543, y:383, width:140, height: 35 },
+    { label: "NUM DE VENTA 4", x: 446, y: 51, width: 168, height: 25 },
+    { label: "PRODUCTO 4", x: 549, y: 88, width: 269, height: 60 },
 ];
 
 const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA", "TOLEXAL"];
@@ -263,10 +263,10 @@ export default function TryPage() {
     const extractGroupData = async (textContent: any, viewport: any, groupSuffix: string) => {
         const groupData: { [key: string]: string | number } = {};
         const groupRects = rectangles.filter(r => {
-            const suffix = r.label.match(/\d+$/);
+            const suffix = r.label.match(/\d*$/);
             // Default to group 1 if no number is present
-            const rectGroup = suffix ? suffix[0] : '';
-            return rectGroup === groupSuffix || (groupSuffix === '' && rectGroup === '');
+            const rectGroup = suffix ? suffix[0] : '1';
+            return rectGroup === groupSuffix || (groupSuffix === '1' && rectGroup === '');
         });
     
         for (const rect of groupRects) {
@@ -280,7 +280,7 @@ export default function TryPage() {
             });
             let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
     
-            const cleanLabel = rect.label.replace(/ \d+$/, '').trim();
+            const cleanLabel = rect.label.replace(/ \d*$/, '').trim();
     
             if (extractedText.trim() !== '') {
                 groupData[cleanLabel] = extractedText.trim();
@@ -293,7 +293,7 @@ export default function TryPage() {
         const deliveryDateInfo = await getDeliveryDateFromFirstPage(doc);
         
         if (!deliveryDateInfo?.dbFormat) {
-            toast({
+             toast({
                 variant: "destructive",
                 title: "Error de extracción",
                 description: "No se pudo determinar la fecha de entrega desde la primera página. Asegúrate de que el área 'FECHA ENTREGA' esté definida correctamente.",
@@ -319,7 +319,7 @@ export default function TryPage() {
         
                 if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
-                    rawData = { ...rawData, ...fallbackData };
+                    rawData = { ...fallbackData, ...rawData };
                 }
         
                 const code = rawData['CODIGO DE BARRA'] ? String(rawData['CODIGO DE BARRA']).match(/\d+/g)?.join('') : null;
@@ -387,9 +387,10 @@ export default function TryPage() {
 
                 let rawData = await extractGroupData(textContent, viewport, primaryGroup);
                 
+                // Use fallback only if primary fails for key info
                 if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
-                    // Correctly merge: primary data first, then fill missing with fallback
+                    // Combine, giving precedence to fallback data for missing fields
                     rawData = { ...rawData, ...fallbackData };
                 }
 
@@ -1041,6 +1042,8 @@ export default function TryPage() {
       const deliveryDate = uniqueResults[0]['FECHA ENTREGA'] as string;
       const company = uniqueResults[0]['EMPRESA'] as string;
 
+      let resultsToSave = uniqueResults;
+
       if (codesToCheck.length > 0 && deliveryDate && company) {
         const { data: existing, error: checkError } = await supabase
           .from('etiquetas_i')
@@ -1072,7 +1075,7 @@ export default function TryPage() {
             title: "Algunas etiquetas ya existen",
             description: `Se guardarán ${newResults.length} de ${uniqueResults.length} etiquetas nuevas. Las demás ya existen.`,
           });
-          
+          resultsToSave = newResults;
         }
       }
       
@@ -1080,7 +1083,7 @@ export default function TryPage() {
       const imp_date = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
 
-      const payload = uniqueResults.map((row) => ({
+      const payload = resultsToSave.map((row) => ({
         folio: row["LISTADO"],
         organization: row["EMPRESA"],
         deli_date: row["FECHA ENTREGA"],
@@ -1458,5 +1461,6 @@ export default function TryPage() {
 }
 
     
+
 
 
