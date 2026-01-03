@@ -58,14 +58,14 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "FECHA ENTREGA", x: 193, y: 311, width: 238, height: 33 },
     { label: "CANTIDAD", x: 69, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO", x: 48, y: 900, width: 291, height: 155 },
-    { label: "CODIGO DE BARRA", x: 144, y: 445, width: 154, height: 15 },
+    { label: "CODIGO DE BARRA", x: 144, y: 445, width: 154, height: 12 },
     { label: "NUM DE VENTA", x: 53, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO", x: 156, y: 88, width: 269, height: 60 },
     // Segunda etiqueta
     { label: "FECHA ENTREGA 2", x: 586, y: 311, width: 238, height: 33 },
     { label: "CANTIDAD 2", x: 462, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO 2", x: 441, y: 900, width: 291, height: 155 },
-    { label: "CODIGO DE BARRA 2", x: 537, y: 445, width: 154, height: 15 },
+    { label: "CODIGO DE BARRA 2", x: 537, y: 445, width: 154, height: 12 },
     { label: "NUM DE VENTA 2", x: 446, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO 2", x: 549, y: 88, width: 269, height: 60 },
     // Tercer juego de coordenadas (fallback)
@@ -411,7 +411,7 @@ export default function TryPage() {
                         pageLabelData['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
                         extractedText = deliveryDateInfo.displayFormat;
                     } else if (label.includes('NUM DE VENTA')) {
-                        extractedText = extractedText.replace(/Pack ID:/gi, '').match(/\d+/g)?.join('') || '';
+                        extractedText = extractedText.match(/\d+/g)?.join('') || '';
                     } else if (label.includes('CODIGO DE BARRA')) {
                         // Don't process barcode, take it as is.
                     } else if (label.includes('PRODUCTO')) {
@@ -1474,6 +1474,8 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
 
