@@ -320,12 +320,18 @@ export default function TryPage() {
                 const fallbackGroup = String(group + 2); // 1->3, 2->4
 
                 let rawData = await extractGroupData(textContent, viewport, primaryGroup);
+                const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
+                
+                // Combine, giving priority to fallback if primary is flawed
+                rawData = { ...fallbackData, ...rawData };
         
-                if (!rawData['CODIGO DE BARRA'] || String(rawData['CODIGO DE BARRA']).includes('>') || !rawData['CLIENTE INFO']) {
-                    const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
-                    rawData = { ...fallbackData, ...rawData };
+                if (
+                    !rawData['CODIGO DE BARRA'] || 
+                    String(rawData['CODIGO DE BARRA']).includes('>')
+                ) {
+                    rawData['CODIGO DE BARRA'] = fallbackData['CODIGO DE BARRA'];
                 }
-        
+
                 const code = rawData['CODIGO DE BARRA'] ? String(rawData['CODIGO DE BARRA']) : null;
         
                 if (code) {
@@ -390,11 +396,19 @@ export default function TryPage() {
                 const fallbackGroup = String(group + 2); // 1->3, 2->4
 
                 let rawData = await extractGroupData(textContent, viewport, primaryGroup);
+                const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
                 
-                if (!rawData['CODIGO DE BARRA'] || String(rawData['CODIGO DE BARRA']).includes('>') || !rawData['CLIENTE INFO']) {
-                    const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
-                    rawData = { ...fallbackData, ...rawData };
-                }
+                // Combine, giving priority to fallback if primary is flawed for key fields
+                const finalBarcode = (!rawData['CODIGO DE BARRA'] || String(rawData['CODIGO DE BARRA']).includes('>')) 
+                    ? fallbackData['CODIGO DE BARRA'] 
+                    : rawData['CODIGO DE BARRA'];
+
+                const finalClientInfo = !rawData['CLIENTE INFO'] 
+                    ? fallbackData['CLIENTE INFO']
+                    : rawData['CLIENTE INFO'];
+
+                rawData = { ...fallbackData, ...rawData, 'CODIGO DE BARRA': finalBarcode, 'CLIENTE INFO': finalClientInfo };
+
 
                 for (const [label, rawValue] of Object.entries(rawData)) {
                     let extractedText = String(rawValue);
@@ -413,7 +427,7 @@ export default function TryPage() {
                     } else if (label.includes('NUM DE VENTA')) {
                         extractedText = extractedText.match(/\d+/g)?.join('') || '';
                     } else if (label.includes('CODIGO DE BARRA')) {
-                        // The text is already cleaned in extractGroupData
+                        extractedText = extractedText.replace(/\D/g, '');
                     } else if (label.includes('PRODUCTO')) {
                         const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
                         if (skuMatch?.[1]) {
@@ -1474,3 +1488,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
