@@ -726,6 +726,8 @@ export default function TryPage() {
   
       setIsLoading(true);
       try {
+          const batchId = Date.now().toString(36).slice(-5).toUpperCase();
+
           let currentExtractedData = groupedResults;
           if (currentExtractedData.length === 0) {
             currentExtractedData = await handleExtractData(pdfDoc);
@@ -964,6 +966,14 @@ export default function TryPage() {
             pdf.text(`Entrega: ${deliveryDateStr || 'N/A'}`, rightX, rightY);
             rightY += lineSpacing;
             pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, rightX, rightY);
+            
+            // Add batch code at the bottom
+            pdf.setFont("helvetica", "bold");
+            pdf.setTextColor(0, 0, 0); // Black color
+            pdf.setFontSize(12);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            pdf.text(batchId, pdfWidth / 2, pdfHeight - 20, { align: "center" });
           }
   
           pdf.save("etiquetas_modificadas.pdf");
@@ -1600,5 +1610,6 @@ export default function TryPage() {
 
     
     
+
 
 
