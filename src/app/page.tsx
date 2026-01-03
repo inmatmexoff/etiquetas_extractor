@@ -60,28 +60,28 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "CLIENTE INFO", x: 48, y: 900, width: 291, height: 155 },
     { label: "CODIGO DE BARRA", x: 144, y: 445, width: 154, height: 12 },
     { label: "NUM DE VENTA", x: 53, y: 51, width: 168, height: 25 },
-    { label: "PRODUCTO", x: 156, y: 88, width: 269, height: 80 },
+    { label: "PRODUCTO", x: 156, y: 88, width: 269, height: 105 },
     // Segunda etiqueta
     { label: "FECHA ENTREGA 2", x: 586, y: 311, width: 238, height: 33 },
     { label: "CANTIDAD 2", x: 462, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO 2", x: 441, y: 900, width: 291, height: 155 },
     { label: "CODIGO DE BARRA 2", x: 537, y: 445, width: 154, height: 12 },
     { label: "NUM DE VENTA 2", x: 446, y: 51, width: 168, height: 25 },
-    { label: "PRODUCTO 2", x: 549, y: 88, width: 269, height: 80 },
+    { label: "PRODUCTO 2", x: 549, y: 88, width: 269, height: 105 },
     // Tercer juego de coordenadas (fallback)
     { label: "FECHA ENTREGA 3", x:194, y:281, width:237, height:30 },
     { label: "CANTIDAD 3", x: 69, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO 3", x:45, y:711, width: 298, height:130 },
     { label: "CODIGO DE BARRA 3", x:150, y:383, width:140, height: 35 },
     { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 },
-    { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 80 },
+    { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 105 },
     // Cuarto juego de coordenadas (fallback 2)
     { label: "FECHA ENTREGA 4", x:587, y:281, width:237, height:30 },
     { label: "CANTIDAD 4", x:462, y:96, width:50, height:69 },
     { label: "CLIENTE INFO 4", x:438, y:711, width:298, height:130 },
     { label: "CODIGO DE BARRA 4", x:543, y:383, width:140, height:35 },
     { label: "NUM DE VENTA 4", x:446, y:51, width:168, height:25 },
-    { label: "PRODUCTO 4", x:549, y:88, width:269, height: 80 },
+    { label: "PRODUCTO 4", x:549, y:88, width:269, height: 105 },
 ];
 
 const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA", "TOLEXAL"];
