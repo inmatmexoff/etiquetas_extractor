@@ -73,7 +73,7 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "CANTIDAD 3", x: 69, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO 3", x:45, y:711, width: 298, height:130 },
     { label: "CODIGO DE BARRA 3", x:150, y:383, width:140, height: 35 },
-    { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 },
+    { label: "NUM DE Venta 3", x: 53, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 60 },
     // Cuarto juego de coordenadas (fallback 2)
     { label: "FECHA ENTREGA 4", x:587, y:281, width:237, height:30 },
@@ -328,7 +328,7 @@ export default function TryPage() {
                     preliminaryData.push({
                         page: currentPageNum,
                         labelGroup: group,
-                        code: Number(code.match(/\d+/g)?.join('')),
+                        code: Number(String(code).match(/\d+/g)?.join('')),
                     });
                 }
             }
@@ -444,7 +444,8 @@ export default function TryPage() {
                         extractedText = fullText;
                     }
                     if (extractedText.trim() !== '') {
-                       pageLabelData[label] = extractedText.trim();
+                       const cleanLabel = label.replace(/ \d*$/, '').trim();
+                       pageLabelData[cleanLabel] = extractedText.trim();
                     }
                 }
                 pageLabelData.labelGroup = group;
@@ -1118,7 +1119,7 @@ export default function TryPage() {
             .from("v_code")
             .insert({
                 code_i: batchId,
-                personal_inc: printerName
+                personal_inc: printerName,
             });
 
         if (batchInsertError) {
@@ -1472,5 +1473,7 @@ export default function TryPage() {
   );
 }
 
+
+    
 
     
