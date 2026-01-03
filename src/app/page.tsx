@@ -70,11 +70,11 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "PRODUCTO 2", x: 549, y: 88, width: 269, height: 60 },
     // Tercer juego de coordenadas (fallback)
     { label: "FECHA ENTREGA 3", x:194, y:281, width:237, height:30 },
-    { label: "CANTIDAD 3", x: 69, y: 96, width: 50, height: 69 }, // Copied from 1
+    { label: "CANTIDAD 3", x: 69, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO 3", x:45, y:711, width: 298, height:130 },
     { label: "CODIGO DE BARRA 3", x:150, y:383, width:140, height: 35 },
-    { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 }, // Copied from 1
-    { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 60 }, // Copied from 1
+    { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 },
+    { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 60 },
     // Cuarto juego de coordenadas (fallback 2)
     { label: "FECHA ENTREGA 4", x: 587, y:281, width:237, height:30 },
     { label: "CANTIDAD 4", x: 462, y: 96, width: 50, height: 69 },
@@ -1114,6 +1114,19 @@ export default function TryPage() {
         if (insertError) {
           throw insertError;
         }
+        
+        const { error: batchInsertError } = await supabase
+            .from("v_code")
+            .insert({
+                code_i: batchId,
+                personal_inc: printerName,
+                imp_date: imp_date,
+                hour: hour,
+            });
+
+        if (batchInsertError) {
+            throw batchInsertError;
+        }
 
         toast({
           title: "Éxito",
@@ -1467,5 +1480,7 @@ export default function TryPage() {
 
 
 
+
+    
 
     
