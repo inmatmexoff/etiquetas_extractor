@@ -284,7 +284,13 @@ export default function TryPage() {
         const deliveryDateInfo = await getDeliveryDateFromFirstPage(doc);
         
         if (!deliveryDateInfo?.dbFormat) {
-            throw new Error("No se pudo determinar la fecha de entrega desde la primera página. Asegúrate de que el área 'FECHA ENTREGA' esté definida correctamente.");
+            toast({
+                variant: "destructive",
+                title: "Error de extracción",
+                description: "No se pudo determinar la fecha de entrega desde la primera página. Asegúrate de que el área 'FECHA ENTREGA' esté definida correctamente.",
+            });
+            setIsLoading(false);
+            return [];
         }
         
         const allGroupedData: GroupedExtractedData[] = [];
@@ -1409,6 +1415,8 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
 
     
 
