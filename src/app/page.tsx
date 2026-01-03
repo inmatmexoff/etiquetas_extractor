@@ -903,9 +903,9 @@ export default function TryPage() {
 
           // Add summary page
           if (currentExtractedData.length > 0) {
-            const summaryPageNumber = lastEnumeratedPage + 1;
+            const summaryPageNumber = lastEnumeratedPage > 0 ? lastEnumeratedPage + 1 : pdf.getNumberOfPages() + 1;
             
-            if (summaryPageNumber <= pdfDoc.numPages) {
+            if (summaryPageNumber <= pdf.getNumberOfPages()) {
                 pdf.setPage(summaryPageNumber);
             } else {
                  pdf.addPage();
@@ -1610,6 +1610,7 @@ export default function TryPage() {
 
     
     
+
 
 
 
