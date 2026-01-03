@@ -18,6 +18,15 @@ import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 
 // HACK: Make pdfjs work on nextjs
@@ -162,6 +171,10 @@ export default function TryPage() {
   const [endFolio, setEndFolio] = useState('');
   const [manualColor, setManualColor] = useState('#0000FF');
 
+  // Page validation state
+  const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+  const [validationResult, setValidationResult] = useState<string>("");
+
 
   // Extraction state
   const [extractedData, setExtractedData] = useState<GroupedExtractedData[]>([]);
@@ -253,6 +266,110 @@ export default function TryPage() {
     return null;
   };
 
+  const extractGroupData = async (textContent: any, viewport: any, groupSuffix: string) => {
+    const groupData: { [key: string]: string | number } = {};
+    const groupRects = rectangles.filter(r => {
+        const suffix = r.label.match(/\d*$/);
+        // Default to group 1 if no number is present
+        const rectGroup = suffix ? suffix[0] : '1';
+        return rectGroup === groupSuffix || (groupSuffix === '1' && rectGroup === '');
+    });
+
+    for (const rect of groupRects) {
+        if (rect.width === 0 && rect.height === 0) continue;
+
+        const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
+        itemsInRect.sort((a: any, b: any) => {
+            const yA = a.transform[5]; const yB = b.transform[5];
+            if (Math.abs(yA - yB) < 2) { return a.transform[4] - b.transform[4]; }
+            return yB - yA;
+        });
+        let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
+
+        const cleanLabel = rect.label.replace(/ \d*$/, '').trim();
+
+        if (extractedText.trim() !== '') {
+            if (cleanLabel === 'CODIGO DE BARRA') {
+                groupData[cleanLabel] = extractedText.replace(/\D/g, '');
+            } else {
+                groupData[cleanLabel] = extractedText.trim();
+            }
+        }
+    }
+    return groupData;
+};
+
+const findLastLabelPage = async () => {
+    if (!pdfDoc) {
+        toast({
+            variant: "destructive",
+            title: "No hay PDF cargado",
+            description: "Por favor, carga un archivo PDF primero.",
+        });
+        return;
+    }
+    setIsLoading(true);
+    setValidationResult("");
+
+    let lastPageWithLabel = 0;
+
+    try {
+        for (let currentPageNum = 1; currentPageNum <= pdfDoc.numPages; currentPageNum++) {
+            const page = await pdfDoc.getPage(currentPageNum);
+            const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+            const textContent = await page.getTextContent();
+            
+            let foundLabelOnPage = false;
+            for (const group of [1, 2]) {
+                const primaryGroup = String(group);
+                const fallbackGroup = String(group + 2);
+
+                let rawData = await extractGroupData(textContent, viewport, primaryGroup);
+                const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
+                
+                rawData = { ...fallbackData, ...rawData };
+        
+                if (
+                    !rawData['CODIGO DE BARRA'] || 
+                    String(rawData['CODIGO DE BARRA']).includes('>')
+                ) {
+                    rawData['CODIGO DE BARRA'] = fallbackData['CODIGO DE BARRA'];
+                }
+
+                if (!rawData['CLIENTE INFO']) {
+                    rawData['CLIENTE INFO'] = fallbackData['CLIENTE INFO'];
+                }
+
+                // A page has a label if it has a barcode or a CP code
+                if (rawData['CODIGO DE BARRA'] || rawData['CLIENTE INFO']?.match(/CP:\s*(\S+)/)) {
+                    foundLabelOnPage = true;
+                    break;
+                }
+            }
+            if (foundLabelOnPage) {
+                lastPageWithLabel = currentPageNum;
+            }
+        }
+
+        if (lastPageWithLabel > 0) {
+            setValidationResult(`La última página con etiquetas es la número: ${lastPageWithLabel}`);
+        } else {
+            setValidationResult("No se encontraron etiquetas en ninguna página.");
+        }
+        setIsValidationModalOpen(true);
+
+    } catch (e: any) {
+        console.error("Error during page validation:", e);
+        toast({
+            variant: "destructive",
+            title: "Error de Validación",
+            description: e.message || "Ocurrió un error desconocido.",
+        });
+    } finally {
+        setIsLoading(false);
+    }
+};
+
 
   const handleExtractData = async (doc: any): Promise<GroupedExtractedData[]> => {
     if (!doc || rectangles.length === 0) {
@@ -277,38 +394,6 @@ export default function TryPage() {
     setExtractedData([]);
     setError(null);
 
-    const extractGroupData = async (textContent: any, viewport: any, groupSuffix: string) => {
-        const groupData: { [key: string]: string | number } = {};
-        const groupRects = rectangles.filter(r => {
-            const suffix = r.label.match(/\d*$/);
-            // Default to group 1 if no number is present
-            const rectGroup = suffix ? suffix[0] : '1';
-            return rectGroup === groupSuffix || (groupSuffix === '1' && rectGroup === '');
-        });
-    
-        for (const rect of groupRects) {
-            if (rect.width === 0 && rect.height === 0) continue;
-    
-            const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
-            itemsInRect.sort((a: any, b: any) => {
-                const yA = a.transform[5]; const yB = b.transform[5];
-                if (Math.abs(yA - yB) < 2) { return a.transform[4] - b.transform[4]; }
-                return yB - yA;
-            });
-            let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
-    
-            const cleanLabel = rect.label.replace(/ \d*$/, '').trim();
-    
-            if (extractedText.trim() !== '') {
-                if (cleanLabel === 'CODIGO DE BARRA') {
-                    groupData[cleanLabel] = extractedText.replace(/\D/g, '');
-                } else {
-                    groupData[cleanLabel] = extractedText.trim();
-                }
-            }
-        }
-        return groupData;
-    };
     
     try {
         const deliveryDateInfo = await getDeliveryDateFromFirstPage(doc);
@@ -726,7 +811,7 @@ export default function TryPage() {
 
     setIsLoading(true);
     setError(null);
-    const batchId = Date.now().toString(36).slice(-5).toUpperCase();
+    const batchId = `${Date.now().toString(36).slice(-5).toUpperCase()}`;
 
     try {
         let currentExtractedData = groupedResults;
@@ -1046,6 +1131,20 @@ export default function TryPage() {
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div id="qr-reader" style={{ display: 'none' }}></div>
+      <AlertDialog open={isValidationModalOpen} onOpenChange={setIsValidationModalOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Resultado de la Validación</AlertDialogTitle>
+            <AlertDialogDescription>
+                {validationResult}
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setIsValidationModalOpen(false)}>Cerrar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="container mx-auto max-w-7xl space-y-8">
         <header className="text-center">
             <h1 className="text-4xl font-bold tracking-tight text-primary">
@@ -1132,6 +1231,9 @@ export default function TryPage() {
                             onChange={(e) => setPrinterName(e.target.value)}
                         />
                     </div>
+                     <Button onClick={findLastLabelPage} disabled={isLoading || !pdfDoc}>
+                        Verificar Páginas
+                    </Button>
                 </CardContent>
             </Card>
         </div>
@@ -1423,6 +1525,7 @@ export default function TryPage() {
 
     
     
+
 
 
 
