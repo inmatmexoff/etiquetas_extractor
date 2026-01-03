@@ -80,7 +80,7 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "CANTIDAD 4", x:462, y:96, width:50, height:69 },
     { label: "CLIENTE INFO 4", x:438, y:711, width:298, height:130 },
     { label: "CODIGO DE BARRA 4", x:543, y:383, width:140, height:35 },
-    { label: "NUM DE VENTA 4", x:446, y:51, width:168, height:25 },
+    { label: "NUM DE Venta 4", x:446, y:51, width:168, height:25 },
     { label: "PRODUCTO 4", x:549, y:88, width:269, height:60 },
 ];
 
@@ -1118,7 +1118,6 @@ export default function TryPage() {
             .from("v_code")
             .insert({
                 code_i: batchId,
-                personal_inc: printerName,
             });
 
         if (batchInsertError) {
@@ -1473,5 +1472,6 @@ export default function TryPage() {
 }
 
     
+
 
 
