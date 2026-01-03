@@ -264,7 +264,9 @@ export default function TryPage() {
         const groupData: { [key: string]: string | number } = {};
         const groupRects = rectangles.filter(r => {
             const suffix = r.label.match(/\d+$/);
-            return suffix ? suffix[0] === groupSuffix : groupSuffix === '';
+            // Default to group 1 if no number is present
+            const rectGroup = suffix ? suffix[0] : '';
+            return rectGroup === groupSuffix || (groupSuffix === '' && rectGroup === '');
         });
     
         for (const rect of groupRects) {
@@ -310,10 +312,13 @@ export default function TryPage() {
             const textContent = await page.getTextContent();
         
             for (const group of [1, 2]) {
-                let rawData = await extractGroupData(textContent, viewport, String(group));
+                const primaryGroup = String(group);
+                const fallbackGroup = String(group + 2); // 1->3, 2->4
+
+                let rawData = await extractGroupData(textContent, viewport, primaryGroup);
         
                 if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
-                    const fallbackData = await extractGroupData(textContent, viewport, '3');
+                    const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
                     rawData = { ...fallbackData, ...rawData };
                 }
         
@@ -377,11 +382,13 @@ export default function TryPage() {
             for (const group of [1, 2]) {
                 const pageLabelData: { [key: string]: string | number } = {};
                 
-                let rawData = await extractGroupData(textContent, viewport, String(group));
+                const primaryGroup = String(group);
+                const fallbackGroup = String(group + 2); // 1->3, 2->4
+
+                let rawData = await extractGroupData(textContent, viewport, primaryGroup);
                 
-                // Fallback logic
                 if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
-                    const fallbackData = await extractGroupData(textContent, viewport, '3');
+                    const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
                     rawData = { ...fallbackData, ...rawData };
                 }
 
