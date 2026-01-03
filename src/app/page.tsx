@@ -1023,7 +1023,7 @@ export default function TryPage() {
         folio: row["LISTADO"],
         organization: row["EMPRESA"],
         deli_date: row["FECHA ENTREGA"],
-        deli_hour: row["HORA ENTREGA"],
+        deli_hour: row["FECHA ENTREGA"] && row["HORA ENTREGA"] ? `${row["FECHA ENTREGA"]}T${row["HORA ENTREGA"]}:00` : null,
         quantity: Number(row["CANTIDAD"]) || null,
         client: row["CLIENTE INFO"],
         client_name: row["CLIENTE"],
