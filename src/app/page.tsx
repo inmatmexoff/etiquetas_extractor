@@ -390,7 +390,7 @@ export default function TryPage() {
                 // Use fallback only if primary fails for key info
                 if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
-                    // Combine, giving precedence to raw data, but filling in from fallback
+                    // Combine, giving precedence to fallback data to fill in the gaps.
                     rawData = { ...fallbackData, ...rawData };
                 }
 
@@ -1471,9 +1471,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
-
-
-
-
