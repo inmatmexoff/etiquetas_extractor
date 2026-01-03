@@ -321,7 +321,7 @@ export default function TryPage() {
 
                 let rawData = await extractGroupData(textContent, viewport, primaryGroup);
         
-                if (!rawData['CODIGO DE BARRA'] || (rawData['CODIGO DE BARRA'] as string).includes('>') || !rawData['CLIENTE INFO']) {
+                if (!rawData['CODIGO DE BARRA'] || String(rawData['CODIGO DE BARRA']).includes('>') || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
                     rawData = { ...fallbackData, ...rawData };
                 }
@@ -391,7 +391,7 @@ export default function TryPage() {
 
                 let rawData = await extractGroupData(textContent, viewport, primaryGroup);
                 
-                if (!rawData['CODIGO DE BARRA'] || (rawData['CODIGO DE BARRA'] as string).includes('>') || !rawData['CLIENTE INFO']) {
+                if (!rawData['CODIGO DE BARRA'] || String(rawData['CODIGO DE BARRA']).includes('>') || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
                     rawData = { ...fallbackData, ...rawData };
                 }
@@ -1041,7 +1041,7 @@ export default function TryPage() {
         }
       }, [] as GroupedExtractedData[]);
 
-      const codesToCheck = uniqueResults.map(r => String(r['CODIGO DE BARRA']).match(/\d+/g)?.join('')).filter(c => c);
+      const codesToCheck = uniqueResults.map(r => String(r['CODIGO DE BARRA']).replace(/\D/g, '')).filter(c => c);
       const deliveryDate = uniqueResults[0]['FECHA ENTREGA'] as string;
       const company = uniqueResults[0]['EMPRESA'] as string;
 
@@ -1061,7 +1061,7 @@ export default function TryPage() {
 
         if (existing && existing.length > 0) {
           const existingCodes = existing.map(e => String(e.code));
-          const newResults = uniqueResults.filter(r => !existingCodes.includes(String(r['CODIGO DE BARRA']).match(/\d+/g)?.join('')));
+          const newResults = uniqueResults.filter(r => !existingCodes.includes(String(r['CODIGO DE BARRA']).replace(/\D/g, '')));
 
           if(newResults.length === 0) {
             toast({
@@ -1095,7 +1095,7 @@ export default function TryPage() {
         quantity: Number(row["CANTIDAD"]) || null,
         client: (row["CLIENTE INFO"] as string)?.replace("https://www.jtexpress.mx/", "").trim(),
         client_name: row["CLIENTE"],
-        code: Number(String(row["CODIGO DE BARRA"]).match(/\d+/g)?.join('')) || null,
+        code: Number(String(row["CODIGO DE BARRA"]).replace(/\D/g, '')) || null,
         sales_num: Number(row["NUM DE VENTA"]) || null,
         product: row["PRODUCTO"],
         sku: row["SKU"] || null,
