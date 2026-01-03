@@ -361,10 +361,10 @@ export default function TryPage() {
                 if (cleanLabel.includes('CANTIDAD')) {
                     extractedText = extractedText.replace(/Cantidad|Productos|Unidad(es)?/gi, '').trim();
                 } else if (cleanLabel.includes('FECHA ENTREGA')) {
-                     const timeRegex = /antes de \d{1,2}:\d{2} hs/i;
+                     const timeRegex = /antes de (\d{1,2}:\d{2}) hs/i;
                      const timeMatch = extractedText.match(timeRegex);
-                     if (timeMatch) {
-                         pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[0];
+                     if (timeMatch && timeMatch[1]) {
+                         pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[1];
                      }
                     pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
                     pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
