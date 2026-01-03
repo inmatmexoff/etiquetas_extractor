@@ -1119,7 +1119,6 @@ export default function TryPage() {
             .insert({
                 code_i: batchId,
                 personal_inc: printerName,
-                imp_date: imp_date,
             });
 
         if (batchInsertError) {
@@ -1474,4 +1473,5 @@ export default function TryPage() {
 }
 
     
+
 
