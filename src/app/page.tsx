@@ -1025,7 +1025,7 @@ const findLastLabelPage = async () => {
 
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!drawingAreaRef.current || pageNum !== 1 || isDrawing) return;
+    if (!drawingAreaRef.current || isDrawing) return;
     if ((e.target as HTMLElement).closest('.drawn-rectangle')) return;
 
     setIsDrawing(true);
@@ -1037,7 +1037,7 @@ const findLastLabelPage = async () => {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDrawing || !startPos || !drawingAreaRef.current || pageNum !== 1) return;
+    if (!isDrawing || !startPos || !drawingAreaRef.current) return;
     const rect = drawingAreaRef.current.getBoundingClientRect();
     const currentX = Math.round(e.clientX - rect.left);
     const currentY = Math.round(e.clientY - rect.top);
@@ -1055,7 +1055,7 @@ const findLastLabelPage = async () => {
   };
 
   const handleMouseUp = () => {
-    if (!isDrawing || !currentRect || pageNum !== 1) return;
+    if (!isDrawing || !currentRect) return;
     setIsDrawing(false);
     
     let finalRect = { ...currentRect };
@@ -1151,7 +1151,7 @@ const findLastLabelPage = async () => {
                 Extractor de Etiquetas de Envío
             </h1>
             <p className="mt-2 text-lg text-muted-foreground">
-                {pdfDoc && pageNum > 1 ? "La definición de áreas solo está habilitada en la primera página." : "Dibuja rectángulos o introduce coordenadas para definir áreas de extracción."}
+                {pdfDoc ? "Dibuja rectángulos o introduce coordenadas para definir áreas de extracción." : "Carga un archivo PDF para comenzar."}
             </p>
         </header>
 
@@ -1380,7 +1380,7 @@ const findLastLabelPage = async () => {
                 <div 
                     className={cn(
                         "h-[70vh] w-full rounded-md border overflow-auto flex justify-center items-start relative bg-gray-50 dark:bg-gray-900/50",
-                            pageNum === 1 ? "cursor-crosshair" : "cursor-default"
+                        "cursor-crosshair"
                     )}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
@@ -1393,7 +1393,7 @@ const findLastLabelPage = async () => {
                     style={{ touchAction: 'none' }}
                     >
                     <canvas ref={canvasRef}></canvas>
-                    {pageNum === 1 && rectangles.map((rect) => (
+                    {rectangles.map((rect) => (
                         <div
                             key={rect.id}
                             className="absolute border-2 border-destructive/70 drawn-rectangle pointer-events-none"
@@ -1533,3 +1533,6 @@ const findLastLabelPage = async () => {
 
 
 
+
+
+    
