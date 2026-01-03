@@ -284,7 +284,7 @@ export default function TryPage() {
     
             if (extractedText.trim() !== '') {
                 if (cleanLabel === 'CODIGO DE BARRA') {
-                    groupData[cleanLabel] = extractedText.trim();
+                    groupData[cleanLabel] = extractedText.replace(/\D/g, '');
                 } else {
                     groupData[cleanLabel] = extractedText.trim();
                 }
@@ -413,7 +413,7 @@ export default function TryPage() {
                     } else if (label.includes('NUM DE VENTA')) {
                         extractedText = extractedText.match(/\d+/g)?.join('') || '';
                     } else if (label.includes('CODIGO DE BARRA')) {
-                        // Don't process barcode, take it as is.
+                        // The text is already cleaned in extractGroupData
                     } else if (label.includes('PRODUCTO')) {
                         const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
                         if (skuMatch?.[1]) {
