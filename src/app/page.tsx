@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -16,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Switch } from "@/components/ui/switch";
 
 
 // HACK: Make pdfjs work on nextjs
@@ -73,7 +75,7 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "CANTIDAD 3", x: 69, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO 3", x:45, y:711, width: 298, height:130 },
     { label: "CODIGO DE BARRA 3", x:150, y:383, width:140, height: 35 },
-    { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 },
+    { label: "NUM DE VENTA", x: 53, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 105 },
     // Cuarto juego de coordenadas (fallback 2)
     { label: "FECHA ENTREGA 4", x:587, y:281, width:237, height:30 },
@@ -95,6 +97,15 @@ const MEXICAN_STATES = [
     "Ciudad de México", "Estado de México"
 ];
 
+const DAY_COLORS: { [key: string]: string } = {
+    'Naranja': '#FFA500', // Domingo, Sábado
+    'Azul': '#0000FF',    // Lunes
+    'Negro': '#000000',   // Martes
+    'Verde': '#008000',   // Miércoles
+    'Púrpura': '#800080', // Jueves
+    'Rojo': '#FF0000',    // Viernes
+};
+
 const getDayColor = (dateStr: string | undefined): string => {
     if (!dateStr) return '#000000'; // Default black
 
@@ -105,13 +116,13 @@ const getDayColor = (dateStr: string | undefined): string => {
     if (!isNaN(deliveryDate.getTime())) {
         const dayOfWeek = deliveryDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
         const colors = [
-            '#FFA500', // 0 Domingo - Naranja
-            '#0000FF', // 1 Lunes - Azul
-            '#000000', // 2 Martes - Negro
-            '#008000', // 3 Miércoles - Verde
-            '#800080', // 4 Jueves - Púrpura
-            '#FF0000', // 5 Viernes - Rojo
-            '#FFA500', // 6 Sábado - Naranja
+            DAY_COLORS.Naranja, // 0 Domingo
+            DAY_COLORS.Azul,    // 1 Lunes
+            DAY_COLORS.Negro,   // 2 Martes
+            DAY_COLORS.Verde,   // 3 Miércoles
+            DAY_COLORS.Púrpura, // 4 Jueves
+            DAY_COLORS.Rojo,    // 5 Viernes
+            DAY_COLORS.Naranja, // 6 Sábado
         ];
         return colors[dayOfWeek];
     }
@@ -144,6 +155,12 @@ export default function TryPage() {
 
   // Manual input state
   const [manualRect, setManualRect] = useState({ label: '', x: '', y: '', width: '', height: '' });
+  
+  // Manual enumeration state
+  const [manualEnumeration, setManualEnumeration] = useState(false);
+  const [startFolio, setStartFolio] = useState('');
+  const [endFolio, setEndFolio] = useState('');
+  const [manualColor, setManualColor] = useState('#000000');
 
 
   // Extraction state
@@ -709,13 +726,41 @@ export default function TryPage() {
   
       setIsLoading(true);
       try {
-          const currentExtractedData = await handleExtractData(pdfDoc);
+          let currentExtractedData = groupedResults;
+          if (currentExtractedData.length === 0) {
+            currentExtractedData = await handleExtractData(pdfDoc);
+          }
+
 
           if (currentExtractedData.length === 0) {
               toast({ variant: "destructive", title: "No hay datos extraídos", description: "La extracción no devolvió resultados. No se puede generar el PDF." });
               setIsLoading(false);
               return;
           }
+
+          if (manualEnumeration) {
+            const start = parseInt(startFolio, 10);
+            const end = parseInt(endFolio, 10);
+            if (isNaN(start) || isNaN(end) || start > end) {
+                toast({ variant: "destructive", title: "Rango de folio inválido", description: "Verifica los números de folio inicial y final." });
+                setIsLoading(false);
+                return;
+            }
+            const rangeSize = end - start + 1;
+            if (rangeSize !== currentExtractedData.length) {
+                toast({
+                    variant: "destructive",
+                    title: "El rango no coincide",
+                    description: `El rango de folios (${rangeSize}) no coincide con la cantidad de etiquetas extraídas (${currentExtractedData.length}).`,
+                });
+                setIsLoading(false);
+                return;
+            }
+            currentExtractedData.forEach((item, index) => {
+                item['LISTADO'] = start + index;
+            });
+        }
+
 
           const pdf = new jsPDF({
               orientation: "p",
@@ -779,7 +824,7 @@ export default function TryPage() {
                   lastEnumeratedPage = i;
                   for (const result of pageResults) {
                       
-                      const textColor = getDayColor(result['FECHA ENTREGA (Display)'] as string);
+                      const textColor = manualEnumeration ? manualColor : getDayColor(result['FECHA ENTREGA (Display)'] as string);
                       
                       const safeTextColor = textColor || '#000000';
                       ctx.fillStyle = safeTextColor;
@@ -868,8 +913,9 @@ export default function TryPage() {
 
             const firstResultDateStr = currentExtractedData[0]['FECHA ENTREGA (Display)'] as string;
             let deliveryDateForSummary: Date | null = null;
-            let textColor = '#000000';
-            if(firstResultDateStr) {
+            let textColor = manualEnumeration ? manualColor : '#000000';
+
+            if (!manualEnumeration && firstResultDateStr) {
                  const utcDateStr = `${firstResultDateStr}T12:00:00Z`;
                  deliveryDateForSummary = new Date(utcDateStr);
                  if(!isNaN(deliveryDateForSummary.getTime())) {
@@ -1254,6 +1300,59 @@ export default function TryPage() {
                 </CardContent>
             </Card>
         </div>
+
+        <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+            <AccordionItem value="item-1" className="border rounded-lg">
+                <AccordionTrigger className="p-6 w-full hover:no-underline">
+                    <CardTitle>Configuración de Impresión</CardTitle>
+                </AccordionTrigger>
+                <AccordionContent>
+                    <div className="px-6 pb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                                <Switch id="manual-enumeration-switch" checked={manualEnumeration} onCheckedChange={setManualEnumeration} />
+                                <Label htmlFor="manual-enumeration-switch">Enumeración Manual</Label>
+                            </div>
+                            <div className={cn("space-y-4 transition-opacity", !manualEnumeration && "opacity-50 pointer-events-none")}>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="start-folio">Folio Inicial</Label>
+                                        <Input id="start-folio" type="number" placeholder="Ej: 1" value={startFolio} onChange={e => setStartFolio(e.target.value)} disabled={!manualEnumeration} />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="end-folio">Folio Final</Label>
+                                        <Input id="end-folio" type="number" placeholder="Ej: 50" value={endFolio} onChange={e => setEndFolio(e.target.value)} disabled={!manualEnumeration} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                             <div>
+                                <Label htmlFor="manual-color-select">Color de Texto Manual</Label>
+                                <Select value={manualColor} onValueChange={setManualColor} disabled={!manualEnumeration}>
+                                    <SelectTrigger id="manual-color-select" className="w-full">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-4 w-4 rounded-full" style={{ backgroundColor: manualColor }} />
+                                            <SelectValue />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Object.entries(DAY_COLORS).map(([name, hex]) => (
+                                            <SelectItem key={hex} value={hex}>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-4 w-4 rounded-full" style={{ backgroundColor: hex }} />
+                                                    <span>{name}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
         
         <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="item-1" className="border-b-0">
@@ -1493,3 +1592,4 @@ export default function TryPage() {
 
     
     
+
