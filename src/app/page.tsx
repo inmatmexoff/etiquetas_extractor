@@ -390,8 +390,8 @@ export default function TryPage() {
                 // Use fallback only if primary fails for key info
                 if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
-                    // Combine, giving precedence to fallback data for missing fields
-                    rawData = { ...rawData, ...fallbackData };
+                    // Combine, giving precedence to raw data, but filling in from fallback
+                    rawData = { ...fallbackData, ...rawData };
                 }
 
                 for (const [label, rawValue] of Object.entries(rawData)) {
@@ -1082,6 +1082,7 @@ export default function TryPage() {
       const now = new Date();
       const imp_date = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
+      const batchId = Date.now().toString(36).slice(-5).toUpperCase();
 
       const payload = resultsToSave.map((row) => ({
         folio: row["LISTADO"],
@@ -1102,6 +1103,7 @@ export default function TryPage() {
         hour: hour,
         sou_file: pdfFile.name,
         personal_inc: printerName,
+        batch_id: batchId,
       }));
 
       if(payload.length > 0) {
@@ -1115,7 +1117,7 @@ export default function TryPage() {
 
         toast({
           title: "Éxito",
-          description: `${payload.length} etiquetas nuevas se han guardado correctamente.`,
+          description: `${payload.length} etiquetas nuevas se han guardado correctamente con el lote ${batchId}.`,
         });
       }
 
@@ -1464,3 +1466,6 @@ export default function TryPage() {
 
 
 
+
+
+    
