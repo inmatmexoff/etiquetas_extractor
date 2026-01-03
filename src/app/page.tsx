@@ -73,7 +73,7 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "CANTIDAD 3", x: 69, y: 96, width: 50, height: 69 },
     { label: "CLIENTE INFO 3", x:45, y:711, width: 298, height:130 },
     { label: "CODIGO DE BARRA 3", x:150, y:383, width:140, height: 35 },
-    { label: "NUM DE Venta 3", x: 53, y: 51, width: 168, height: 25 },
+    { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 60 },
     // Cuarto juego de coordenadas (fallback 2)
     { label: "FECHA ENTREGA 4", x:587, y:281, width:237, height:30 },
@@ -398,16 +398,18 @@ export default function TryPage() {
                 let rawData = await extractGroupData(textContent, viewport, primaryGroup);
                 const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
                 
-                // Combine, giving priority to fallback if primary is flawed for key fields
-                const finalBarcode = (!rawData['CODIGO DE BARRA'] || String(rawData['CODIGO DE BARRA']).includes('>')) 
-                    ? fallbackData['CODIGO DE BARRA'] 
-                    : rawData['CODIGO DE BARRA'];
+                rawData = { ...fallbackData, ...rawData };
+        
+                if (
+                    !rawData['CODIGO DE BARRA'] || 
+                    String(rawData['CODIGO DE BARRA']).includes('>')
+                ) {
+                    rawData['CODIGO DE BARRA'] = fallbackData['CODIGO DE BARRA'];
+                }
 
-                const finalClientInfo = !rawData['CLIENTE INFO'] 
-                    ? fallbackData['CLIENTE INFO']
-                    : rawData['CLIENTE INFO'];
-
-                rawData = { ...fallbackData, ...rawData, 'CODIGO DE BARRA': finalBarcode, 'CLIENTE INFO': finalClientInfo };
+                if (!rawData['CLIENTE INFO']) {
+                    rawData['CLIENTE INFO'] = fallbackData['CLIENTE INFO'];
+                }
 
 
                 for (const [label, rawValue] of Object.entries(rawData)) {
@@ -1489,4 +1491,5 @@ export default function TryPage() {
   );
 }
 
+    
     
