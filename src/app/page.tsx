@@ -409,8 +409,8 @@ export default function TryPage() {
                         const clientMatch = fullText.match(/^(.*?)\s*\(/);
                         if (clientMatch?.[1]) pageLabelData['CLIENTE'] = clientMatch[1].trim();
                         
-                        let addressText = domicilioIndex !== -1 ? fullText.substring(fullText.search(/domicilio:/i) + 10) : fullText;
-                        var domicilioIndex = addressText.search(/domicilio:/i);
+                        var domicilioIndex = fullText.search(/domicilio:/i);
+                        let addressText = domicilioIndex !== -1 ? fullText.substring(domicilioIndex + 10) : fullText;
     
                         let foundState = '', stateIndex = -1;
                         for (const state of [...MEXICAN_STATES].sort((a, b) => b.length - a.length)) {
@@ -1011,7 +1011,10 @@ export default function TryPage() {
 
     try {
       const uniqueResults = groupedResults.reduce((acc, current) => {
-        const x = acc.find(item => item['CODIGO DE BARRA'] === current['CODIGO DE BARRA']);
+        const barcode = current['CODIGO DE BARRA'];
+        if (barcode === undefined || barcode === null) return acc;
+        
+        const x = acc.find(item => item['CODIGO DE BARRA'] === barcode);
         if (!x) {
           return acc.concat([current]);
         } else {
@@ -1023,7 +1026,7 @@ export default function TryPage() {
       const deliveryDate = uniqueResults[0]['FECHA ENTREGA'] as string;
       const company = uniqueResults[0]['EMPRESA'] as string;
 
-      if (codesToCheck.length > 0) {
+      if (codesToCheck.length > 0 && deliveryDate && company) {
         const { data: existing, error: checkError } = await supabase
           .from('etiquetas_i')
           .select('code')
@@ -1036,14 +1039,14 @@ export default function TryPage() {
         }
 
         if (existing && existing.length > 0) {
-          const existingCodes = existing.map(e => e.code);
-          const newResults = uniqueResults.filter(r => !existingCodes.includes(Number(r['CODIGO DE BARRA'])));
+          const existingCodes = existing.map(e => String(e.code));
+          const newResults = uniqueResults.filter(r => !existingCodes.includes(String(r['CODIGO DE BARRA'])));
 
           if(newResults.length === 0) {
             toast({
-              variant: "destructive",
-              title: "Etiquetas duplicadas",
-              description: `Todas las etiquetas ya existen para esta fecha y empresa.`,
+              variant: "default",
+              title: "No hay etiquetas nuevas",
+              description: `Todas las etiquetas extraídas ya existen para esta fecha y empresa.`,
             });
             setIsLoading(false);
             return;
@@ -1052,7 +1055,7 @@ export default function TryPage() {
           toast({
             variant: "default",
             title: "Algunas etiquetas ya existen",
-            description: `Se guardarán ${newResults.length} nuevas etiquetas. Las demás ya existen.`,
+            description: `Se guardarán ${newResults.length} de ${uniqueResults.length} etiquetas nuevas. Las demás ya existen.`,
           });
           
         }
@@ -1083,18 +1086,20 @@ export default function TryPage() {
         personal_inc: printerName,
       }));
 
-      const { error: insertError } = await supabase
-        .from("etiquetas_i")
-        .insert(payload);
+      if(payload.length > 0) {
+        const { error: insertError } = await supabase
+          .from("etiquetas_i")
+          .insert(payload);
 
-      if (insertError) {
-        throw insertError;
+        if (insertError) {
+          throw insertError;
+        }
+
+        toast({
+          title: "Éxito",
+          description: `${payload.length} etiquetas nuevas se han guardado correctamente.`,
+        });
       }
-
-      toast({
-        title: "Éxito",
-        description: "Etiquetas guardadas correctamente en la base de datos.",
-      });
 
     } catch (e: any) {
         toast({
@@ -1436,11 +1441,3 @@ export default function TryPage() {
     </main>
   );
 }
-
-    
-
-    
-
-    
-
-    
