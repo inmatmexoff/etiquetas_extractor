@@ -68,6 +68,13 @@ const TRY_PAGE_RECTANGLES_DEFAULT: Omit<Rectangle, 'id'>[] = [
     { label: "CODIGO DE BARRA 2", x: 537, y: 445, width: 154, height: 30 },
     { label: "NUM DE VENTA 2", x: 446, y: 51, width: 168, height: 25 },
     { label: "PRODUCTO 2", x: 549, y: 88, width: 269, height: 60 },
+    // Tercer juego de coordenadas (fallback)
+    { label: "FECHA ENTREGA 3", x:194, y:281, width:237, height:30 },
+    { label: "CANTIDAD 3", x: 69, y: 96, width: 50, height: 69 }, // Copied from 1
+    { label: "CLIENTE INFO 3", x:45, y:711, width: 298, height:130 },
+    { label: "CODIGO DE BARRA 3", x:150, y:383, width:140, height: 35 },
+    { label: "NUM DE VENTA 3", x: 53, y: 51, width: 168, height: 25 }, // Copied from 1
+    { label: "PRODUCTO 3", x: 156, y: 88, width: 269, height: 60 }, // Copied from 1
 ];
 
 const COMPANIES = ["HOGARDEN", "TAL", "MTM", "PALO DE ROSA", "DOMESKA", "TOLEXAL"];
@@ -239,6 +246,33 @@ export default function TryPage() {
     setExtractedData([]);
     setError(null);
 
+    const extractGroupData = async (textContent: any, viewport: any, groupSuffix: string) => {
+        const groupData: { [key: string]: string | number } = {};
+        const groupRects = rectangles.filter(r => {
+            const suffix = r.label.match(/\d+$/);
+            return suffix ? suffix[0] === groupSuffix : groupSuffix === '';
+        });
+    
+        for (const rect of groupRects) {
+            if (rect.width === 0 && rect.height === 0) continue;
+    
+            const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
+            itemsInRect.sort((a: any, b: any) => {
+                const yA = a.transform[5]; const yB = b.transform[5];
+                if (Math.abs(yA - yB) < 2) { return a.transform[4] - b.transform[4]; }
+                return yB - yA;
+            });
+            let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
+    
+            const cleanLabel = rect.label.replace(/ \d+$/, '').trim();
+    
+            if (extractedText.trim() !== '') {
+                groupData[cleanLabel] = extractedText.trim();
+            }
+        }
+        return groupData;
+    };
+    
     try {
         const deliveryDateInfo = await getDeliveryDateFromFirstPage(doc);
         
@@ -254,44 +288,24 @@ export default function TryPage() {
             const page = await doc.getPage(currentPageNum);
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
-            
-            const activeRectangles = rectangles;
-            
-            const pageLabelData: { [key: number]: { [key: string]: string | number } } = { 1: {}, 2: {} };
-
-            for (const rect of activeRectangles) {
-                if (rect.width === 0 && rect.height === 0) continue;
-
-                const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
-                itemsInRect.sort((a: any, b: any) => {
-                    const yA = a.transform[5]; const yB = b.transform[5];
-                    if (Math.abs(yA - yB) < 2) { return a.transform[4] - b.transform[4]; }
-                    return yB - yA;
-                });
-                let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
-                
-                const isSecondLabel = rect.label.endsWith(' 2');
-                const labelGroup = isSecondLabel ? 2 : 1;
-                const cleanLabel = rect.label.replace(' 2', '').trim();
-
-                if (cleanLabel.includes('CODIGO DE BARRA')) {
-                    const numbers = extractedText.match(/\d+/g);
-                    extractedText = numbers ? numbers.join('') : '';
-                }
-
-                if (extractedText.trim() !== '') {
-                   pageLabelData[labelGroup][cleanLabel] = extractedText.trim();
-                   pageLabelData[labelGroup].labelGroup = labelGroup;
-                }
-            }
+        
             for (const group of [1, 2]) {
-                 if (Object.keys(pageLabelData[group]).length > 1 && pageLabelData[group]['CODIGO DE BARRA']) {
-                     preliminaryData.push({
-                         page: currentPageNum,
-                         labelGroup: group,
-                         code: Number(pageLabelData[group]['CODIGO DE BARRA']) || null
-                     });
-                 }
+                let rawData = await extractGroupData(textContent, viewport, String(group));
+        
+                if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
+                    const fallbackData = await extractGroupData(textContent, viewport, '3');
+                    rawData = { ...fallbackData, ...rawData };
+                }
+        
+                const code = rawData['CODIGO DE BARRA'] ? String(rawData['CODIGO DE BARRA']).match(/\d+/g)?.join('') : null;
+        
+                if (code) {
+                    preliminaryData.push({
+                        page: currentPageNum,
+                        labelGroup: group,
+                        code: Number(code),
+                    });
+                }
             }
         }
         
@@ -340,84 +354,79 @@ export default function TryPage() {
             const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
             const textContent = await page.getTextContent();
             
-            const activeRectangles = rectangles;
-            
-            const pageLabelData: { [key: number]: { [key: string]: string | number } } = { 1: {}, 2: {} };
-
-            for (const rect of activeRectangles) {
-                 if (rect.width === 0 && rect.height === 0) continue;
-                const itemsInRect = textContent.items.filter((item: any) => intersects(item, rect, viewport));
-                itemsInRect.sort((a: any, b: any) => {
-                    const yA = a.transform[5]; const yB = b.transform[5];
-                    if (Math.abs(yA - yB) < 2) { return a.transform[4] - b.transform[4]; }
-                    return yB - yA;
-                });
-                let extractedText = itemsInRect.map((item: any) => item.str).join(' ');
-                
-                const isSecondLabel = rect.label.endsWith(' 2');
-                const labelGroup = isSecondLabel ? 2 : 1;
-                const cleanLabel = rect.label.replace(' 2', '').trim();
-
-                if (cleanLabel.includes('CANTIDAD')) {
-                    extractedText = extractedText.replace(/Cantidad|Productos|Unidad(es)?/gi, '').trim();
-                } else if (cleanLabel.includes('FECHA ENTREGA')) {
-                     const timeRegex = /antes de (\d{1,2}:\d{2}) hs/i;
-                     const timeMatch = extractedText.match(timeRegex);
-                     if (timeMatch && timeMatch[1]) {
-                         pageLabelData[labelGroup]['HORA ENTREGA'] = timeMatch[1];
-                     }
-                    pageLabelData[labelGroup]['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
-                    pageLabelData[labelGroup]['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
-                    extractedText = deliveryDateInfo.displayFormat;
-                } else if (cleanLabel.includes('NUM DE VENTA')) {
-                    extractedText = extractedText.replace(/Pack ID:/gi, '').match(/\d+/g)?.join('') || '';
-                } else if (cleanLabel.includes('CODIGO DE BARRA')) {
-                    extractedText = extractedText.match(/\d+/g)?.join('') || '';
-                } else if (cleanLabel.includes('PRODUCTO')) {
-                    const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
-                    if (skuMatch?.[1]) {
-                        pageLabelData[labelGroup]['SKU'] = skuMatch[1];
-                        extractedText = extractedText.replace(skuMatch[0], '').trim();
-                    }
-                } else if (cleanLabel.includes('CLIENTE INFO')) {
-                    const fullText = extractedText;
-                    const cpMatch = fullText.match(/CP:\s*(\S+)/);
-                    if (cpMatch?.[1]) pageLabelData[labelGroup]['CP'] = cpMatch[1].replace(/,/g, '');
-                    const clientMatch = fullText.match(/^(.*?)\s*\(/);
-                    if (clientMatch?.[1]) pageLabelData[labelGroup]['CLIENTE'] = clientMatch[1].trim();
-                    
-                    let addressText = domicilioIndex !== -1 ? fullText.substring(fullText.search(/domicilio:/i) + 10) : fullText;
-                    var domicilioIndex = addressText.search(/domicilio:/i);
-
-                    let foundState = '', stateIndex = -1;
-                    for (const state of [...MEXICAN_STATES].sort((a, b) => b.length - a.length)) {
-                        const match = addressText.match(new RegExp(`\\b${state}\\b`, 'i'));
-                        if (match?.index !== undefined && match.index > stateIndex) {
-                            foundState = match[0]; stateIndex = match.index;
-                        }
-                    }
-                    if (foundState) {
-                        pageLabelData[labelGroup]['ESTADO'] = foundState;
-                        const cityMatch = addressText.match(new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'));
-                        let extractedCity = cityMatch?.[1] ? cityMatch[1].trim() : (addressText.match(new RegExp(`\\b${foundState}\\b`, 'ig'))?.length || 0) > 1 ? foundState : '';
-                        pageLabelData[labelGroup]['CIUDAD'] = extractedCity.length > 30 || extractedCity.toLowerCase().includes('domicilio') ? foundState : extractedCity || foundState;
-                    }
-                    extractedText = fullText;
-                }
-                if (extractedText.trim() !== '') {
-                   pageLabelData[labelGroup][cleanLabel] = extractedText.trim();
-                   pageLabelData[labelGroup].labelGroup = labelGroup;
-                }
-            }
-            
             for (const group of [1, 2]) {
-                 if (Object.keys(pageLabelData[group]).length > 1 && pageLabelData[group]['CP']) {
-                     if (!pageLabelData[group]['ESTADO']) {
-                         pageLabelData[group]['ESTADO'] = "San Luis Potosí";
-                         if (!pageLabelData[group]['CIUDAD']) pageLabelData[group]['CIUDAD'] = "San Luis Potosí";
+                const pageLabelData: { [key: string]: string | number } = {};
+                
+                let rawData = await extractGroupData(textContent, viewport, String(group));
+                
+                // Fallback logic
+                if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
+                    const fallbackData = await extractGroupData(textContent, viewport, '3');
+                    rawData = { ...fallbackData, ...rawData };
+                }
+
+                for (const [label, rawValue] of Object.entries(rawData)) {
+                    let extractedText = String(rawValue);
+                    
+                    if (label.includes('CANTIDAD')) {
+                        extractedText = extractedText.replace(/Cantidad|Productos|Unidad(es)?/gi, '').trim();
+                    } else if (label.includes('FECHA ENTREGA')) {
+                         const timeRegex = /antes de (\d{1,2}:\d{2}) hs/i;
+                         const timeMatch = extractedText.match(timeRegex);
+                         if (timeMatch && timeMatch[1]) {
+                             pageLabelData['HORA ENTREGA'] = timeMatch[1];
+                         }
+                        pageLabelData['FECHA ENTREGA'] = deliveryDateInfo.dbFormat;
+                        pageLabelData['FECHA ENTREGA (Display)'] = deliveryDateInfo.displayFormat;
+                        extractedText = deliveryDateInfo.displayFormat;
+                    } else if (label.includes('NUM DE VENTA')) {
+                        extractedText = extractedText.replace(/Pack ID:/gi, '').match(/\d+/g)?.join('') || '';
+                    } else if (label.includes('CODIGO DE BARRA')) {
+                        extractedText = extractedText.match(/\d+/g)?.join('') || '';
+                    } else if (label.includes('PRODUCTO')) {
+                        const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
+                        if (skuMatch?.[1]) {
+                            pageLabelData['SKU'] = skuMatch[1];
+                            extractedText = extractedText.replace(skuMatch[0], '').trim();
+                        }
+                    } else if (label.includes('CLIENTE INFO')) {
+                        const fullText = extractedText;
+                        const cpMatch = fullText.match(/CP:\s*(\S+)/);
+                        if (cpMatch?.[1]) pageLabelData['CP'] = cpMatch[1].replace(/,/g, '');
+                        const clientMatch = fullText.match(/^(.*?)\s*\(/);
+                        if (clientMatch?.[1]) pageLabelData['CLIENTE'] = clientMatch[1].trim();
+                        
+                        let addressText = domicilioIndex !== -1 ? fullText.substring(fullText.search(/domicilio:/i) + 10) : fullText;
+                        var domicilioIndex = addressText.search(/domicilio:/i);
+    
+                        let foundState = '', stateIndex = -1;
+                        for (const state of [...MEXICAN_STATES].sort((a, b) => b.length - a.length)) {
+                            const match = addressText.match(new RegExp(`\\b${state}\\b`, 'i'));
+                            if (match?.index !== undefined && match.index > stateIndex) {
+                                foundState = match[0]; stateIndex = match.index;
+                            }
+                        }
+                        if (foundState) {
+                            pageLabelData['ESTADO'] = foundState;
+                            const cityMatch = addressText.match(new RegExp(`([^,]+),\\s*${foundState.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'));
+                            let extractedCity = cityMatch?.[1] ? cityMatch[1].trim() : (addressText.match(new RegExp(`\\b${foundState}\\b`, 'ig'))?.length || 0) > 1 ? foundState : '';
+                            pageLabelData['CIUDAD'] = extractedCity.length > 30 || extractedCity.toLowerCase().includes('domicilio') ? foundState : extractedCity || foundState;
+                        }
+                        extractedText = fullText;
+                    }
+                    if (extractedText.trim() !== '') {
+                       pageLabelData[label] = extractedText.trim();
+                    }
+                }
+                pageLabelData.labelGroup = group;
+
+                if (Object.keys(pageLabelData).length > 1 && pageLabelData['CP']) {
+                     if (!pageLabelData['ESTADO']) {
+                         pageLabelData['ESTADO'] = "San Luis Potosí";
+                         if (!pageLabelData['CIUDAD']) pageLabelData['CIUDAD'] = "San Luis Potosí";
                      }
                     
-                     const code = Number(pageLabelData[group]['CODIGO DE BARRA']);
+                     const code = Number(pageLabelData['CODIGO DE BARRA']);
                      let folio;
                      if (existingFolios[code]) {
                         folio = existingFolios[code];
@@ -431,7 +440,7 @@ export default function TryPage() {
                          'LISTADO': folio,
                          'Página': currentPageNum,
                          'EMPRESA': selectedCompany,
-                         ...pageLabelData[group]
+                         ...pageLabelData
                      };
 
                      allGroupedData.push(rowData);
@@ -624,7 +633,7 @@ export default function TryPage() {
   
   const groupedResults = getGroupedData();
   
-  const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ 2$/, '').trim())));
+  const baseHeaders = Array.from(new Set(rectangles.map(r => r.label.replace(/ \d+$/, '').trim())));
   let allHeaders = ["Color", "LISTADO", "Página", "EMPRESA", ...baseHeaders];
   // Dynamically add new columns if they exist in any result
   const dynamicHeaders = ['SKU', 'CP', 'CLIENTE', 'CIUDAD', 'ESTADO', 'HORA ENTREGA'];
@@ -1370,7 +1379,7 @@ export default function TryPage() {
                                                         <Input id={`y-${rect.id}`} type="number" value={rect.y} onChange={(e) => handleRectUpdate(rect.id, 'y', e.target.value)} />
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <Label htmlFor={`w-${rect.id}`} className="text-xs">Ancho (W)</Label>
+                                                        <Label htmlFor={`w-${rect.id}`} className="text-xs">Ancho (W)</Label>_
                                                         <Input id={`w-${rect.id}`} type="number" value={rect.width} onChange={(e) => handleRectUpdate(rect.id, 'width', e.target.value)} />
                                                     </div>
                                                     <div className="space-y-1">
@@ -1393,3 +1402,5 @@ export default function TryPage() {
     </main>
   );
 }
+
+    
