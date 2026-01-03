@@ -710,226 +710,196 @@ export default function TryPage() {
       }
   });
 
-  const handleDownloadModifiedPdf = async () => {
-      if (!pdfDoc) {
-          toast({ variant: "destructive", title: "No hay PDF cargado" });
-          return;
-      }
-      if (!selectedCompany) {
-          toast({ variant: "destructive", title: "Selecciona una empresa" });
-          return;
-      }
-      if (!printerName) {
-        toast({ variant: "destructive", title: "Falta nombre", description: "Por favor, introduce el nombre de quien imprime." });
+  const handleDownloadAndSave = async () => {
+    if (!pdfDoc || !pdfFile) {
+        toast({ variant: "destructive", title: "No hay PDF cargado" });
         return;
-      }
-  
-      setIsLoading(true);
-      try {
-          const batchId = Date.now().toString(36).slice(-5).toUpperCase();
+    }
+    if (!selectedCompany) {
+        toast({ variant: "destructive", title: "Selecciona una empresa" });
+        return;
+    }
+    if (!printerName) {
+      toast({ variant: "destructive", title: "Falta nombre", description: "Por favor, introduce el nombre de quien imprime." });
+      return;
+    }
 
-          let currentExtractedData = groupedResults;
-          if (currentExtractedData.length === 0) {
-            currentExtractedData = await handleExtractData(pdfDoc);
-          }
+    setIsLoading(true);
+    setError(null);
+    const batchId = Date.now().toString(36).slice(-5).toUpperCase();
 
+    try {
+        let currentExtractedData = groupedResults;
+        if (currentExtractedData.length === 0) {
+          currentExtractedData = await handleExtractData(pdfDoc);
+        }
+        
+        if (currentExtractedData.length === 0) {
+            toast({ variant: "destructive", title: "No hay datos para procesar", description: "La extracción no devolvió resultados." });
+            setIsLoading(false);
+            return;
+        }
 
-          if (currentExtractedData.length === 0) {
-              toast({ variant: "destructive", title: "No hay datos extraídos", description: "La extracción no devolvió resultados. No se puede generar el PDF." });
-              setIsLoading(false);
-              return;
-          }
-
-          if (manualEnumeration) {
+        // Handle manual enumeration override
+        if (manualEnumeration) {
             const start = parseInt(startFolio, 10);
             const end = parseInt(endFolio, 10);
             if (isNaN(start) || isNaN(end) || start > end) {
-                toast({ variant: "destructive", title: "Rango de folio inválido", description: "Verifica los números de folio inicial y final." });
-                setIsLoading(false);
-                return;
+                throw new Error("Rango de folio inválido. Verifica los números de folio inicial y final.");
             }
             const rangeSize = end - start + 1;
             if (rangeSize !== currentExtractedData.length) {
-                toast({
-                    variant: "destructive",
-                    title: "El rango no coincide",
-                    description: `El rango de folios (${rangeSize}) no coincide con la cantidad de etiquetas extraídas (${currentExtractedData.length}).`,
-                });
-                setIsLoading(false);
-                return;
+                throw new Error(`El rango de folios (${rangeSize}) no coincide con la cantidad de etiquetas extraídas (${currentExtractedData.length}).`);
             }
             currentExtractedData.forEach((item, index) => {
                 item['LISTADO'] = start + index;
             });
         }
-
-
-          const pdf = new jsPDF({
-              orientation: "p",
-              unit: "pt",
-              format: "letter",
-          });
-  
-          const resultsByPage: { [key: number]: GroupedExtractedData[] } = {};
-          currentExtractedData.forEach(result => {
-              const pageKey = result['Página'];
-              if (!resultsByPage[pageKey]) {
-                  resultsByPage[pageKey] = [];
-              }
-              resultsByPage[pageKey].push(result);
-          });
-  
-          const logoImage = new Image();
-          let logoSrc = `/logos/${selectedCompany}.png`;
-          if (selectedCompany === 'MTM') {
-            logoSrc = `/logos/INMATMEX.png`;
-          } else if (selectedCompany === 'PALO DE ROSA') {
-            logoSrc = `/logos/PALODEROSA.png`;
-          }
-          logoImage.src = logoSrc;
-          
-          await new Promise((resolve, reject) => {
-              logoImage.onload = resolve;
-              logoImage.onerror = (err) => {
-                  console.error("Failed to load logo", err);
-                  resolve(null);
-              };
-          });
-
-          const companyPhones: { [key: string]: string } = {
-            "PALO DE ROSA": "777 522 9204",
-            "TOLEXAL": "735 279 0563",
-            "MTM": "735 252 7148",
-            "DOMESKA": "735 252 7148",
-            "TAL": "735 252 7148"
-          };
-          const phoneNumber = companyPhones[selectedCompany];
-  
-          let lastEnumeratedPage = 0;
-
-          for (let i = 1; i <= pdfDoc.numPages; i++) {
-              const page = await pdfDoc.getPage(i);
-              const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
-  
-              const canvas = document.createElement("canvas");
-              const ctx = canvas.getContext("2d");
-              if (!ctx) continue;
-  
-              canvas.width = viewport.width;
-              canvas.height = viewport.height;
-  
-              await page.render({ canvasContext: ctx, viewport }).promise;
-              
-              const pageResults = resultsByPage[i];
-  
-              if (pageResults) {
-                  lastEnumeratedPage = i;
-                  for (const result of pageResults) {
-                      
-                      const textColor = manualEnumeration ? manualColor : getDayColor(result['FECHA ENTREGA (Display)'] as string);
-                      
-                      const safeTextColor = textColor || '#000000';
-                      ctx.fillStyle = safeTextColor;
-                      ctx.textAlign = "center";
-                      
-                      const listadoCounter = result['LISTADO'];
-                      const labelGroup = result.labelGroup;
-  
-                      let x;
-                      const baseL1X = 360;
-                      const baseL2X = 753;
-
-                      if (labelGroup === 1) {
-                        x = baseL1X;
-                      } else { // labelGroup === 2
-                        x = baseL2X;
-                      }
-                      
-                      let companyFontSize;
-                      if (selectedCompany === 'PALO DE ROSA') {
-                          companyFontSize = 18;
-                      } else if (['DOMESKA', 'HOGARDEN'].includes(selectedCompany)) {
-                          companyFontSize = 20;
-                      } else {
-                          companyFontSize = 30;
-                      }
-
-                      ctx.font = `bold 30px Arial`;
-                      ctx.fillText(`${listadoCounter}`, x, 260);
-
-                      ctx.font = `bold ${companyFontSize}px Arial`;
-                      ctx.fillText(selectedCompany, x, 290);
-
-                      if (logoImage.complete && logoImage.naturalWidth > 0) {
-                          let logoWidth = 130;
-                          if (selectedCompany === 'MTM' || selectedCompany === 'HOGARDEN') {
-                            logoWidth = 150;
-                          }
-                          const logoHeight = logoImage.height * (logoWidth / logoImage.width);
-                          let logoX, logoY;
-                          if (labelGroup === 1) {
-                              logoX = 170;
-                              logoY = 530;
-                          } else { // labelGroup === 2
-                              logoX = 563;
-                              logoY = 530;
-                          }
-                          
-                          if (selectedCompany === 'PALO DE ROSA') {
-                            logoY -= 25;
-                          }
-
-                          ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
-
-                          if (phoneNumber) {
-                              ctx.font = `bold 24px Arial`;
-                              ctx.fillStyle = '#000000'; // Always black for phone number
-                              ctx.fillText(phoneNumber, logoX + logoWidth / 2, 650);
-                          }
-                      }
-                  }
-              }
-              
-              const imgData = canvas.toDataURL("image/jpeg", 0.7);
-              
-              if (i > 1) {
-                  pdf.addPage();
-              }
-              
-              const pdfWidth = pdf.internal.pageSize.getWidth();
-              const pdfHeight = pdf.internal.pageSize.getHeight();
-              pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-          }
-
-          // Add summary page
-          if (currentExtractedData.length > 0) {
-            const summaryPageNumber = lastEnumeratedPage > 0 ? lastEnumeratedPage + 1 : pdf.getNumberOfPages() + 1;
-            
-            if (summaryPageNumber <= pdf.getNumberOfPages()) {
-                pdf.setPage(summaryPageNumber);
-            } else {
-                 pdf.addPage();
+        
+        // --- Save to Database ---
+        const uniqueResults = currentExtractedData.reduce((acc, current) => {
+            const barcode = current['CODIGO DE BARRA'];
+            if (barcode !== undefined && barcode !== null && !acc.find(item => item['CODIGO DE BARRA'] === barcode)) {
+                acc.push(current);
             }
+            return acc;
+        }, [] as GroupedExtractedData[]);
 
+        const codesToCheck = uniqueResults.map(r => String(r['CODIGO DE BARRA']).replace(/\D/g, '')).filter(c => c);
+        const deliveryDate = uniqueResults[0]['FECHA ENTREGA'] as string;
+        const company = uniqueResults[0]['EMPRESA'] as string;
+        
+        let resultsToSave = uniqueResults;
+
+        if (codesToCheck.length > 0 && deliveryDate && company) {
+            const { data: existing, error: checkError } = await supabase
+                .from('etiquetas_i').select('code').eq('organization', company).eq('deli_date', deliveryDate).in('code', codesToCheck as (string | number)[]);
+            if (checkError) throw new Error(`Error al verificar duplicados: ${checkError.message}`);
+            
+            if (existing && existing.length > 0) {
+                const existingCodes = new Set(existing.map(e => String(e.code)));
+                const newResults = uniqueResults.filter(r => !existingCodes.has(String(r['CODIGO DE BARRA']).replace(/\D/g, '')));
+                
+                if (newResults.length === 0) {
+                    toast({ title: "No hay etiquetas nuevas", description: `Todas las ${uniqueResults.length} etiquetas ya existen en la base de datos para esta fecha y empresa.`});
+                } else {
+                    toast({ title: "Algunas etiquetas ya existen", description: `Se guardarán ${newResults.length} de ${uniqueResults.length} etiquetas nuevas.` });
+                }
+                resultsToSave = newResults;
+            }
+        }
+        
+        if (resultsToSave.length > 0) {
             const now = new Date();
+            const payload = resultsToSave.map((row) => ({
+                folio: row["LISTADO"],
+                organization: row["EMPRESA"],
+                deli_date: row["FECHA ENTREGA"],
+                deli_hour: row["FECHA ENTREGA"] && row["HORA ENTREGA"] ? `${row["FECHA ENTREGA"]}T${row["HORA ENTREGA"]}:00` : null,
+                quantity: Number(row["CANTIDAD"]) || null,
+                client: (row["CLIENTE INFO"] as string)?.replace("https://www.jtexpress.mx/", "").trim(),
+                client_name: row["CLIENTE"],
+                code: Number(String(row["CODIGO DE BARRA"]).replace(/\D/g, '')) || null,
+                sales_num: Number(row["NUM DE VENTA"]) || null,
+                product: row["PRODUCTO"],
+                sku: row["SKU"] || null,
+                cp: Number(row["CP"]) || null,
+                state: row["ESTADO"],
+                city: row["CIUDAD"],
+                imp_date: now.toISOString().split('T')[0],
+                hour: now.toLocaleTimeString('en-GB'),
+                sou_file: pdfFile.name,
+                personal_inc: printerName,
+            }));
+            
+            const { error: insertError } = await supabase.from("etiquetas_i").insert(payload);
+            if (insertError) throw insertError;
+            
+            const { error: batchInsertError } = await supabase.from("v_code").insert({ code_i: batchId, personal_inc: printerName });
+            if (batchInsertError) throw batchInsertError;
+
+            toast({ title: "Éxito", description: `${payload.length} etiquetas nuevas guardadas con el lote ${batchId}.` });
+        }
+
+        // --- Generate and Download PDF ---
+        const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "letter" });
+        const resultsByPage: { [key: number]: GroupedExtractedData[] } = {};
+        currentExtractedData.forEach(result => {
+            const pageKey = result['Página'];
+            if (!resultsByPage[pageKey]) resultsByPage[pageKey] = [];
+            resultsByPage[pageKey].push(result);
+        });
+
+        const logoImage = new Image();
+        logoImage.src = `/logos/${selectedCompany === 'MTM' ? 'INMATMEX' : selectedCompany === 'PALO DE ROSA' ? 'PALODEROSA' : selectedCompany}.png`;
+        await new Promise(resolve => { logoImage.onload = resolve; logoImage.onerror = () => resolve(null); });
+
+        const companyPhones: { [key: string]: string } = { "PALO DE ROSA": "777 522 9204", "TOLEXAL": "735 279 0563", "MTM": "735 252 7148", "DOMESKA": "735 252 7148", "TAL": "735 252 7148" };
+        const phoneNumber = companyPhones[selectedCompany];
+
+        let lastEnumeratedPage = 0;
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+            const page = await pdfDoc.getPage(i);
+            const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            if (!ctx) continue;
+            canvas.width = viewport.width; canvas.height = viewport.height;
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            
+            const pageResults = resultsByPage[i];
+            if (pageResults) {
+                lastEnumeratedPage = i;
+                for (const result of pageResults) {
+                    const textColor = manualEnumeration ? manualColor : getDayColor(result['FECHA ENTREGA (Display)'] as string);
+                    ctx.fillStyle = textColor || '#000000';
+                    ctx.textAlign = "center";
+                    
+                    const x = result.labelGroup === 1 ? 360 : 753;
+                    
+                    let companyFontSize = 30;
+                    if (selectedCompany === 'PALO DE ROSA') companyFontSize = 18;
+                    else if (['DOMESKA', 'HOGARDEN'].includes(selectedCompany)) companyFontSize = 20;
+
+                    ctx.font = `bold 30px Arial`;
+                    ctx.fillText(`${result['LISTADO']}`, x, 260);
+                    ctx.font = `bold ${companyFontSize}px Arial`;
+                    ctx.fillText(selectedCompany, x, 290);
+
+                    if (logoImage.complete && logoImage.naturalWidth > 0) {
+                        let logoWidth = selectedCompany === 'MTM' || selectedCompany === 'HOGARDEN' ? 150 : 130;
+                        const logoHeight = logoImage.height * (logoWidth / logoImage.width);
+                        let logoX = result.labelGroup === 1 ? 170 : 563;
+                        let logoY = selectedCompany === 'PALO DE ROSA' ? 505 : 530;
+                        ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
+
+                        if (phoneNumber) {
+                            ctx.font = `bold 24px Arial`;
+                            ctx.fillStyle = '#000000';
+                            ctx.fillText(phoneNumber, logoX + logoWidth / 2, 650);
+                        }
+                    }
+                }
+            }
+            if (i > 1) pdf.addPage();
+            pdf.addImage(canvas.toDataURL("image/jpeg", 0.7), "JPEG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+        }
+
+        if (currentExtractedData.length > 0) {
+            const summaryPageNumber = pdf.getNumberOfPages() + 1;
+            pdf.addPage();
+            pdf.setPage(summaryPageNumber);
+
             let dayOfWeek = 'N/A';
             let textColor = manualEnumeration ? manualColor : '#000000';
 
             if (manualEnumeration) {
-                const colorToDayMap: { [key: string]: string } = {
-                    [DAY_COLORS.Azul]: 'Lunes',
-                    [DAY_COLORS.Negro]: 'Martes',
-                    [DAY_COLORS.Verde]: 'Miércoles',
-                    [DAY_COLORS.Púrpura]: 'Jueves',
-                    [DAY_COLORS.Rojo]: 'Viernes',
-                    [DAY_COLORS.Naranja]: 'Sábado / Domingo',
-                };
+                const colorToDayMap: { [key: string]: string } = { [DAY_COLORS.Azul]: 'Lunes', [DAY_COLORS.Negro]: 'Martes', [DAY_COLORS.Verde]: 'Miércoles', [DAY_COLORS.Púrpura]: 'Jueves', [DAY_COLORS.Rojo]: 'Viernes', [DAY_COLORS.Naranja]: 'Sábado / Domingo' };
                 dayOfWeek = colorToDayMap[manualColor] || 'N/A';
             } else {
                 const firstResultDateStr = currentExtractedData[0]['FECHA ENTREGA (Display)'] as string;
                 if (firstResultDateStr) {
-                    const utcDateStr = `${firstResultDateStr}T12:00:00Z`;
-                    const deliveryDateForSummary = new Date(utcDateStr);
+                    const deliveryDateForSummary = new Date(`${firstResultDateStr}T12:00:00Z`);
                     if (!isNaN(deliveryDateForSummary.getTime())) {
                         textColor = getDayColor(firstResultDateStr);
                         dayOfWeek = deliveryDateForSummary.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' });
@@ -937,55 +907,38 @@ export default function TryPage() {
                 }
             }
             
-            const date = now.toLocaleDateString('es-ES');
-            const time = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-
+            const now = new Date();
             const firstListado = currentExtractedData[0]['LISTADO'];
             const lastListado = currentExtractedData[currentExtractedData.length - 1]['LISTADO'];
-            
             let deliveryDateStr = currentExtractedData[0]['FECHA ENTREGA (Display)'] as string || currentExtractedData[0]['FECHA ENTREGA'] as string;
-
-
+            
+            const rgb = (textColor || '#000000').substring(1).match(/.{1,2}/g)?.map(hex => parseInt(hex, 16)) || [0,0,0];
             pdf.setFontSize(10);
-            const safeTextColor = textColor || '#000000';
-            const rgb = safeTextColor.substring(1).match(/.{1,2}/g)?.map(hex => parseInt(hex, 16)) || [0,0,0];
             pdf.setTextColor(rgb[0], rgb[1], rgb[2]);
-
-            const lineSpacing = 13;
-            let currentY = 20;
-            const leftX = 40;
-            const rightX = 300;
-
-            pdf.text(`Etiquetas Impresas: ${currentExtractedData.length}`, leftX, currentY);
-            currentY += lineSpacing;
-            pdf.text(`Empresa: ${selectedCompany}`, leftX, currentY);
-            currentY += lineSpacing;
-            pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, leftX, currentY);
             
-            let rightY = 20;
-            pdf.text(`Entrega: ${deliveryDateStr || 'N/A'}`, rightX, rightY);
-            rightY += lineSpacing;
-            pdf.text(`Imprimió: ${printerName}, ${time}, ${date}`, rightX, rightY);
+            pdf.text(`Etiquetas Impresas: ${currentExtractedData.length}`, 40, 20);
+            pdf.text(`Empresa: ${selectedCompany}`, 40, 33);
+            pdf.text(`Listado: ${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} (${firstListado}-${lastListado})`, 40, 46);
+            pdf.text(`Entrega: ${deliveryDateStr || 'N/A'}`, 300, 20);
+            pdf.text(`Imprimió: ${printerName}, ${now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}, ${now.toLocaleDateString('es-ES')}`, 300, 33);
             
-            // Add batch code at the bottom
             pdf.setFont("helvetica", "bold");
-            pdf.setTextColor(0, 0, 0); // Black color
+            pdf.setTextColor(0, 0, 0);
             pdf.setFontSize(12);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            pdf.text(batchId, pdfWidth / 2, pdfHeight - 20, { align: "center" });
-          }
-  
-          pdf.save("etiquetas_modificadas.pdf");
-          toast({ title: "PDF modificado generado" });
-  
-      } catch (e: any) {
-          console.error(e);
-          toast({ variant: "destructive", title: "Error al generar el PDF modificado", description: e.message || "No se pudo generar el PDF." });
-      } finally {
-          setIsLoading(false);
-      }
-  };
+            pdf.text(batchId, pdf.internal.pageSize.getWidth() / 2, pdf.internal.pageSize.getHeight() - 20, { align: "center" });
+        }
+
+        pdf.save("etiquetas_modificadas.pdf");
+        toast({ title: "PDF generado y datos guardados" });
+
+    } catch (e: any) {
+        console.error(e);
+        toast({ variant: "destructive", title: "Error en el proceso", description: e.message || "No se pudo completar la operación." });
+    } finally {
+        setIsLoading(false);
+    }
+};
+
 
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1091,140 +1044,6 @@ export default function TryPage() {
     setRectangles(prev => prev.filter(rect => rect.id !== id));
   };
   
-  const saveToDatabase = async () => {
-    if (groupedResults.length === 0 || !pdfFile) {
-      toast({
-        variant: "destructive",
-        title: "No hay datos para guardar",
-        description: "Por favor, extrae los datos primero.",
-      });
-      return;
-    }
-    if (!printerName) {
-      toast({ variant: "destructive", title: "Falta nombre", description: "Por favor, introduce el nombre de quien imprime para guardar." });
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const uniqueResults = groupedResults.reduce((acc, current) => {
-        const barcode = current['CODIGO DE BARRA'];
-        if (barcode === undefined || barcode === null) return acc;
-        
-        const x = acc.find(item => item['CODIGO DE BARRA'] === barcode);
-        if (!x) {
-          return acc.concat([current]);
-        } else {
-          return acc;
-        }
-      }, [] as GroupedExtractedData[]);
-
-      const codesToCheck = uniqueResults.map(r => String(r['CODIGO DE BARRA']).replace(/\D/g, '')).filter(c => c);
-      const deliveryDate = uniqueResults[0]['FECHA ENTREGA'] as string;
-      const company = uniqueResults[0]['EMPRESA'] as string;
-
-      let resultsToSave = uniqueResults;
-
-      if (codesToCheck.length > 0 && deliveryDate && company) {
-        const { data: existing, error: checkError } = await supabase
-          .from('etiquetas_i')
-          .select('code')
-          .eq('organization', company)
-          .eq('deli_date', deliveryDate)
-          .in('code', codesToCheck as (string | number)[]);
-
-        if (checkError) {
-          throw new Error(`Error al verificar duplicados: ${checkError.message}`);
-        }
-
-        if (existing && existing.length > 0) {
-          const existingCodes = existing.map(e => String(e.code));
-          const newResults = uniqueResults.filter(r => !existingCodes.includes(String(r['CODIGO DE BARRA']).replace(/\D/g, '')));
-
-          if(newResults.length === 0) {
-            toast({
-              variant: "default",
-              title: "No hay etiquetas nuevas",
-              description: `Todas las etiquetas extraídas ya existen para esta fecha y empresa.`,
-            });
-            setIsLoading(false);
-            return;
-          }
-          
-          toast({
-            variant: "default",
-            title: "Algunas etiquetas ya existen",
-            description: `Se guardarán ${newResults.length} de ${uniqueResults.length} etiquetas nuevas. Las demás ya existen.`,
-          });
-          resultsToSave = newResults;
-        }
-      }
-      
-      const now = new Date();
-      const imp_date = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const hour = now.toLocaleTimeString('en-GB'); // HH:MM:SS
-      const batchId = Date.now().toString(36).slice(-5).toUpperCase();
-
-      const payload = resultsToSave.map((row) => ({
-        folio: row["LISTADO"],
-        organization: row["EMPRESA"],
-        deli_date: row["FECHA ENTREGA"],
-        deli_hour: row["FECHA ENTREGA"] && row["HORA ENTREGA"] ? `${row["FECHA ENTREGA"]}T${row["HORA ENTREGA"]}:00` : null,
-        quantity: Number(row["CANTIDAD"]) || null,
-        client: (row["CLIENTE INFO"] as string)?.replace("https://www.jtexpress.mx/", "").trim(),
-        client_name: row["CLIENTE"],
-        code: Number(String(row["CODIGO DE BARRA"]).replace(/\D/g, '')) || null,
-        sales_num: Number(row["NUM DE VENTA"]) || null,
-        product: row["PRODUCTO"],
-        sku: row["SKU"] || null,
-        cp: Number(row["CP"]) || null,
-        state: row["ESTADO"],
-        city: row["CIUDAD"],
-        imp_date: imp_date,
-        hour: hour,
-        sou_file: pdfFile.name,
-        personal_inc: printerName,
-      }));
-
-      if(payload.length > 0) {
-        const { error: insertError } = await supabase
-          .from("etiquetas_i")
-          .insert(payload);
-
-        if (insertError) {
-          throw insertError;
-        }
-        
-        const { error: batchInsertError } = await supabase
-            .from("v_code")
-            .insert({
-                code_i: batchId,
-                personal_inc: printerName,
-            });
-
-        if (batchInsertError) {
-            throw batchInsertError;
-        }
-
-        toast({
-          title: "Éxito",
-          description: `${payload.length} etiquetas nuevas se han guardado correctamente con el lote ${batchId}.`,
-        });
-      }
-
-    } catch (e: any) {
-        toast({
-            variant: "destructive",
-            title: "Error al guardar",
-            description: e.message || "Ocurrió un error desconocido al guardar en la base de datos.",
-        });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
 
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
@@ -1384,13 +1203,9 @@ export default function TryPage() {
                                 <Button onClick={() => handleExtractData(pdfDoc)} disabled={isLoading || !pdfDoc || rectangles.length === 0 || !selectedCompany} className="flex-1 sm:flex-none">
                                     Extraer Datos
                                 </Button>
-                                <Button onClick={handleDownloadModifiedPdf} disabled={isLoading || !pdfDoc || !selectedCompany } className="flex-1 sm:flex-none">
+                                <Button onClick={handleDownloadAndSave} disabled={isLoading || !pdfDoc || !selectedCompany} className="flex-1 sm:flex-none">
                                     <Download className="mr-2 h-4 w-4" />
-                                    Descargar PDF Modificado
-                                </Button>
-                                <Button onClick={saveToDatabase} disabled={isLoading || groupedResults.length === 0} className="flex-1 sm:flex-none">
-                                    <Database className="mr-2 h-4 w-4" />
-                                    Guardar en Base de Datos
+                                    Descargar y Guardar
                                 </Button>
                              </div>
                         </div>
@@ -1610,6 +1425,7 @@ export default function TryPage() {
 
     
     
+
 
 
 
