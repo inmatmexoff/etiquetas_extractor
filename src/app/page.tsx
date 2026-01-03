@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -270,7 +269,6 @@ export default function TryPage() {
     const groupData: { [key: string]: string | number } = {};
     const groupRects = rectangles.filter(r => {
         const suffix = r.label.match(/\d*$/);
-        // Default to group 1 if no number is present
         const rectGroup = suffix ? suffix[0] : '1';
         return rectGroup === groupSuffix || (groupSuffix === '1' && rectGroup === '');
     });
@@ -324,37 +322,38 @@ const findLastLabelPage = async () => {
                 const primaryGroup = String(group);
                 const fallbackGroup = String(group + 2);
 
-                let rawData = await extractGroupData(textContent, viewport, primaryGroup);
+                const rawData = await extractGroupData(textContent, viewport, primaryGroup);
                 const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
                 
-                rawData = { ...fallbackData, ...rawData };
+                const finalData = { ...fallbackData, ...rawData };
         
-                if (
-                    !rawData['CODIGO DE BARRA'] || 
-                    String(rawData['CODIGO DE BARRA']).includes('>')
-                ) {
-                    rawData['CODIGO DE BARRA'] = fallbackData['CODIGO DE BARRA'];
-                }
-
-                if (!rawData['CLIENTE INFO']) {
-                    rawData['CLIENTE INFO'] = fallbackData['CLIENTE INFO'];
-                }
-
-                // A page has a label if it has a barcode or a CP code
-                if (rawData['CODIGO DE BARRA'] || rawData['CLIENTE INFO']?.match(/CP:\s*(\S+)/)) {
+                const barcode = finalData['CODIGO DE BARRA'] ? String(finalData['CODIGO DE BARRA']).replace(/\D/g, '') : null;
+                const clientInfo = finalData['CLIENTE INFO'] || '';
+                
+                // A page has a label if it has a valid barcode OR client info with a postal code.
+                if (barcode && barcode.length > 5) {
                     foundLabelOnPage = true;
-                    break;
+                    break; 
+                }
+                if (clientInfo.match(/CP:\s*(\d+)/)) {
+                     foundLabelOnPage = true;
+                     break;
                 }
             }
             if (foundLabelOnPage) {
                 lastPageWithLabel = currentPageNum;
+            } else {
+                // If we've found labels before, and this page doesn't have one, we can stop.
+                if (lastPageWithLabel > 0) {
+                    break;
+                }
             }
         }
 
         if (lastPageWithLabel > 0) {
             setValidationResult(`La última página con etiquetas es la número: ${lastPageWithLabel}`);
         } else {
-            setValidationResult("No se encontraron etiquetas en ninguna página.");
+            setValidationResult("No se encontraron etiquetas en ninguna página. Revisa las áreas de extracción.");
         }
         setIsValidationModalOpen(true);
 
@@ -1522,17 +1521,3 @@ const findLastLabelPage = async () => {
     </main>
   );
 }
-
-    
-    
-
-
-
-
-
-
-
-
-
-
-    
