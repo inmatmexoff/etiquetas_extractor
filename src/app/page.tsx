@@ -389,6 +389,7 @@ export default function TryPage() {
                 
                 if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
+                    // Correctly merge: fallback fills missing, primary overwrites otherwise
                     rawData = { ...fallbackData, ...rawData };
                 }
 
@@ -1457,3 +1458,4 @@ export default function TryPage() {
 }
 
     
+
