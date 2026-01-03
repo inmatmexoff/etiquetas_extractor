@@ -319,7 +319,7 @@ export default function TryPage() {
         
                 if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
-                    rawData = { ...fallbackData, ...rawData };
+                    rawData = { ...rawData, ...fallbackData };
                 }
         
                 const code = rawData['CODIGO DE BARRA'] ? String(rawData['CODIGO DE BARRA']).match(/\d+/g)?.join('') : null;
@@ -389,8 +389,8 @@ export default function TryPage() {
                 
                 if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
-                    // Correctly merge: fallback fills missing, primary overwrites otherwise
-                    rawData = { ...fallbackData, ...rawData };
+                    // Correctly merge: primary data first, then fill missing with fallback
+                    rawData = { ...rawData, ...fallbackData };
                 }
 
                 for (const [label, rawValue] of Object.entries(rawData)) {
@@ -1458,4 +1458,5 @@ export default function TryPage() {
 }
 
     
+
 
