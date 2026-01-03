@@ -322,13 +322,13 @@ export default function TryPage() {
                     rawData = { ...fallbackData, ...rawData };
                 }
         
-                const code = rawData['CODIGO DE BARRA'] ? String(rawData['CODIGO DE BARRA']).match(/\d+/g)?.join('') : null;
+                const code = rawData['CODIGO DE BARRA'] ? String(rawData['CODIGO DE BARRA']) : null;
         
                 if (code) {
                     preliminaryData.push({
                         page: currentPageNum,
                         labelGroup: group,
-                        code: Number(code),
+                        code: Number(code.match(/\d+/g)?.join('')),
                     });
                 }
             }
@@ -411,7 +411,7 @@ export default function TryPage() {
                     } else if (label.includes('NUM DE VENTA')) {
                         extractedText = extractedText.replace(/Pack ID:/gi, '').match(/\d+/g)?.join('') || '';
                     } else if (label.includes('CODIGO DE BARRA')) {
-                        extractedText = extractedText.match(/\d+/g)?.join('') || '';
+                        // Don't process barcode, take it as is.
                     } else if (label.includes('PRODUCTO')) {
                         const skuMatch = extractedText.match(/SKU:\s*(\S+)/);
                         if (skuMatch?.[1]) {
@@ -455,7 +455,7 @@ export default function TryPage() {
                          if (!pageLabelData['CIUDAD']) pageLabelData['CIUDAD'] = "San Luis Potosí";
                      }
                     
-                     const code = Number(pageLabelData['CODIGO DE BARRA']);
+                     const code = Number(String(pageLabelData['CODIGO DE BARRA']).match(/\d+/g)?.join(''));
                      let folio;
                      if (existingFolios[code]) {
                         folio = existingFolios[code];
@@ -1038,7 +1038,7 @@ export default function TryPage() {
         }
       }, [] as GroupedExtractedData[]);
 
-      const codesToCheck = uniqueResults.map(r => r['CODIGO DE BARRA']).filter(c => c !== undefined && c !== null);
+      const codesToCheck = uniqueResults.map(r => String(r['CODIGO DE BARRA']).match(/\d+/g)?.join('')).filter(c => c);
       const deliveryDate = uniqueResults[0]['FECHA ENTREGA'] as string;
       const company = uniqueResults[0]['EMPRESA'] as string;
 
@@ -1058,7 +1058,7 @@ export default function TryPage() {
 
         if (existing && existing.length > 0) {
           const existingCodes = existing.map(e => String(e.code));
-          const newResults = uniqueResults.filter(r => !existingCodes.includes(String(r['CODIGO DE BARRA'])));
+          const newResults = uniqueResults.filter(r => !existingCodes.includes(String(r['CODIGO DE BARRA']).match(/\d+/g)?.join('')));
 
           if(newResults.length === 0) {
             toast({
@@ -1092,7 +1092,7 @@ export default function TryPage() {
         quantity: Number(row["CANTIDAD"]) || null,
         client: (row["CLIENTE INFO"] as string)?.replace("https://www.jtexpress.mx/", "").trim(),
         client_name: row["CLIENTE"],
-        code: Number(row["CODIGO DE BARRA"]) || null,
+        code: Number(String(row["CODIGO DE BARRA"]).match(/\d+/g)?.join('')) || null,
         sales_num: Number(row["NUM DE VENTA"]) || null,
         product: row["PRODUCTO"],
         sku: row["SKU"] || null,
@@ -1471,3 +1471,6 @@ export default function TryPage() {
     </main>
   );
 }
+
+
+    
