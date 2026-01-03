@@ -283,7 +283,11 @@ export default function TryPage() {
             const cleanLabel = rect.label.replace(/ \d*$/, '').trim();
     
             if (extractedText.trim() !== '') {
-                groupData[cleanLabel] = extractedText.trim();
+                if (cleanLabel === 'CODIGO DE BARRA') {
+                    groupData[cleanLabel] = extractedText.trim();
+                } else {
+                    groupData[cleanLabel] = extractedText.trim();
+                }
             }
         }
         return groupData;
@@ -317,7 +321,7 @@ export default function TryPage() {
 
                 let rawData = await extractGroupData(textContent, viewport, primaryGroup);
         
-                if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
+                if (!rawData['CODIGO DE BARRA'] || (rawData['CODIGO DE BARRA'] as string).includes('>') || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
                     rawData = { ...fallbackData, ...rawData };
                 }
@@ -387,10 +391,8 @@ export default function TryPage() {
 
                 let rawData = await extractGroupData(textContent, viewport, primaryGroup);
                 
-                // Use fallback only if primary fails for key info
-                if (!rawData['CODIGO DE BARRA'] || !rawData['CLIENTE INFO']) {
+                if (!rawData['CODIGO DE BARRA'] || (rawData['CODIGO DE BARRA'] as string).includes('>') || !rawData['CLIENTE INFO']) {
                     const fallbackData = await extractGroupData(textContent, viewport, fallbackGroup);
-                    // Combine, giving precedence to fallback data to fill in the gaps.
                     rawData = { ...fallbackData, ...rawData };
                 }
 
@@ -1472,8 +1474,5 @@ export default function TryPage() {
     </main>
   );
 }
-
-
-    
 
     
